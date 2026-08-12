@@ -12,7 +12,13 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Eraser, Minus, Plus } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Eraser, Minus, Plus,
+  CaseSensitive, CaseUpper, CaseLower, Type,
+} from "lucide-react";
 
 type Props = {
   value: string;
@@ -56,6 +62,25 @@ export function Editor({ value, onChange, fonts }: Props) {
       <EditorContent editor={editor} />
     </div>
   );
+}
+
+const LETTER = /[\p{L}\p{N}]/u;
+
+/** Capitaliza cada palabra. `prev` es el carácter anterior en el documento,
+ *  para no cortar una palabra que arranca en otro fragmento con otro formato. */
+function titleCase(text: string, prev: string) {
+  let atBoundary = !LETTER.test(prev) && prev !== "\u2019" && prev !== "'";
+  let out = "";
+  for (const ch of text) {
+    if (LETTER.test(ch)) {
+      out += atBoundary ? ch.toUpperCase() : ch.toLowerCase();
+      atBoundary = false;
+    } else {
+      out += ch;
+      atBoundary = ch !== "'" && ch !== "\u2019";
+    }
+  }
+  return out;
 }
 
 function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] }) {
@@ -109,6 +134,54 @@ function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] })
     editor.chain().focus().toggleBold().run();
   };
 
+  /**
+   * Cambia la caja reescribiendo las letras de verdad, no con
+   * `text-transform` de CSS. Un text-transform es solo visual: al copiar,
+   * el portapapeles se lleva el texto original en minúscula y en Illustrator
+   * pegarías lo de antes. Reescribiendo, lo que ves es lo que viaja.
+   *
+   * Todo va en una sola transacción, así un Ctrl+Z lo deshace entero.
+   */
+  const changeCase = (mode: "upper" | "lower" | "title") => {
+    const { state } = editor;
+    const { empty } = state.selection;
+    const from = empty ? 0 : state.selection.from;
+    const to = empty ? state.doc.content.size : state.selection.to;
+
+    const edits: { start: number; end: number; text: string; marks: readonly any[] }[] = [];
+
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isText || !node.text) return;
+      const start = Math.max(pos, from);
+      const end = Math.min(pos + node.nodeSize, to);
+      if (start >= end) return;
+
+      const slice = node.text.slice(start - pos, end - pos);
+      const prev = start > 0 ? state.doc.textBetween(start - 1, start) : "";
+      const next =
+        mode === "upper" ? slice.toUpperCase() : mode === "lower" ? slice.toLowerCase() : titleCase(slice, prev);
+
+      if (next !== slice) edits.push({ start, end, text: next, marks: node.marks });
+    });
+
+    if (!edits.length) return;
+
+    const tr = state.tr;
+    // De atrás para adelante: así las posiciones de los tramos previos siguen siendo válidas
+    for (let i = edits.length - 1; i >= 0; i--) {
+      const e = edits[i];
+      tr.replaceWith(e.start, e.end, state.schema.text(e.text, e.marks as any));
+    }
+    editor.view.dispatch(tr);
+
+    const size = editor.state.doc.content.size;
+    editor
+      .chain()
+      .focus()
+      .setTextSelection(empty ? size : { from, to: Math.min(to, size) })
+      .run();
+  };
+
   const btn = (active: boolean): "secondary" | "ghost" => (active ? "secondary" : "ghost");
 
   return (
@@ -154,6 +227,25 @@ function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] })
         <Button variant={btn(editor.isActive("underline"))} size="iconSm" onClick={() => editor.chain().focus().toggleUnderline().run()} aria-label="Subrayado">
           <UnderlineIcon />
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="iconSm" aria-label="Cambiar mayúsculas y minúsculas">
+              <CaseSensitive />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => changeCase("upper")}>
+              <CaseUpper /> MAYÚSCULAS
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => changeCase("lower")}>
+              <CaseLower /> minúsculas
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => changeCase("title")}>
+              <Type /> Capitalizar Cada Palabra
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button variant={btn(editor.isActive("bulletList"))} size="iconSm" onClick={() => editor.chain().focus().toggleBulletList().run()} aria-label="Lista con viñetas">
           <List />
         </Button>

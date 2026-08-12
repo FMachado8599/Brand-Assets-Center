@@ -8,6 +8,7 @@ import type { FontFace } from "./types";
  *    negrita falsa: lo que ves es exactamente el archivo.
  *    Ese nombre completo es el que después viaja al portapapeles, porque
  *    es como Illustrator e InDesign nombran las fuentes instaladas.
+ *    En una fuente variable, cada peso se declara fijando el eje wght.
  *
  * 2. Bajo la familia base ("Montserrat") con su peso real, para que el
  *    fallback funcione si el destino solo conoce la familia.
@@ -17,6 +18,19 @@ export function fontFaceCss(fonts: FontFace[]): string {
     .map((f) => {
       const src = `url("${f.file_url}") format("${f.format}")`;
       const style = f.italic ? "italic" : "normal";
+
+      if (f.is_variable) {
+        // Un solo archivo con todos los pesos adentro. Declarar un peso
+        // único (y no un rango) fija el eje wght en ese valor, así
+        // "Montserrat Light" siempre se dibuja en 300 aunque el elemento
+        // pida otra cosa.
+        const pin = `font-variation-settings:"wght" ${f.weight};`;
+        return [
+          `@font-face{font-family:"${f.full_name}";src:${src};font-weight:${f.weight};font-style:${style};${pin}font-display:swap;}`,
+          `@font-face{font-family:"${f.family}";src:${src};font-weight:${f.weight};font-style:${style};${pin}font-display:swap;}`,
+        ].join("\n");
+      }
+
       return [
         `@font-face{font-family:"${f.full_name}";src:${src};font-weight:1 1000;font-style:${style};font-display:swap;}`,
         `@font-face{font-family:"${f.family}";src:${src};font-weight:${f.weight};font-style:${style};font-display:swap;}`,
@@ -130,49 +144,4 @@ export function groupByFamily(fonts: FontFace[]) {
     list.sort((a, b) => a.weight - b.weight || Number(a.italic) - Number(b.italic));
   }
   return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-}
-
-/** Lee family / style / weight / italic desde el nombre del archivo. */
-export function guessFromFilename(filename: string) {
-  const clean = filename.replace(/\.(woff2|woff|ttf|otf)$/i, "");
-  const parts = clean.split(/[-_]/);
-  const raw = parts.length > 1 ? parts.slice(1).join(" ") : "";
-  const family = parts[0].replace(/([a-z])([A-Z])/g, "$1 $2").trim() || clean;
-
-  const italic = /italic|oblique/i.test(raw);
-  const styleRaw = raw.replace(/italic|oblique/gi, "").trim();
-
-  const table: [RegExp, number, string][] = [
-    [/extra\s*light|ultra\s*light/i, 200, "ExtraLight"],
-    [/semi\s*bold|demi\s*bold/i, 600, "SemiBold"],
-    [/extra\s*bold|ultra\s*bold/i, 800, "ExtraBold"],
-    [/thin|hairline/i, 100, "Thin"],
-    [/light/i, 300, "Light"],
-    [/medium/i, 500, "Medium"],
-    [/black|heavy/i, 900, "Black"],
-    [/bold/i, 700, "Bold"],
-    [/regular|normal|book/i, 400, "Regular"],
-  ];
-
-  let weight = 400;
-  let styleName = "Regular";
-  for (const [re, w, label] of table) {
-    if (re.test(styleRaw)) {
-      weight = w;
-      styleName = label;
-      break;
-    }
-  }
-  if (italic && styleName === "Regular") styleName = "Italic";
-  else if (italic) styleName = `${styleName} Italic`;
-
-  return { family, styleName, weight, italic };
-}
-
-export function formatFromFilename(filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext === "woff2") return "woff2";
-  if (ext === "woff") return "woff";
-  if (ext === "otf") return "opentype";
-  return "truetype";
 }

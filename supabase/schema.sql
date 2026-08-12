@@ -33,6 +33,7 @@ create table if not exists fonts (
   file_path text not null,              -- storage path
   file_url text not null,               -- url pública
   format text not null default 'woff2', -- woff2 | woff | truetype | opentype
+  is_variable boolean not null default false, -- un archivo con varios pesos adentro
   created_at timestamptz not null default now()
 );
 

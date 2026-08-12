@@ -19,6 +19,8 @@ Guarda textos con su formato y su tipografía, y los copia listos para pegar.
 2. Cuando termine de crearse, andá a **SQL Editor** → **New query**.
 3. Abrí el archivo `supabase/schema.sql` de este repo, copiá todo el contenido, pegalo y apretá **Run**.
 
+> Si ya habías corrido una versión anterior de `schema.sql`, corré también `supabase/migracion-fuentes-variables.sql`: agrega la columna que marca las fuentes variables.
+
 Eso crea las tablas, los permisos y el bucket `fonts` para los archivos de tipografía. Ya quedan cargadas tres categorías de ejemplo (Autonomía, Seguridad, Tecnología) y una marca "General".
 
 ### 2. Copiar las credenciales
@@ -75,9 +77,21 @@ Si vas a hacer esto seguido, empezá probando el botón Copiar. Si Illustrator t
 
 ## Cómo se cargan las tipografías
 
-**Ajustes** (engranaje) → pestaña **Tipografías** → seleccioná todos los archivos de la familia de una vez.
+**Ajustes** (engranaje) → pestaña **Tipografías** → seleccioná todos los archivos de la familia de una vez. Los archivos se van sumando a la cola, y cada uno se puede sacar con la **×** antes de guardar.
 
-La app lee el nombre del archivo y completa familia, estilo y peso sola. `Montserrat-Light.woff2` se convierte en familia "Montserrat", estilo "Light", peso 300. Podés corregir cualquier campo antes de guardar.
+**No se elige ni el peso ni el estilo.** La app abre el archivo y lee sus metadatos reales (las tablas `name`, `fvar` y `OS/2` del formato OpenType), así que familia, estilo y peso salen de adentro de la fuente. Funciona con `.ttf`, `.otf`, `.ttc` y `.woff`. Con `.woff2` no se puede leer adentro, así que ahí se deduce por el nombre y el grupo queda marcado como "Deducido del nombre" para que revises.
+
+Cada peso en la cola **se previsualiza con su propio archivo** antes de guardar: no tenés que adivinar cuál es Thin y cuál ExtraLight, los ves. La cola se agrupa por familia, así veinte archivos son una tarjeta y no veinte filas.
+
+### Fuentes variables
+
+Un archivo como `Montserrat-VariableFont_wght.ttf` no es un peso: son los nueve, adentro de un mismo archivo. Es lo que descarga Google Fonts por defecto.
+
+La app lo detecta y te muestra los pesos que trae — Thin, ExtraLight, Light, Regular, Medium, SemiBold, Bold, ExtraBold, Black — para que elijas cuáles registrar. El archivo se sube una sola vez y cada peso queda fijado con `font-variation-settings`, así que "Montserrat Light" siempre se dibuja en 300 de verdad.
+
+Si dos archivos van a producir el mismo nombre, la fila lo avisa en rojo antes de guardar.
+
+**Para el flujo hacia Illustrator conviene instalar los pesos estáticos.** El .zip de Google Fonts trae una carpeta `static/` con `Montserrat-Light.ttf`, `Montserrat-Bold.ttf`, etc. Illustrator maneja fuentes instaladas por nombre, y los archivos estáticos son mucho más predecibles que las instancias nombradas de una variable. En la app podés usar la variable sin problema; lo que tiene que estar instalado en la máquina son los estáticos.
 
 Cada archivo se registra con su **nombre completo** ("Montserrat Light") como si fuera una fuente independiente. Es a propósito: así el navegador nunca inventa una negrita falsa, y el nombre que se guarda es el mismo que Illustrator e InDesign usan para identificar la fuente instalada.
 

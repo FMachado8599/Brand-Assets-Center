@@ -11,6 +11,7 @@ export type FontFace = {
   file_path: string;
   file_url: string;
   format: string;      // woff2 | woff | truetype | opentype
+  is_variable: boolean; // un archivo con varios pesos adentro
   created_at: string;
 };
 
