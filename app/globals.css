@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Papel de prueba de imprenta + tinta magenta */
+    --background: 40 24% 98%;
+    --foreground: 240 6% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 10%;
+    --primary: 336 78% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 12% 94%;
+    --secondary-foreground: 240 6% 14%;
+    --muted: 40 12% 94%;
+    --muted-foreground: 240 4% 44%;
+    --accent: 40 14% 92%;
+    --accent-foreground: 240 6% 14%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 10% 88%;
+    --input: 40 10% 86%;
+    --ring: 336 78% 38%;
+    --radius: 0.6rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-ui antialiased; }
+  :focus-visible { @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background; }
+}
+
+.eyebrow {
+  @apply text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground;
+}
+
+.rich { @apply leading-snug; }
+.rich p { margin: 0 0 0.35em 0; }
+.rich p:last-child { margin-bottom: 0; }
+.rich ul { list-style: disc; padding-left: 1.25em; margin: 0 0 0.35em; }
+.rich ol { list-style: decimal; padding-left: 1.25em; margin: 0 0 0.35em; }
+
+.ProseMirror { min-height: 200px; outline: none; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  @apply text-muted-foreground;
+}
+
+.proof-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.55) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
