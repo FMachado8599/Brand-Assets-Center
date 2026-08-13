@@ -13,14 +13,27 @@ create table if not exists brands (
   created_at timestamptz not null default now()
 );
 
--- 2. Categorías ---------------------------------------------
+-- 2. Productos (modelos de cada marca) ----------------------
+create table if not exists products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  brand_id uuid not null references brands(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+-- Un modelo es único dentro de su marca, no en todo el sistema
+create unique index if not exists products_brand_name_idx
+  on products (brand_id, lower(name));
+create index if not exists products_brand_idx on products(brand_id);
+
+-- 3. Categorías ---------------------------------------------
 create table if not exists categories (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
   created_at timestamptz not null default now()
 );
 
--- 3. Tipografías --------------------------------------------
+-- 4. Tipografías --------------------------------------------
 -- Cada archivo subido = una "face". full_name es el nombre que
 -- va a viajar al portapapeles (ej: "Montserrat Light").
 create table if not exists fonts (
@@ -37,7 +50,7 @@ create table if not exists fonts (
   created_at timestamptz not null default now()
 );
 
--- 4. Tarjetas -----------------------------------------------
+-- 5. Tarjetas -----------------------------------------------
 create table if not exists cards (
   id uuid primary key default gen_random_uuid(),
   title text not null default '',
@@ -45,12 +58,14 @@ create table if not exists cards (
   content_text text not null default '',
   category_id uuid references categories(id) on delete set null,
   brand_id uuid references brands(id) on delete set null,
+  product_id uuid references products(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists cards_brand_idx on cards(brand_id);
 create index if not exists cards_category_idx on cards(category_id);
+create index if not exists cards_product_idx on cards(product_id);
 create index if not exists cards_updated_idx on cards(updated_at desc);
 
 -- updated_at automático
@@ -63,25 +78,28 @@ drop trigger if exists cards_touch on cards;
 create trigger cards_touch before update on cards
 for each row execute function touch_updated_at();
 
--- 5. Permisos ------------------------------------------------
+-- 6. Permisos ------------------------------------------------
 -- App interna sin login: cualquiera con el link puede leer/escribir.
 -- Si más adelante querés login, borrá estas policies y usá auth.uid().
 alter table brands     enable row level security;
+alter table products   enable row level security;
 alter table categories enable row level security;
 alter table fonts      enable row level security;
 alter table cards      enable row level security;
 
 drop policy if exists "acceso abierto" on brands;
+drop policy if exists "acceso abierto" on products;
 drop policy if exists "acceso abierto" on categories;
 drop policy if exists "acceso abierto" on fonts;
 drop policy if exists "acceso abierto" on cards;
 
 create policy "acceso abierto" on brands     for all using (true) with check (true);
+create policy "acceso abierto" on products   for all using (true) with check (true);
 create policy "acceso abierto" on categories for all using (true) with check (true);
 create policy "acceso abierto" on fonts      for all using (true) with check (true);
 create policy "acceso abierto" on cards      for all using (true) with check (true);
 
--- 6. Storage para los archivos de fuente ---------------------
+-- 7. Storage para los archivos de fuente ---------------------
 insert into storage.buckets (id, name, public)
 values ('fonts', 'fonts', true)
 on conflict (id) do nothing;
@@ -94,7 +112,7 @@ create policy "fonts lectura" on storage.objects
 create policy "fonts escritura" on storage.objects
   for all using (bucket_id = 'fonts') with check (bucket_id = 'fonts');
 
--- 7. Datos de arranque ---------------------------------------
+-- 8. Datos de arranque ---------------------------------------
 insert into categories (name) values
   ('Autonomía'), ('Seguridad'), ('Tecnología')
 on conflict (name) do nothing;

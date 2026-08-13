@@ -3,9 +3,11 @@
 Guarda textos con su formato y su tipografía, y los copia listos para pegar.
 
 - Tarjetas con texto enriquecido (negrita, cursiva, subrayado, listas, tamaño)
+- Cambio de caja: MAYÚSCULAS, minúsculas y Capitalizar Cada Palabra — reescribe las letras de verdad, así viajan bien al portapapeles
 - **Cada fragmento guarda su tipografía exacta**, incluido el peso: "Montserrat Light" y "Montserrat Bold" conviven en el mismo párrafo
 - Subida de archivos de fuente (`.woff2`, `.woff`, `.ttf`, `.otf`) con detección automática de familia y peso
-- Clasificación por **marca** (pestañas) y **categoría** (filtros)
+- Clasificación por **marca**, **producto** (el modelo dentro de la marca) y **categoría**, con filtros de selección múltiple
+- Las tarjetas se agrupan solas: la marca es una columna y cada producto abre su propia fila
 - Búsqueda por texto
 - Copiar con formato · Copiar sin formato · Descargar `.rtf`
 
@@ -19,7 +21,7 @@ Guarda textos con su formato y su tipografía, y los copia listos para pegar.
 2. Cuando termine de crearse, andá a **SQL Editor** → **New query**.
 3. Abrí el archivo `supabase/schema.sql` de este repo, copiá todo el contenido, pegalo y apretá **Run**.
 
-> Si ya habías corrido una versión anterior de `schema.sql`, corré también `supabase/migracion-fuentes-variables.sql`: agrega la columna que marca las fuentes variables.
+> Si ya habías corrido una versión anterior de `schema.sql`, corré `supabase/migracion-productos.sql`: agrega la tabla de productos, la columna `product_id` en las tarjetas y la columna que marca las fuentes variables. Es acumulativo, no hace falta nada más.
 
 Eso crea las tablas, los permisos y el bucket `fonts` para los archivos de tipografía. Ya quedan cargadas tres categorías de ejemplo (Autonomía, Seguridad, Tecnología) y una marca "General".
 
@@ -53,6 +55,32 @@ Listo: la URL que te da Vercel funciona desde cualquier dispositivo, sin instala
 
 ---
 
+## Marcas, productos y categorías
+
+Son tres clasificaciones independientes que se cruzan:
+
+- **Marca** — Changan, por ejemplo.
+- **Producto** — el modelo dentro de esa marca: Lumin, Hunter, Eado, CS55, Q05. Un producto siempre pertenece a una marca, así que el selector de producto solo te ofrece los modelos de la marca elegida, tanto al crear una tarjeta como al filtrar.
+- **Categoría** — transversal a todas las marcas: Autonomía, Seguridad, Tecnología.
+
+Los tres filtros son de selección múltiple: podés marcar dos marcas y tres categorías a la vez.
+
+Las tarjetas se ordenan solas en dos niveles. La marca es una columna, y adentro cada producto abre un divisor con su nombre a la izquierda y sus tarjetas en fila:
+
+```
+LUMIN ─────────────────────────
+[Autonomía]  [Autonomía 2]
+
+HUNTER ────────────────────────
+[Autonomía]
+```
+
+El encabezado de marca aparece solo cuando hay más de una a la vista, para no repetir lo obvio. Las tarjetas sin producto asignado quedan agrupadas al final bajo "Sin producto".
+
+Borrar una marca borra también sus productos; las tarjetas sobreviven, quedan sin marca.
+
+---
+
 ## Cómo pegar en Illustrator conservando la tipografía
 
 Esto es lo más delicado del proyecto, así que conviene ser preciso.
@@ -63,15 +91,21 @@ Con eso resuelto, hay dos caminos:
 
 ### Copiar (el botón principal)
 
-Pone el texto en el portapapeles con formato HTML: nombre de fuente, peso, tamaño y estilo por fragmento. Funciona muy bien en Word, Google Docs, InDesign y Figma. En Illustrator depende de la versión y del sistema operativo: a veces respeta todo, a veces pega texto plano.
+Pone el texto en el portapapeles con formato HTML: nombre de fuente, peso, tamaño y estilo por fragmento. Funciona muy bien en Word, Google Docs, InDesign y Figma.
 
-### Descargar .rtf (el camino confiable)
+**En Illustrator no esperes que conserve los cambios de peso dentro de una misma línea.** No es un problema de la app: el navegador solo puede poner HTML y texto plano en el portapapeles del sistema, e Illustrator no mapea fuentes por fragmento desde HTML. Para verificarlo, pegá en Word: si ahí ves los pesos alternados, la app hizo su parte.
 
-En el menú `···` de la tarjeta. Descarga un archivo `.rtf` donde cada fuente figura por su nombre completo en la tabla de fuentes del documento.
+### Descargar .svg (el mejor camino a Illustrator)
 
-En Illustrator: **Archivo → Colocar**, elegí el `.rtf`, y en el cuadro de opciones **destildá "Eliminar formato de texto"**. Ahí entra respetando cada peso, incluidos varios pesos distintos dentro del mismo párrafo.
+En el menú `···`. Cada fragmento sale como un `<tspan>` con su propia `font-family`. Abrilo o arrastralo a Illustrator y entra como **texto vivo y editable**, con cada peso en su lugar — incluidos varios pesos dentro del mismo párrafo.
 
-Si vas a hacer esto seguido, empezá probando el botón Copiar. Si Illustrator te pega Arial, pasá al `.rtf` y no vuelvas a pelear con el portapapeles.
+Es el único camino donde los cambios de peso sobreviven de punta a punta.
+
+### Descargar .rtf (para InDesign y Word)
+
+También en el menú `···`. Cada fuente figura por su nombre completo en la tabla de fuentes del documento.
+
+En InDesign: **Archivo → Colocar**, y destildá "Eliminar formato de texto". Illustrator también acepta `.rtf` por Colocar, pero es más caprichoso que el SVG.
 
 ---
 

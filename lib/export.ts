@@ -185,6 +185,69 @@ export function toRichHtml(blocks: Block[]): string {
   return `<meta charset="utf-8"><div style="color:#000">${body}</div>`;
 }
 
+function xmlEscape(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * SVG: el camino más fiel hacia Illustrator.
+ *
+ * Cada fragmento se convierte en un <tspan> con su propia font-family, y
+ * Illustrator lo abre como texto vivo y editable respetando cada fuente.
+ * A diferencia del portapapeles, acá los cambios de peso dentro de una
+ * misma línea sobreviven: "Montserrat Medium" y "Montserrat Bold" entran
+ * como dos fuentes distintas en el mismo párrafo.
+ */
+export function toSvg(blocks: Block[]): string {
+  const PAD = 24;
+  let y = 0;
+  let width = 0;
+
+  const texts = blocks
+    .map((b) => {
+      const maxSize = Math.max(12, ...b.runs.map((r) => r.sizePx));
+      const lineHeight = maxSize * 1.35;
+      y += lineHeight;
+
+      const prefix = b.bullet ? `${b.bullet} ` : "";
+      // Ancho aproximado: alcanza para que Illustrator no recorte el lienzo
+      const guess = b.runs.reduce((n, r) => n + r.text.length * r.sizePx * 0.58, prefix.length * maxSize * 0.58);
+      width = Math.max(width, guess);
+
+      const spans = b.runs
+        .map((r) => {
+          const f = r.face;
+          const attrs = [
+            f ? `font-family="${xmlEscape(f.fullName)}"` : "",
+            f ? `font-weight="${f.syntheticBold ? 700 : f.weight}"` : "",
+            f && (f.italic || f.syntheticItalic) ? `font-style="italic"` : "",
+            `font-size="${Math.round(r.sizePx)}"`,
+            r.underline ? `text-decoration="underline"` : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return `<tspan ${attrs} xml:space="preserve">${xmlEscape(r.text)}</tspan>`;
+        })
+        .join("");
+
+      const bullet = prefix ? `<tspan font-size="${Math.round(maxSize)}" xml:space="preserve">${xmlEscape(prefix)}</tspan>` : "";
+      return `  <text x="${PAD}" y="${Math.round(y + PAD)}" fill="#000000">${bullet}${spans}</text>`;
+    })
+    .join("\n");
+
+  const w = Math.ceil(width + PAD * 2);
+  const h = Math.ceil(y + PAD * 2);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+${texts}
+</svg>`;
+}
+
 function rtfEscape(s: string): string {
   let out = "";
   for (const ch of s) {

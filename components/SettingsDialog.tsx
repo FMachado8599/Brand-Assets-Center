@@ -16,7 +16,7 @@
 
 import * as React from "react";
 import { supabase } from "@/lib/supabase";
-import type { Brand, Category, FontFace } from "@/lib/types";
+import type { Brand, Category, FontFace, Product } from "@/lib/types";
 import { groupByFamily } from "@/lib/fonts";
 import { toast } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, UploadCloud, X, AlertTriangle, Loader2, Check, Pencil } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -295,6 +296,7 @@ type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   brands: Brand[];
+  products: Product[];
   categories: Category[];
   fonts: FontFace[];
   reload: () => Promise<void>;
@@ -302,7 +304,7 @@ type Props = {
 
 const COLORS = ["#B61760", "#1D4ED8", "#047857", "#B45309", "#6D28D9", "#52525B"];
 
-export function SettingsDialog({ open, onOpenChange, brands, categories, fonts, reload }: Props) {
+export function SettingsDialog({ open, onOpenChange, brands, products, categories, fonts, reload }: Props) {
   const [tab, setTab] = React.useState("marcas");
 
   return (
@@ -315,6 +317,7 @@ export function SettingsDialog({ open, onOpenChange, brands, categories, fonts, 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="marcas">Marcas</TabsTrigger>
+            <TabsTrigger value="productos">Productos</TabsTrigger>
             <TabsTrigger value="categorias">Categorías</TabsTrigger>
             <TabsTrigger value="tipografias">Tipografías</TabsTrigger>
           </TabsList>
@@ -322,6 +325,7 @@ export function SettingsDialog({ open, onOpenChange, brands, categories, fonts, 
 
         <div className="max-h-[58vh] overflow-y-auto pr-1">
           {tab === "marcas" && <BrandsPanel brands={brands} reload={reload} />}
+          {tab === "productos" && <ProductsPanel brands={brands} products={products} reload={reload} />}
           {tab === "categorias" && <CategoriesPanel categories={categories} reload={reload} />}
           {tab === "tipografias" && <FontsPanel fonts={fonts} reload={reload} />}
         </div>
@@ -346,6 +350,7 @@ function BrandsPanel({ brands, reload }: { brands: Brand[]; reload: () => Promis
   };
 
   const remove = async (id: string) => {
+    if (!confirm("¿Eliminar la marca? Sus productos también se eliminan; las tarjetas quedan sin marca.")) return;
     const { error } = await supabase.from("brands").delete().eq("id", id);
     if (error) return toast(error.message, "error");
     await reload();
@@ -394,6 +399,120 @@ function BrandsPanel({ brands, reload }: { brands: Brand[]; reload: () => Promis
         ))}
         {!brands.length && <li className="px-3 py-6 text-center text-sm text-muted-foreground">Todavía no hay marcas.</li>}
       </ul>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ Productos */
+
+function ProductsPanel({
+  brands,
+  products,
+  reload,
+}: {
+  brands: Brand[];
+  products: Product[];
+  reload: () => Promise<void>;
+}) {
+  const [name, setName] = React.useState("");
+  const [brandId, setBrandId] = React.useState<string>(brands[0]?.id || "");
+
+  React.useEffect(() => {
+    if (!brandId && brands.length) setBrandId(brands[0].id);
+  }, [brands, brandId]);
+
+  const add = async () => {
+    if (!name.trim() || !brandId) return;
+    const { error } = await supabase.from("products").insert({ name: name.trim(), brand_id: brandId });
+    if (error) {
+      // El índice único es (marca, nombre): el mismo modelo en dos marcas sí se puede
+      return toast(
+        /duplicate|unique/i.test(error.message) ? "Esa marca ya tiene un modelo con ese nombre" : error.message,
+        "error"
+      );
+    }
+    setName("");
+    await reload();
+    toast("Producto creado");
+  };
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) return toast(error.message, "error");
+    await reload();
+    toast("Producto eliminado");
+  };
+
+  if (!brands.length) {
+    return (
+      <p className="rounded-lg border px-3 py-6 text-center text-sm text-muted-foreground">
+        Primero creá una marca. Cada producto pertenece a una.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-[150px]">
+          <Label>Marca</Label>
+          <Select value={brandId} onValueChange={setBrandId}>
+            <SelectTrigger className="mt-1.5">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {brands.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[160px] flex-1">
+          <Label htmlFor="producto">Nombre del producto</Label>
+          <Input
+            id="producto"
+            className="mt-1.5"
+            value={name}
+            placeholder="Ej: Lumin"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+          />
+        </div>
+        <Button onClick={add}>
+          <Plus /> Agregar
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {brands.map((b) => {
+          const list = products.filter((p) => p.brand_id === b.id);
+          return (
+            <div key={b.id} className="rounded-lg border">
+              <div className="flex items-center gap-2 border-b bg-secondary/40 px-3 py-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: b.color }} />
+                <p className="flex-1 text-sm font-semibold">{b.name}</p>
+                <span className="text-xs text-muted-foreground">{list.length}</span>
+              </div>
+              {list.length ? (
+                <ul className="divide-y">
+                  {list.map((p) => (
+                    <li key={p.id} className="flex items-center gap-3 px-3 py-2">
+                      <span className="flex-1 text-sm">{p.name}</span>
+                      <Button variant="ghost" size="iconSm" onClick={() => remove(p.id)} aria-label={`Eliminar ${p.name}`}>
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">Sin modelos todavía.</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

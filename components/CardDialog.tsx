@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { Brand, Card, Category, FontFace } from "@/lib/types";
+import type { Brand, Card, Category, FontFace, Product } from "@/lib/types";
 import { Editor } from "./Editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ type Draft = {
   content_html: string;
   content_text: string;
   brand_id: string | null;
+  product_id: string | null;
   category_id: string | null;
 };
 
@@ -25,17 +26,19 @@ type Props = {
   onOpenChange: (v: boolean) => void;
   card: Card | null;
   brands: Brand[];
+  products: Product[];
   categories: Category[];
   fonts: FontFace[];
   onSave: (draft: Draft) => Promise<void>;
 };
 
-export function CardDialog({ open, onOpenChange, card, brands, categories, fonts, onSave }: Props) {
+export function CardDialog({ open, onOpenChange, card, brands, products, categories, fonts, onSave }: Props) {
   const [draft, setDraft] = React.useState<Draft>({
     title: "",
     content_html: "",
     content_text: "",
     brand_id: null,
+    product_id: null,
     category_id: null,
   });
   const [saving, setSaving] = React.useState(false);
@@ -50,11 +53,21 @@ export function CardDialog({ open, onOpenChange, card, brands, categories, fonts
             content_html: card.content_html,
             content_text: card.content_text,
             brand_id: card.brand_id,
+            product_id: card.product_id,
             category_id: card.category_id,
           }
-        : { title: "", content_html: "", content_text: "", brand_id: null, category_id: null }
+        : { title: "", content_html: "", content_text: "", brand_id: null, product_id: null, category_id: null }
     );
   }, [open, card]);
+
+  /* Solo se ofrecen los modelos de la marca elegida. */
+  const brandProducts = products.filter((p) => p.brand_id === draft.brand_id);
+
+  /* Cambiar de marca suelta el modelo si ya no pertenece. */
+  const setBrand = (brandId: string | null) => {
+    const stillValid = products.find((p) => p.id === draft.product_id)?.brand_id === brandId;
+    setDraft({ ...draft, brand_id: brandId, product_id: stillValid ? draft.product_id : null });
+  };
 
   const save = async () => {
     setSaving(true);
@@ -88,10 +101,7 @@ export function CardDialog({ open, onOpenChange, card, brands, categories, fonts
 
             <div>
               <Label>Marca</Label>
-              <Select
-                value={draft.brand_id || NONE}
-                onValueChange={(v) => setDraft({ ...draft, brand_id: v === NONE ? null : v })}
-              >
+              <Select value={draft.brand_id || NONE} onValueChange={(v) => setBrand(v === NONE ? null : v)}>
                 <SelectTrigger className="mt-1.5">
                   <SelectValue placeholder="Elegir marca" />
                 </SelectTrigger>
@@ -100,6 +110,35 @@ export function CardDialog({ open, onOpenChange, card, brands, categories, fonts
                   {brands.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
                       {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Producto</Label>
+              <Select
+                value={draft.product_id || NONE}
+                onValueChange={(v) => setDraft({ ...draft, product_id: v === NONE ? null : v })}
+                disabled={!draft.brand_id || !brandProducts.length}
+              >
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue
+                    placeholder={
+                      !draft.brand_id
+                        ? "Elegí una marca"
+                        : !brandProducts.length
+                        ? "Esta marca no tiene modelos"
+                        : "Elegir producto"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Sin producto</SelectItem>
+                  {brandProducts.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,5 +1,7 @@
 export type Brand = { id: string; name: string; color: string; created_at: string };
 export type Category = { id: string; name: string; created_at: string };
+/** Modelo dentro de una marca. Ej: Changan → Lumin, Hunter, Eado. */
+export type Product = { id: string; name: string; brand_id: string; created_at: string };
 
 export type FontFace = {
   id: string;
@@ -22,6 +24,7 @@ export type Card = {
   content_text: string;
   category_id: string | null;
   brand_id: string | null;
+  product_id: string | null;
   created_at: string;
   updated_at: string;
 };

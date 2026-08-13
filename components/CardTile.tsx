@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import type { Brand, Card as CardType, Category, FontFace } from "@/lib/types";
-import { parseBlocks, toRichHtml, toRtf, toPlainText, facesUsed } from "@/lib/export";
-import { copyRich, copyPlain, downloadRtf } from "@/lib/clipboard";
+import type { Brand, Card as CardType, Category, FontFace, Product } from "@/lib/types";
+import { parseBlocks, toRichHtml, toRtf, toSvg, toPlainText, facesUsed } from "@/lib/export";
+import { copyRich, copyPlain, downloadRtf, downloadSvg } from "@/lib/clipboard";
 import { toast } from "@/components/ui/toaster";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,18 +11,19 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Copy, Check, MoreHorizontal, Pencil, Trash2, FileDown, Type } from "lucide-react";
+import { Copy, Check, MoreHorizontal, Pencil, Trash2, FileDown, Type, Shapes } from "lucide-react";
 
 type Props = {
   card: CardType;
   brand?: Brand;
   category?: Category;
+  product?: Product;
   fonts: FontFace[];
   onEdit: () => void;
   onDelete: () => void;
 };
 
-export function CardTile({ card, brand, category, fonts, onEdit, onDelete }: Props) {
+export function CardTile({ card, brand, category, product, fonts, onEdit, onDelete }: Props) {
   const [copied, setCopied] = React.useState(false);
   const [faces, setFaces] = React.useState<string[]>([]);
 
@@ -55,6 +56,7 @@ export function CardTile({ card, brand, category, fonts, onEdit, onDelete }: Pro
                 {brand.name}
               </Badge>
             )}
+            {product && <Badge className="border-transparent bg-foreground/5">{product.name}</Badge>}
             {category && <Badge className="border-transparent bg-secondary text-secondary-foreground">{category.name}</Badge>}
           </div>
         </div>
@@ -78,13 +80,22 @@ export function CardTile({ card, brand, category, fonts, onEdit, onDelete }: Pro
             >
               <Type /> Copiar sin formato
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => {
+                downloadSvg(toSvg(build()), card.title);
+                toast(".svg descargado · abrilo con Illustrator");
+              }}
+            >
+              <Shapes /> Descargar .svg para Illustrator
+            </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
                 downloadRtf(toRtf(build()), card.title);
-                toast("Archivo .rtf descargado");
+                toast(".rtf descargado · Archivo → Colocar");
               }}
             >
-              <FileDown /> Descargar .rtf para Illustrator
+              <FileDown /> Descargar .rtf para InDesign
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onSelect={onDelete}>
