@@ -1,5 +1,5 @@
-import type { FontFace } from "./types";
-import { resolveFace, type ResolvedFace } from "./fonts";
+import type { FontFace } from "../types";
+import { resolveFace, type ResolvedFace } from "../fonts/fonts";
 
 export type Run = {
   text: string;

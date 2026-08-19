@@ -1,9 +1,9 @@
 "use client";
 
-import * as React from "react";
+import { useEffect, useState } from "react";
 import type { Brand, Card as CardType, Category, FontFace, Product } from "@/lib/types";
-import { parseBlocks, toRichHtml, toRtf, toSvg, toPlainText, facesUsed } from "@/lib/export";
-import { copyRich, copyPlain, downloadRtf, downloadSvg } from "@/lib/clipboard";
+import { parseBlocks, toRichHtml, toRtf, toSvg, toPlainText, facesUsed } from "@/lib/cards/export";
+import { copyRich, copyPlain, downloadRtf, downloadSvg } from "@/lib/cards/clipboard";
 import { toast } from "@/components/ui/toaster";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +24,10 @@ type Props = {
 };
 
 export function CardTile({ card, brand, category, product, fonts, onEdit, onDelete }: Props) {
-  const [copied, setCopied] = React.useState(false);
-  const [faces, setFaces] = React.useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [faces, setFaces] = useState<string[]>([]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setFaces(facesUsed(parseBlocks(card.content_html, fonts)));
   }, [card.content_html, fonts]);
 

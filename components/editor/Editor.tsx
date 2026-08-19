@@ -1,13 +1,14 @@
 "use client";
 
-import * as React from "react";
+import { useEffect, useMemo } from "react";
 import { useEditor, EditorContent, type Editor as TipTapEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import { FontSpec } from "./editor-extensions";
+import { applyCase, type CaseMode } from "@/lib/editor/textcase";
 import type { FontFace } from "@/lib/types";
-import { groupByFamily } from "@/lib/fonts";
+import { groupByFamily } from "@/lib/fonts/fonts";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
@@ -45,7 +46,7 @@ export function Editor({ value, onChange, fonts }: Props) {
   });
 
   // Refresca el contenido si la tarjeta cambia desde afuera
-  React.useEffect(() => {
+  useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value || "", false);
     }
@@ -64,27 +65,8 @@ export function Editor({ value, onChange, fonts }: Props) {
   );
 }
 
-const LETTER = /[\p{L}\p{N}]/u;
-
-/** Capitaliza cada palabra. `prev` es el carácter anterior en el documento,
- *  para no cortar una palabra que arranca en otro fragmento con otro formato. */
-function titleCase(text: string, prev: string) {
-  let atBoundary = !LETTER.test(prev) && prev !== "\u2019" && prev !== "'";
-  let out = "";
-  for (const ch of text) {
-    if (LETTER.test(ch)) {
-      out += atBoundary ? ch.toUpperCase() : ch.toLowerCase();
-      atBoundary = false;
-    } else {
-      out += ch;
-      atBoundary = ch !== "'" && ch !== "\u2019";
-    }
-  }
-  return out;
-}
-
 function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] }) {
-  const families = React.useMemo(() => groupByFamily(fonts), [fonts]);
+  const families = useMemo(() => groupByFamily(fonts), [fonts]);
   const attrs = editor.getAttributes("textStyle") as { fontFamily?: string; fontSize?: string };
   const currentFull = attrs.fontFamily || NONE;
   const currentSize = parseInt(attrs.fontSize || "16", 10) || 16;
@@ -142,7 +124,7 @@ function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] })
    *
    * Todo va en una sola transacción, así un Ctrl+Z lo deshace entero.
    */
-  const changeCase = (mode: "upper" | "lower" | "title") => {
+  const changeCase = (mode: CaseMode) => {
     const { state } = editor;
     const { empty } = state.selection;
     const from = empty ? 0 : state.selection.from;
@@ -158,8 +140,7 @@ function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] })
 
       const slice = node.text.slice(start - pos, end - pos);
       const prev = start > 0 ? state.doc.textBetween(start - 1, start) : "";
-      const next =
-        mode === "upper" ? slice.toUpperCase() : mode === "lower" ? slice.toLowerCase() : titleCase(slice, prev);
+      const next = applyCase(slice, mode, prev);
 
       if (next !== slice) edits.push({ start, end, text: next, marks: node.marks });
     });

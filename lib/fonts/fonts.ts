@@ -1,4 +1,4 @@
-import type { FontFace } from "./types";
+import type { FontFace } from "../types";
 
 /**
  * Cada archivo subido se registra DOS veces:

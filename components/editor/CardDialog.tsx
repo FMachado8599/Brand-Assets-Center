@@ -1,8 +1,11 @@
 "use client";
 
-import * as React from "react";
-import type { Brand, Card, Category, FontFace, Product } from "@/lib/types";
-import { Editor } from "./Editor";
+import { useEffect, useState } from "react";
+import type { Card } from "@/lib/types";
+import { cardsRepo, type CardDraft } from "@/lib/repos/cards";
+import { useData } from "@/components/data/DataProvider";
+import { useAction } from "@/hooks/useAction";
+import { Editor } from "../editor/Editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,39 +14,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const NONE = "__none__";
 
-type Draft = {
-  id?: string;
-  title: string;
-  content_html: string;
-  content_text: string;
-  brand_id: string | null;
-  product_id: string | null;
-  category_id: string | null;
+const EMPTY: CardDraft = {
+  title: "",
+  content_html: "",
+  content_text: "",
+  brand_id: null,
+  product_id: null,
+  category_id: null,
 };
 
-type Props = {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  card: Card | null;
-  brands: Brand[];
-  products: Product[];
-  categories: Category[];
-  fonts: FontFace[];
-  onSave: (draft: Draft) => Promise<void>;
-};
+type Props = { open: boolean; onOpenChange: (v: boolean) => void; card: Card | null };
 
-export function CardDialog({ open, onOpenChange, card, brands, products, categories, fonts, onSave }: Props) {
-  const [draft, setDraft] = React.useState<Draft>({
-    title: "",
-    content_html: "",
-    content_text: "",
-    brand_id: null,
-    product_id: null,
-    category_id: null,
-  });
-  const [saving, setSaving] = React.useState(false);
+export function CardDialog({ open, onOpenChange, card }: Props) {
+  const { brands, products, categories, fonts, reload } = useData();
+  const { busy, run } = useAction();
+  const [draft, setDraft] = useState<CardDraft>(EMPTY);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!open) return;
     setDraft(
       card
@@ -56,7 +43,7 @@ export function CardDialog({ open, onOpenChange, card, brands, products, categor
             product_id: card.product_id,
             category_id: card.category_id,
           }
-        : { title: "", content_html: "", content_text: "", brand_id: null, product_id: null, category_id: null }
+        : EMPTY
     );
   }, [open, card]);
 
@@ -70,12 +57,10 @@ export function CardDialog({ open, onOpenChange, card, brands, products, categor
   };
 
   const save = async () => {
-    setSaving(true);
-    try {
-      await onSave(draft);
+    const ok = await run(() => cardsRepo.save(draft), draft.id ? "Tarjeta guardada" : "Tarjeta creada");
+    if (ok) {
+      await reload();
       onOpenChange(false);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -186,8 +171,8 @@ export function CardDialog({ open, onOpenChange, card, brands, products, categor
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={save} disabled={saving}>
-            {saving ? "Guardando…" : "Guardar tarjeta"}
+          <Button onClick={save} disabled={busy}>
+            {busy ? "Guardando…" : "Guardar tarjeta"}
           </Button>
         </div>
       </DialogContent>
