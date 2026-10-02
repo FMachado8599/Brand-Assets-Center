@@ -15,6 +15,7 @@ import { SettingsDialog } from "../settings/SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/toaster";
+import { ModuleNav } from "@/components/nav/ModuleNav";
 import { Plus, Search, Settings } from "lucide-react";
 
 export function AppShell() {
@@ -31,8 +32,9 @@ export function AppShell() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <div className="mr-auto flex items-baseline gap-2.5">
-            <h1 className="text-lg font-semibold tracking-tight">Tarjetas</h1>
+          <div className="mr-auto flex items-center gap-2.5">
+            <h1 className="sr-only">Tarjetas</h1>
+            <ModuleNav />
             <span className="eyebrow hidden sm:inline">
               {filters.visible.length === cards.length
                 ? `${cards.length} en total`

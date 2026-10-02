@@ -141,6 +141,28 @@ Si más adelante necesitás restringirlo, el cambio está acotado: en `supabase/
 
 ---
 
+## Conversor (módulo aparte)
+
+En `/conversor` (pestaña **Conversor** del encabezado) hay un conversor y compresor de archivos que usa la API de [FreeConvert](https://www.freeconvert.com/api/v1/). No depende de Supabase ni toca las tarjetas.
+
+- **Convertir**: imágenes, video, audio, documentos y eBooks. Los formatos de salida posibles se leen en vivo de FreeConvert para cada archivo.
+- **Comprimir**: imágenes, videos y PDFs.
+- **Opciones avanzadas** (ícono de ajustes en cada archivo): el formulario se arma solo con el esquema que publica FreeConvert para ese par de formatos (calidad, tamaño, códec, etc.). Las etiquetas vienen de la API, en inglés.
+
+### Configuración
+
+Sacá una API key en [freeconvert.com/api](https://www.freeconvert.com/api) y agregala como variable de entorno (en `.env.local` y en Vercel):
+
+```
+FREECONVERT_API_KEY=...
+```
+
+Va **sin** `NEXT_PUBLIC_`: la key solo vive en el servidor (`app/api/freeconvert/*`). El navegador pide crear el job a esa ruta, recibe un formulario de subida firmado y manda el archivo directo a FreeConvert, así que los archivos grandes no pasan por Vercel.
+
+Cada conversión consume minutos de tu plan de FreeConvert.
+
+---
+
 ## Stack
 
 Next.js 14 (App Router) · React · TypeScript · Tailwind + shadcn/ui · Tiptap · Supabase (Postgres + Storage)
