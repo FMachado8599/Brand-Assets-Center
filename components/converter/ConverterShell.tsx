@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Archive, Download, FileUp, Plus, RefreshCw, ShieldCheck, Zap } from "lucide-react";
-import { ModuleNav } from "@/components/nav/ModuleNav";
-import { Button } from "@/components/ui/button";
+import { Archive, Download, FileUp, Play, Plus, RefreshCw, Settings, ShieldCheck, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { isBusy, useConverterQueue } from "@/hooks/useConverterQueue";
+import { BarAction, BarButton, BarDivider, BarPopover, BarSegmented, ContextBar } from "@/components/shell/ContextBar";
+import { isBusy, useConverterQueue, type QueueSettings } from "@/hooks/useConverterQueue";
+import { useStoredState } from "@/hooks/useStoredState";
 import { outputName, type FormatTarget, type Operation, type Targets } from "@/lib/converter/catalog";
 import { cn } from "@/lib/utils";
+import { ConverterSettings } from "./ConverterSettings";
 import { FileRow } from "./FileRow";
 import { FormatPicker } from "./FormatPicker";
 import { OptionsDialog } from "./OptionsDialog";
@@ -29,9 +30,12 @@ const MODES: { value: Operation; label: string; title: string; lead: string; act
   },
 ];
 
+const DEFAULT_SETTINGS: QueueSettings = { concurrency: 3, preferred: {} };
+
 export function ConverterShell({ configured }: { configured: boolean }) {
   const [operation, setOperation] = useState<Operation>("convert");
-  const queue = useConverterQueue(operation);
+  const [settings, setSettings] = useStoredState<QueueSettings>("conversor:ajustes", DEFAULT_SETTINGS);
+  const queue = useConverterQueue(operation, settings);
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,7 +47,7 @@ export function ConverterShell({ configured }: { configured: boolean }) {
   const done = items.filter((i) => i.status === "done" && i.url);
   const editing = items.find((i) => i.id === optionsFor);
 
-  // "Convertir todo a…" ofrece la unión de formatos posibles de los archivos pendientes.
+  // "Todo a…" ofrece la unión de formatos posibles de los archivos pendientes.
   const sharedTargets = useMemo<Targets | null>(() => {
     const groups: Record<string, FormatTarget[]> = {};
     for (const i of items) {
@@ -88,130 +92,123 @@ export function ConverterShell({ configured }: { configured: boolean }) {
         pick(e.dataTransfer.files);
       }}
     >
-      <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <h1 className="sr-only">{mode.title}</h1>
-          <div className="mr-auto">
-            <ModuleNav />
-          </div>
-          <div className="inline-flex items-center gap-1 rounded-lg border bg-card p-1" role="tablist" aria-label="Operación">
-            {MODES.map((m) => (
-              <button
-                key={m.value}
-                role="tab"
-                aria-selected={operation === m.value}
-                disabled={anyBusy}
-                onClick={() => setOperation(m.value)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50",
-                  operation === m.value && "bg-primary text-primary-foreground hover:text-primary-foreground"
-                )}
-              >
-                {m.value === "convert" ? <RefreshCw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-                {m.label}
-              </button>
-            ))}
-          </div>
+      <ContextBar>
+        <BarSegmented<Operation>
+          label="Operación"
+          value={operation}
+          onChange={setOperation}
+          disabled={anyBusy}
+          options={[
+            { value: "convert", label: "Convertir", icon: RefreshCw },
+            { value: "compress", label: "Comprimir", icon: Archive },
+          ]}
+        />
+        <BarDivider />
+        <BarButton label="Agregar archivos" icon={Plus} onClick={() => inputRef.current?.click()} />
+        <BarPopover label="Configuración" icon={Settings} className="w-80">
+          <ConverterSettings settings={settings} onChange={setSettings} configured={configured} />
+        </BarPopover>
+        {done.length > 1 && <BarButton label="Descargar todo" icon={Download} onClick={downloadAll} />}
+        {ready.length > 0 && (
+          <>
+            <BarDivider />
+            <BarAction label={mode.action} icon={Play} onClick={queue.start} disabled={!configured}>
+              {mode.action}
+              {ready.length > 1 && ` ${ready.length}`}
+            </BarAction>
+          </>
+        )}
+      </ContextBar>
+
+      <main className="mx-auto max-w-3xl px-4 pb-16 pt-[6.5rem] sm:px-6">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{mode.title}</h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{mode.lead}</p>
         </div>
-      </header>
 
-      <main className="proof-grid min-h-[calc(100vh-4rem)]">
-        <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-          <div className="mb-6 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{mode.title}</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{mode.lead}</p>
+        {!configured && (
+          <div className="mb-4 rounded-2xl border border-destructive/40 bg-card p-4 text-sm">
+            <Badge className="mb-2 border-destructive text-destructive">Falta configurar</Badge>
+            <p className="text-muted-foreground">
+              Agregá <code className="rounded bg-secondary px-1">FREECONVERT_API_KEY</code> en las variables de entorno y
+              reiniciá el servidor. Podés ver los formatos, pero no convertir.
+            </p>
           </div>
+        )}
 
-          {!configured && (
-            <div className="mb-4 rounded-lg border border-destructive/40 bg-card p-4 text-sm">
-              <Badge className="mb-2 border-destructive text-destructive">Falta configurar</Badge>
-              <p className="text-muted-foreground">
-                Agregá <code className="rounded bg-secondary px-1">FREECONVERT_API_KEY</code> en las variables de entorno
-                y reiniciá el servidor. Podés ver los formatos, pero no convertir.
-              </p>
-            </div>
-          )}
+        <input ref={inputRef} type="file" multiple hidden onChange={(e) => pick(e.target.files)} />
 
-          <input ref={inputRef} type="file" multiple hidden onChange={(e) => pick(e.target.files)} />
+        {items.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className={cn(
+              "flex w-full flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-foreground/10 bg-card/80 px-6 py-14 text-center shadow-sm transition-colors hover:border-primary",
+              dragging && "border-primary bg-primary/10"
+            )}
+          >
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/25">
+              <FileUp className="h-6 w-6" />
+            </span>
+            <span className="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-base font-semibold text-primary-foreground shadow-sm">
+              <Plus className="h-4 w-4" /> Elegir archivos
+            </span>
+            <span className="text-sm text-muted-foreground">o arrastralos acá</span>
+          </button>
+        ) : (
+          <div className={cn("overflow-hidden rounded-3xl border bg-card shadow-sm", dragging && "ring-2 ring-primary")}>
+            <ul className="divide-y">
+              {items.map((item) => (
+                <FileRow
+                  key={item.id}
+                  item={item}
+                  operation={operation}
+                  onOutput={(slug) => queue.setOutput(item.id, slug)}
+                  onOptions={() => setOptionsFor(item.id)}
+                  onRemove={() => queue.remove(item.id)}
+                  onRetry={() => queue.retry(item.id)}
+                />
+              ))}
+            </ul>
 
-          {items.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className={cn(
-                "flex w-full flex-col items-center gap-4 rounded-2xl border-2 border-dashed bg-card px-6 py-14 text-center shadow-sm transition-colors hover:border-primary",
-                dragging && "border-primary bg-primary/10"
-              )}
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20">
-                <FileUp className="h-6 w-6" />
-              </span>
-              <span className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground shadow-sm">
-                <Plus className="h-4 w-4" /> Elegir archivos
-              </span>
-              <span className="text-sm text-muted-foreground">o arrastralos acá</span>
-            </button>
-          ) : (
-            <div className={cn("overflow-hidden rounded-2xl border bg-card shadow-sm", dragging && "ring-2 ring-primary")}>
-              <ul className="divide-y">
-                {items.map((item) => (
-                  <FileRow
-                    key={item.id}
-                    item={item}
-                    operation={operation}
-                    onOutput={(slug) => queue.setOutput(item.id, slug)}
-                    onOptions={() => setOptionsFor(item.id)}
-                    onRemove={() => queue.remove(item.id)}
-                    onRetry={() => queue.retry(item.id)}
-                  />
-                ))}
-              </ul>
-
-              <div className="flex flex-wrap items-center gap-2 border-t bg-secondary/50 px-4 py-3">
-                <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
-                  <Plus /> Agregar más
-                </Button>
+            {(items.length > 1 || (ready.length > 1 && sharedTargets)) && (
+              <div className="flex flex-wrap items-center gap-2 border-t bg-secondary/40 px-4 py-2.5">
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {items.length} archivos{done.length > 0 && ` · ${done.length} listos`}
+                </span>
                 {!anyBusy && items.length > 1 && (
-                  <Button variant="ghost" size="sm" onClick={queue.clear}>
+                  <button
+                    type="button"
+                    onClick={queue.clear}
+                    className="rounded-full px-2 py-0.5 text-xs font-medium text-foreground/80 hover:bg-black/5"
+                  >
                     Vaciar
-                  </Button>
+                  </button>
                 )}
-
-                <div className="ml-auto flex flex-wrap items-center gap-2">
-                  {ready.length > 1 && sharedTargets && (
-                    <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                      Todo a
-                      <FormatPicker targets={sharedTargets} onChange={queue.setAllOutputs} placeholder="Elegir" />
-                    </span>
-                  )}
-                  {done.length > 1 && (
-                    <Button variant="outline" size="sm" onClick={downloadAll}>
-                      <Download /> Descargar todo
-                    </Button>
-                  )}
-                  <Button onClick={queue.start} disabled={!configured || ready.length === 0}>
-                    {mode.action}
-                    {ready.length > 1 && ` ${ready.length} archivos`}
-                  </Button>
-                </div>
+                {ready.length > 1 && sharedTargets && (
+                  <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                    Todo a
+                    <FormatPicker targets={sharedTargets} onChange={queue.setAllOutputs} placeholder="Elegir" />
+                  </span>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          <ul className="mt-8 grid gap-3 text-sm sm:grid-cols-3">
-            {[
-              { icon: Zap, title: "Rápido", text: "Se procesan hasta tres archivos a la vez." },
-              { icon: RefreshCw, title: "+500 formatos", text: "Los formatos disponibles se leen en vivo de FreeConvert." },
-              { icon: ShieldCheck, title: "Directo", text: "El archivo viaja directo a FreeConvert, sin pasar por este servidor." },
-            ].map((f) => (
-              <li key={f.title} className="rounded-xl border bg-card/80 p-4">
-                <f.icon className="mb-2 h-4 w-4" />
-                <p className="font-medium">{f.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{f.text}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ul className="mt-8 grid gap-3 text-sm sm:grid-cols-3">
+          {[
+            { icon: Zap, title: "Rápido", text: "Hasta tres archivos a la vez. Lo ajustás en la configuración." },
+            { icon: RefreshCw, title: "+500 formatos", text: "Los formatos disponibles se leen en vivo de FreeConvert." },
+            { icon: ShieldCheck, title: "Directo", text: "El archivo viaja directo a FreeConvert, sin pasar por este servidor." },
+          ].map((f) => (
+            <li key={f.title} className="rounded-2xl border bg-card/80 p-4">
+              <f.icon className="mb-2 h-4 w-4" />
+              <p className="font-medium">{f.title}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{f.text}</p>
+            </li>
+          ))}
+        </ul>
       </main>
 
       {editing && editing.output && (

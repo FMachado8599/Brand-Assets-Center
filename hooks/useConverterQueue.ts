@@ -28,18 +28,27 @@ export type QueueItem = {
   url?: string;
 };
 
-const CONCURRENCY = 3;
 const POLL_MS = 2000;
 const TIMEOUT_MS = 30 * 60 * 1000;
 
 export const isBusy = (s: ItemStatus) => s === "uploading" || s === "processing";
 
-export function useConverterQueue(operation: Operation) {
+export type QueueSettings = {
+  /** Archivos que se procesan a la vez (1–3). */
+  concurrency: number;
+  /** Formato de salida preferido por familia (image, video…) para los archivos nuevos. */
+  preferred: Record<string, string | undefined>;
+};
+
+export function useConverterQueue(operation: Operation, settings: QueueSettings) {
   const [items, setItems] = useState<QueueItem[]>([]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const operationRef = useRef(operation);
   operationRef.current = operation;
+  // Ref y no dependencia: cambiar una preferencia no debe recalcular los archivos que ya están en la lista.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   const patch = useCallback((id: string, p: Partial<QueueItem>) => {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...p } : i)));
@@ -51,7 +60,8 @@ export function useConverterQueue(operation: Operation) {
         const targets = input ? await getTargets(operation, input) : null;
         if (operationRef.current !== operation) return; // el modo cambió mientras esperábamos
         if (!targets) return patch(id, { status: "unsupported", targets: null, error: "Formato no soportado" });
-        patch(id, { status: "ready", targets, output: pickDefaultTarget(targets, operation, input), options: {} });
+        const output = pickDefaultTarget(targets, operation, input, settingsRef.current.preferred);
+        patch(id, { status: "ready", targets, output, options: {} });
       } catch {
         patch(id, { status: "error", error: "No se pudieron leer los formatos disponibles" });
       }
@@ -142,7 +152,8 @@ export function useConverterQueue(operation: Operation) {
     const worker = async () => {
       while (next < pending.length) await processOne(pending[next++]);
     };
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, pending.length) }, worker));
+    const concurrency = Math.min(3, Math.max(1, settingsRef.current.concurrency || 1));
+    await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, worker));
   }, [processOne]);
 
   const retry = useCallback(

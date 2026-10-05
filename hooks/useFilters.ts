@@ -8,9 +8,10 @@ import type { Brand, Card, Product } from "@/lib/types";
  *
  * La regla que justifica el hook: el filtro de producto depende del de marca.
  * Al cambiar de marca hay que recortar las opciones y soltar los modelos que
- * ya no corresponden. Tenerlo acá deja a FilterBar como puro render.
+ * ya no corresponden. Tenerlo acá deja a FilterPanel como puro render.
  */
-export function useFilters(cards: Card[], brands: Brand[], products: Product[]) {
+export function useFilters(cards: Card[], brands: Brand[], products: Product[], userId: string | null = null) {
+  const [onlyMine, setOnlyMine] = useState(false);
   const [brandIds, setBrandIds] = useState<string[]>([]);
   const [productIds, setProductIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
@@ -35,9 +36,15 @@ export function useFilters(cards: Card[], brands: Brand[], products: Product[]) 
     });
   }, [brandIds, products]);
 
+  // Sin sesión no hay "mías": el filtro se apaga solo.
+  useEffect(() => {
+    if (!userId) setOnlyMine(false);
+  }, [userId]);
+
   const visible = useMemo(
     () =>
       cards.filter((c) => {
+        if (onlyMine && userId && c.owner_id !== userId) return false;
         if (brandIds.length && (!c.brand_id || !brandIds.includes(c.brand_id))) return false;
         if (productIds.length && (!c.product_id || !productIds.includes(c.product_id))) return false;
         if (categoryIds.length && (!c.category_id || !categoryIds.includes(c.category_id))) return false;
@@ -47,12 +54,14 @@ export function useFilters(cards: Card[], brands: Brand[], products: Product[]) 
         }
         return true;
       }),
-    [cards, brandIds, productIds, categoryIds, query]
+    [cards, brandIds, productIds, categoryIds, query, onlyMine, userId]
   );
 
-  const activeCount = brandIds.length + productIds.length + categoryIds.length + (query.trim() ? 1 : 0);
+  const activeCount =
+    brandIds.length + productIds.length + categoryIds.length + (query.trim() ? 1 : 0) + (onlyMine ? 1 : 0);
 
   const clear = () => {
+    setOnlyMine(false);
     setBrandIds([]);
     setProductIds([]);
     setCategoryIds([]);
@@ -60,6 +69,7 @@ export function useFilters(cards: Card[], brands: Brand[], products: Product[]) 
   };
 
   return {
+    onlyMine, setOnlyMine,
     brandIds, setBrandIds,
     productIds, setProductIds,
     categoryIds, setCategoryIds,

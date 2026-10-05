@@ -86,12 +86,33 @@ const PREFERRED: Record<string, string[]> = {
   archive: ["zip"],
 };
 
-/** Formato de salida inicial: comprimir mantiene el formato; convertir usa el sugerido por FreeConvert. */
-export function pickDefaultTarget(targets: Targets, operation: Operation, input: string) {
+/** Familias que se pueden fijar en la configuración del conversor, con sus formatos más usados. */
+export const PREFERENCE_FAMILIES: { family: string; label: string; formats: string[] }[] = [
+  { family: "image", label: "Imágenes", formats: ["jpg", "png", "webp", "avif", "gif"] },
+  { family: "video", label: "Videos", formats: ["mp4", "webm", "mov", "gif"] },
+  { family: "audio", label: "Audio", formats: ["mp3", "wav", "m4a", "ogg"] },
+  { family: "document", label: "Documentos", formats: ["pdf", "docx", "txt"] },
+];
+
+/**
+ * Formato de salida inicial: comprimir mantiene el formato; convertir usa la
+ * preferencia guardada para la familia y, si no hay, el más usado.
+ */
+export function pickDefaultTarget(
+  targets: Targets,
+  operation: Operation,
+  input: string,
+  preferred: Record<string, string | undefined> = {}
+) {
   const all = Object.values(targets.groups).flat();
   const has = (ext?: string) => !!ext && all.some((t) => t.slug === ext);
   if (operation === "compress" && has(input)) return input;
-  const candidates = [...(PREFERRED[targets.type] ?? []), targets.defaultTarget, targets.secondaryDefaultTarget];
+  const candidates = [
+    preferred[targets.type],
+    ...(PREFERRED[targets.type] ?? []),
+    targets.defaultTarget,
+    targets.secondaryDefaultTarget,
+  ];
   return (
     candidates.find((c) => c !== input && has(c)) ?? all.find((t) => t.slug !== input)?.slug ?? all[0]?.slug
   );

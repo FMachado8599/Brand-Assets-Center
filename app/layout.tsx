@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { AppFrame } from "@/components/shell/AppFrame";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Tarjetas",
-  description: "Textos guardados con su tipografía, listos para copiar y pegar.",
+  title: { default: "Herramientas", template: "%s · Herramientas" },
+  description: "Tarjetas con tipografía, emojis, GIFs y conversor de archivos.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FBFAF7",
+  themeColor: "#FFF4C7",
   width: "device-width",
   initialScale: 1,
 };
@@ -15,7 +16,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <AppFrame>{children}</AppFrame>
+      </body>
     </html>
   );
 }

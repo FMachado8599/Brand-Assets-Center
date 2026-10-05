@@ -25,6 +25,8 @@ export type Card = {
   category_id: string | null;
   brand_id: string | null;
   product_id: string | null;
+  /** Quién la creó (con sesión iniciada). Lo completa la base; null en las anteriores al login. */
+  owner_id?: string | null;
   created_at: string;
   updated_at: string;
 };

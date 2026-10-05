@@ -5,7 +5,7 @@ import { hasFreeConvertKey } from "@/lib/converter/freeconvert";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Conversor · Tarjetas",
+  title: "Conversor",
   description: "Convertí y comprimí archivos con FreeConvert.",
 };
 
