@@ -98,7 +98,7 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
   /** El ":" o "#" lo puso un atajo: se muestra la lista aunque no se haya escrito nada, y Esc lo saca. */
   const forced = useRef<{ at: number; spaced: boolean } | null>(null);
   const [active, setActive] = useState(0);
-  const [remote, setRemote] = useState<{ q: string; items: EmojiEntry[] }>({ q: "", items: [] });
+  const [remote, setRemote] = useState<{ q: string; items: EmojiEntry[]; hybrid?: boolean }>({ q: "", items: [] });
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -207,32 +207,48 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
     trigger.from !== dismissed &&
     (trigger.kind === "hashtag" || trigger.query.length >= 2 || forced.current?.at === trigger.from);
 
-  // Emojis por nombre: se pregunta al servidor (búsqueda por palabras, la rápida).
+  /**
+   * Emojis por nombre, en español o inglés y aunque haya errores de tipeo, en dos pasos:
+   *  1. al toque, la búsqueda por palabras (tolera una o dos letras mal),
+   *  2. apenas dejás de tipear un momento, la búsqueda por significado ("festejo" → 🎉),
+   *     que reemplaza a la primera cuando llega.
+   */
   const emojiQuery = wantsList && trigger?.kind === "emoji" && query.length >= 2 ? query : "";
   useEffect(() => {
     if (!emojiQuery) return;
-    const cached = searches.get(emojiQuery);
-    if (cached) {
-      setRemote({ q: emojiQuery, items: cached });
-      return;
-    }
     const ctrl = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/emojis/search?q=${encodeURIComponent(emojiQuery)}&limit=${MAX_ITEMS}&modo=palabras`, {
-          signal: ctrl.signal,
-        });
-        const body = (await res.json()) as { emojis?: EmojiEntry[] };
-        const items = body.emojis ?? [];
-        searches.set(emojiQuery, items);
-        if (searches.size > 200) searches.delete(searches.keys().next().value!);
-        setRemote({ q: emojiQuery, items });
-      } catch {
-        /* cancelada o sin conexión: quedan las sugerencias locales */
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    const run = (hybrid: boolean, delay: number) => {
+      const key = `${hybrid ? "h" : "p"}:${emojiQuery}`;
+      const show = (items: EmojiEntry[]) =>
+        // La de palabras no pisa a la de significado si esa ya llegó para esta misma búsqueda.
+        setRemote((prev) => (!hybrid && prev.q === emojiQuery && prev.hybrid ? prev : { q: emojiQuery, items, hybrid }));
+      const cached = searches.get(key);
+      if (cached) {
+        show(cached);
+        return;
       }
-    }, 80);
+      timers.push(
+        setTimeout(async () => {
+          try {
+            const url = `/api/emojis/search?q=${encodeURIComponent(emojiQuery)}&limit=${MAX_ITEMS}${hybrid ? "" : "&modo=palabras"}`;
+            const body = (await (await fetch(url, { signal: ctrl.signal })).json()) as { emojis?: EmojiEntry[] };
+            const items = body.emojis ?? [];
+            searches.set(key, items);
+            if (searches.size > 300) searches.delete(searches.keys().next().value!);
+            show(items);
+          } catch {
+            /* cancelada o sin conexión: quedan las otras sugerencias */
+          }
+        }, delay)
+      );
+    };
+
+    run(false, 60);
+    if (emojiQuery.length >= 3) run(true, 280);
     return () => {
-      clearTimeout(timer);
+      timers.forEach(clearTimeout);
       ctrl.abort();
     };
   }, [emojiQuery]);
@@ -253,9 +269,13 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
     }
 
     const local = query ? emojiPool.filter((e) => matchesEmoji(e, query)) : emojiPool;
-    // Mientras llega la búsqueda nueva, se filtra la anterior: así la lista no parpadea al seguir escribiendo.
-    const fetched =
-      remote.q === query ? remote.items : remote.q && query.startsWith(remote.q) ? remote.items.filter((e) => matchesEmoji(e, query)) : [];
+    // Mientras llega la búsqueda nueva, se muestra la anterior (filtrada si se puede): así la lista no parpadea al seguir escribiendo.
+    let fetched: EmojiEntry[] = [];
+    if (remote.q === query) fetched = remote.items;
+    else if (remote.q && query.startsWith(remote.q)) {
+      const narrowed = remote.items.filter((e) => matchesEmoji(e, query));
+      fetched = narrowed.length ? narrowed : remote.items;
+    }
     const seen = new Set<string>();
     const out: Item[] = [];
     for (const e of [...local.slice(0, query ? 3 : MAX_ITEMS), ...fetched]) {

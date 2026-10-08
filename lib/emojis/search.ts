@@ -21,20 +21,59 @@ export function normalize(s: string) {
     .trim();
 }
 
-type Prepared = { emoji: EmojiEntry; names: string[]; words: string[]; tags: string[] };
+type Prepared = { emoji: EmojiEntry; names: string[]; words: string[]; tags: string[]; vocab: string[] };
 
 let prepared: Prepared[] | null = null;
 function prepare() {
   prepared ??= EMOJIS.map((emoji) => {
     const names = [normalize(emoji.n), normalize(emoji.e)];
+    const words = names.flatMap((n) => n.split(/[\s:,\-–]+/)).filter(Boolean);
+    const tags = [...emoji.t, ...emoji.u].map(normalize);
     return {
       emoji,
       names,
-      words: names.flatMap((n) => n.split(/[\s:,\-–]+/)).filter(Boolean),
-      tags: [...emoji.t, ...emoji.u].map(normalize),
+      words,
+      tags,
+      // Palabras sueltas de nombres y etiquetas, para tolerar errores de tipeo.
+      vocab: [...new Set([...words, ...tags.flatMap((t) => t.split(/[\s:,\-–]+/))])].filter((w) => w.length >= 3),
     };
   });
   return prepared;
+}
+
+/** Distancia entre dos palabras (letras cambiadas, de más, de menos o invertidas). Corta apenas pasa de `max`. */
+function distance(a: string, b: string, max: number) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev2: number[] = [];
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let d = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, prev2[j - 2] + 1);
+      row.push(d);
+      best = Math.min(best, d);
+    }
+    if (best > max) return max + 1;
+    prev2 = prev;
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Un error de tipeo no frena la búsqueda: "fuejo" encuentra 🔥 (fuego) y
+ * "selbracion", 🎉. También a medio escribir: "fuej" se compara con "fueg…".
+ * Desde 4 letras, con 1 error (2 desde 7 letras).
+ */
+function typoMatch(p: Prepared, token: string) {
+  if (token.length < 4) return false;
+  const max = token.length >= 7 ? 2 : 1;
+  return p.vocab.some(
+    (w) => distance(token, w, max) <= max || (w.length > token.length && distance(token, w.slice(0, token.length), 1) <= 1)
+  );
 }
 
 function tokenScore(p: Prepared, token: string) {
@@ -42,6 +81,7 @@ function tokenScore(p: Prepared, token: string) {
   if (p.words.includes(token)) return 55;
   if (p.words.some((w) => w.startsWith(token)) || p.tags.some((t) => t.startsWith(token))) return 35;
   if (token.length >= 3 && (p.names.some((n) => n.includes(token)) || p.tags.some((t) => t.includes(token)))) return 15;
+  if (typoMatch(p, token)) return 10;
   return 0;
 }
 

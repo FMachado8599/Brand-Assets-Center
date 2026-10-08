@@ -84,8 +84,14 @@ export type Trigger = {
   to: number;
 };
 
-/** ":" o "#" a comienzo de palabra, seguido de lo que se va escribiendo. "10:30", "Nota:" o "mail#x" no cuentan. */
-const TRIGGER = /(?:^|[\s([{¡¿"'“«])([:#])([\p{L}\p{N}_+-]{0,40})$/u;
+/**
+ * ":" + nombre, también pegado a una palabra o a otro emoji ("hola:fue", "🔥:cora"),
+ * pero no después de un número ("10:30") ni en un link ("https://"). El nombre
+ * empieza con una letra, así "Nota: algo" no abre nada.
+ */
+const EMOJI_TRIGGER = /(?:^|[\s([{¡¿"'“«]|\p{L}|\p{Extended_Pictographic}|️)(:)((?:[\p{L}+][\p{L}\p{N}_+-]{0,40})?)$/u;
+/** "#" a comienzo de palabra ("mail#x" no cuenta). */
+const HASHTAG_TRIGGER = /(?:^|[\s([{¡¿"'“«])(#)([\p{L}\p{N}_]{0,40})$/u;
 const WORD_CHAR = /[\p{L}\p{N}_]/u;
 
 /** ¿El cursor está escribiendo un emoji (":fue") o un hashtag ("#chan")? */
@@ -95,7 +101,7 @@ export function findTrigger(state: EditorState): Trigger | null {
   const $pos = selection.$from;
   if (!$pos.parent.isTextblock) return null;
   const before = $pos.parent.textBetween(0, $pos.parentOffset, undefined, "￼");
-  const m = TRIGGER.exec(before);
+  const m = EMOJI_TRIGGER.exec(before) ?? HASHTAG_TRIGGER.exec(before);
   if (!m) return null;
   // En el medio de una palabra ("#chan|gan") no se sugiere: completaría a medias.
   const after = $pos.parent.textBetween($pos.parentOffset, Math.min($pos.parent.content.size, $pos.parentOffset + 1), undefined, "￼");
