@@ -71,23 +71,32 @@ create policy "preferencias propias" on public.user_prefs
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Tope por preferencia: favoritos y ajustes entran de sobra; evita que alguien llene la base.
+alter table public.user_prefs drop constraint if exists user_prefs_value_size;
+alter table public.user_prefs add constraint user_prefs_value_size check (octet_length(value::text) <= 100000);
+
 -- 3. Tarjetas: quién las crea -----------------------------------
 -- El tablero sigue siendo compartido (todos ven y editan todo, como antes).
 -- Solo se anota el autor, para el filtro "Solo mis tarjetas".
 alter table public.cards add column if not exists owner_id uuid references auth.users(id) on delete set null;
 create index if not exists cards_owner_idx on public.cards(owner_id);
 
--- El autor lo pone la base con la sesión del pedido: el navegador no puede inventarlo.
+-- El autor lo pone la base con la sesión del pedido y después no cambia:
+-- el navegador no puede inventarlo ni pasarle la tarjeta a otro.
 create or replace function public.set_card_owner()
 returns trigger language plpgsql set search_path = '' as $$
 begin
-  new.owner_id := auth.uid();
+  if tg_op = 'INSERT' then
+    new.owner_id := auth.uid();
+  else
+    new.owner_id := old.owner_id;
+  end if;
   return new;
 end;
 $$;
 
 drop trigger if exists cards_owner on public.cards;
-create trigger cards_owner before insert on public.cards
+create trigger cards_owner before insert or update on public.cards
   for each row execute function public.set_card_owner();
 
 -- 4. Visitas ----------------------------------------------------

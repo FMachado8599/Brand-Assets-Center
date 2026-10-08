@@ -57,7 +57,7 @@ export const TONES: { tone: Tone; label: string; color: string }[] = [
 ];
 
 /** El archivo a usar para un emoji con el tono elegido (si el emoji no tiene tonos, el de siempre). */
-export function variantId(emoji: EmojiEntry, tone: Tone) {
+export function variantId(emoji: Pick<EmojiEntry, "i" | "k">, tone: Tone) {
   return (tone && emoji.k?.[tone - 1]) || emoji.i;
 }
 
@@ -77,7 +77,7 @@ export function fileName(emoji: EmojiEntry, tone: Tone) {
 }
 
 /** El carácter de la variante elegida: se arma desde el id, que ya trae los codepoints. */
-export function charFor(emoji: EmojiEntry, tone: Tone) {
+export function charFor(emoji: Pick<EmojiEntry, "i" | "c" | "k">, tone: Tone) {
   const id = variantId(emoji, tone);
   if (id === emoji.i) return emoji.c;
   return id

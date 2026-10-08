@@ -15,7 +15,7 @@ export const MODULES: AppModule[] = [
   { href: "/emojis", label: "Emojis", description: "Emojis de Apple en PNG", icon: Smile },
   { href: "/gif", label: "GIF", description: "Banners animados desde frames", icon: Film },
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw },
-  { href: "/redaccion", label: "Redacción", description: "Próximamente", icon: PenLine, soon: true },
+  { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine },
 ];
 
 export function activeModule(pathname: string): AppModule {

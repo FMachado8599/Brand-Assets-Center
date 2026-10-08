@@ -6,7 +6,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import { FontSpec } from "./editor-extensions";
-import { applyCase, type CaseMode } from "@/lib/editor/textcase";
+import { changeCase } from "@/lib/editor/changeCase";
+import type { CaseMode } from "@/lib/editor/textcase";
 import type { FontFace } from "@/lib/types";
 import { groupByFamily } from "@/lib/fonts/fonts";
 import { Button } from "@/components/ui/button";
@@ -116,52 +117,8 @@ function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] })
     editor.chain().focus().toggleBold().run();
   };
 
-  /**
-   * Cambia la caja reescribiendo las letras de verdad, no con
-   * `text-transform` de CSS. Un text-transform es solo visual: al copiar,
-   * el portapapeles se lleva el texto original en minúscula y en Illustrator
-   * pegarías lo de antes. Reescribiendo, lo que ves es lo que viaja.
-   *
-   * Todo va en una sola transacción, así un Ctrl+Z lo deshace entero.
-   */
-  const changeCase = (mode: CaseMode) => {
-    const { state } = editor;
-    const { empty } = state.selection;
-    const from = empty ? 0 : state.selection.from;
-    const to = empty ? state.doc.content.size : state.selection.to;
-
-    const edits: { start: number; end: number; text: string; marks: readonly any[] }[] = [];
-
-    state.doc.nodesBetween(from, to, (node, pos) => {
-      if (!node.isText || !node.text) return;
-      const start = Math.max(pos, from);
-      const end = Math.min(pos + node.nodeSize, to);
-      if (start >= end) return;
-
-      const slice = node.text.slice(start - pos, end - pos);
-      const prev = start > 0 ? state.doc.textBetween(start - 1, start) : "";
-      const next = applyCase(slice, mode, prev);
-
-      if (next !== slice) edits.push({ start, end, text: next, marks: node.marks });
-    });
-
-    if (!edits.length) return;
-
-    const tr = state.tr;
-    // De atrás para adelante: así las posiciones de los tramos previos siguen siendo válidas
-    for (let i = edits.length - 1; i >= 0; i--) {
-      const e = edits[i];
-      tr.replaceWith(e.start, e.end, state.schema.text(e.text, e.marks as any));
-    }
-    editor.view.dispatch(tr);
-
-    const size = editor.state.doc.content.size;
-    editor
-      .chain()
-      .focus()
-      .setTextSelection(empty ? size : { from, to: Math.min(to, size) })
-      .run();
-  };
+  /** MAYÚSCULAS, minúsculas o Capitalizar; sin selección, a toda la tarjeta. */
+  const setCase = (mode: CaseMode) => changeCase(editor, mode);
 
   const btn = (active: boolean): "secondary" | "ghost" => (active ? "secondary" : "ghost");
 
@@ -215,13 +172,13 @@ function Toolbar({ editor, fonts }: { editor: TipTapEditor; fonts: FontFace[] })
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onSelect={() => changeCase("upper")}>
+            <DropdownMenuItem onSelect={() => setCase("upper")}>
               <CaseUpper /> MAYÚSCULAS
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => changeCase("lower")}>
+            <DropdownMenuItem onSelect={() => setCase("lower")}>
               <CaseLower /> minúsculas
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => changeCase("title")}>
+            <DropdownMenuItem onSelect={() => setCase("title")}>
               <Type /> Capitalizar Cada Palabra
             </DropdownMenuItem>
           </DropdownMenuContent>

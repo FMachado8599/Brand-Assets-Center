@@ -81,6 +81,28 @@
   @apply text-muted-foreground;
 }
 
+/* Redacción: cómodo para leer y escribir largo. Una línea = un párrafo, sin márgenes extra. */
+.rd-editor {
+  min-height: max(16rem, calc(100vh - 18rem));
+  padding: 1.25rem 1.5rem 2rem;
+  font-size: 17px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rd-editor p { margin: 0; }
+.rd-editor strong { font-weight: 700; }
+.rd-editor ul { list-style: disc; padding-left: 1.4em; }
+.rd-editor ol { list-style: decimal; padding-left: 1.6em; }
+.rd-editor li::marker { color: hsl(var(--muted-foreground)); }
+/* El texto es toda la página: sin el anillo de foco general alrededor. */
+.rd-editor:focus-visible { box-shadow: none; }
+.rd-hashtag { color: hsl(30 90% 36%); font-weight: 500; }
+.rd-mention { color: hsl(205 75% 38%); font-weight: 500; }
+@media (max-width: 640px) {
+  .rd-editor { padding: 1rem 1rem 1.5rem; font-size: 16px; }
+}
+
 /* Esqueleto de carga: un brillo que recorre la forma mientras llega el contenido. */
 .skeleton {
   background: linear-gradient(

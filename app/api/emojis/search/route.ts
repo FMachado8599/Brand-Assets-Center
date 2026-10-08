@@ -12,6 +12,10 @@ export const dynamic = "force-dynamic";
  * Mezcla la búsqueda por palabras con la búsqueda por significado (si hay
  * OPENAI_API_KEY). El orden completo de una consulta se guarda en memoria, así
  * "Cargar más" no vuelve a calcularlo ni a pagar el embedding.
+ *
+ * Con &modo=palabras solo busca por palabras: es lo que usa el autocompletado
+ * de Redacción (":fue" → 🔥), que pide una búsqueda por letra y necesita
+ * responder al toque.
  */
 
 type Ranked = { ids: string[]; mode: "hybrid" | "keywords" };
@@ -22,14 +26,14 @@ function int(value: string | null, fallback: number) {
   return Number.isInteger(n) && n >= 0 ? n : fallback;
 }
 
-async function rank(q: string): Promise<Ranked> {
-  const key = normalize(q);
+async function rank(q: string, keywordsOnly: boolean): Promise<Ranked> {
+  const key = `${keywordsOnly ? "p" : "h"}:${normalize(q)}`;
   const hit = ranked.get(key);
   if (hit) return hit;
 
   let semantic: SemanticHit[] | null = null;
   // Un emoji pegado o una sola letra se resuelven por palabras.
-  if (hasOpenAIKey() && q.length >= 2 && !/\p{Extended_Pictographic}/u.test(q)) {
+  if (!keywordsOnly && hasOpenAIKey() && q.length >= 2 && !/\p{Extended_Pictographic}/u.test(q)) {
     try {
       semantic = await semanticHits(q);
     } catch (e) {
@@ -51,7 +55,7 @@ export async function GET(req: Request) {
 
   if (!q) return NextResponse.json({ emojis: [], nextCursor: null, total: 0, mode: "keywords" });
 
-  const { ids, mode } = await rank(q);
+  const { ids, mode } = await rank(q, params.get("modo") === "palabras");
   const page = paginate(ids, cursor, limit);
   return NextResponse.json(
     { emojis: page.items.map((id) => BY_ID.get(id)!), nextCursor: page.nextCursor, total: page.total, mode },

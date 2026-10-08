@@ -64,15 +64,17 @@ export function useStoredState<T>(key: string, initial: T) {
   }, [key]);
 
   const userId = account?.user?.id ?? null;
-  const prefs = account?.prefs ?? null;
+  const prefsReady = account?.prefsReady ?? false;
   const previousUser = useRef<string | null>(null);
 
   useEffect(() => {
     if (!loaded) return;
-    if (userId && prefs) {
-      if (key in prefs) {
-        setValue(withDefaults(initialRef.current, prefs[key]));
-        writeLocal(key, prefs[key]);
+    if (userId && prefsReady) {
+      // Se lee al montar, no una foto del momento del login: al volver a un módulo se ve lo último que guardaste.
+      const saved = accountRef.current?.getPref(key);
+      if (saved !== undefined) {
+        setValue(withDefaults(initialRef.current, saved));
+        writeLocal(key, saved);
       } else {
         const local = readLocal(key);
         if (local !== undefined) accountRef.current?.savePref(key, local);
@@ -83,7 +85,7 @@ export function useStoredState<T>(key: string, initial: T) {
       removeLocal(key);
     }
     previousUser.current = userId;
-  }, [loaded, userId, prefs, key]);
+  }, [loaded, userId, prefsReady, key]);
 
   const update = useCallback(
     (next: T | ((prev: T) => T)) => {

@@ -8,7 +8,12 @@ import { Hint } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
 
-const SYNCED = ["Favoritos y recientes de emojis", "Ajustes de emojis, GIF y conversor", "Tus tarjetas quedan a tu nombre"];
+const SYNCED = [
+  "Favoritos y recientes de emojis",
+  "Ajustes de emojis, GIF y conversor",
+  "Tus redacciones y los emojis y hashtags de cada cliente",
+  "Tus tarjetas quedan a tu nombre",
+];
 
 function displayName(user: User) {
   const meta = user.user_metadata ?? {};

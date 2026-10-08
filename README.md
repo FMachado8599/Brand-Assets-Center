@@ -8,7 +8,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Emojis** | `/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
 | **GIF** | `/gif` | Banners animados a partir de frames (lo que antes era Programática) |
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
-| Redacción | — | Pendiente de definir |
+| **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 
 ---
 
@@ -53,21 +53,26 @@ Iniciar sesión es opcional: sin cuenta se usa todo igual y lo personal queda gu
 
 - Favoritos y recientes de emojis.
 - Ajustes de Emojis, GIF y Conversor.
+- Redacciones, y los emojis y hashtags de cada cliente.
 - Las tarjetas que creás quedan a tu nombre y en Filtros aparece **Solo mis tarjetas**. El tablero sigue siendo compartido: todos ven y editan todo, como antes.
 
-Al iniciar sesión, lo guardado en la cuenta manda; si la cuenta todavía no tiene algo, se sube lo que había en el navegador. Al cerrar sesión se borra la copia del navegador, así el próximo que use esa computadora no ve tus cosas.
+Al iniciar sesión, lo guardado en la cuenta manda; si la cuenta todavía no tiene algo, se sube lo que había en el navegador. Hasta leer la cuenta no se escribe nada en ella, así nunca se pisa lo guardado desde otra computadora: si no se puede leer, se reintenta y, si sigue fallando, avisa. Al cerrar sesión se borra la copia del navegador de todos los módulos (no solo del que está abierto), así el próximo que use esa computadora no ve tus cosas.
+
+El autor de cada tarjeta lo pone la base al crearla y después no se puede cambiar.
 
 ### Activarlo (una sola vez)
 
-1. **Base**: en Supabase → SQL Editor, corré `supabase/migracion-usuarios.sql`. Crea `profiles`, `user_prefs`, `visits`, el autor de las tarjetas y las vistas de visitas.
+1. **Base**: en Supabase → SQL Editor, corré `supabase/migracion-usuarios.sql`. Crea `profiles`, `user_prefs`, `visits`, el autor de las tarjetas y las vistas de visitas. Después corré `supabase/migracion-redaccion.sql` (la tabla `redacciones`).
 2. **Google**: en [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → **Create credentials → OAuth client ID** → tipo **Web application**.
    - *Authorized JavaScript origins*: `http://localhost:3000` y la URL de producción.
    - *Authorized redirect URIs*: `https://<tu-proyecto>.supabase.co/auth/v1/callback` (la URL de tu proyecto de Supabase + `/auth/v1/callback`).
-   - Si te pide configurar la pantalla de consentimiento, alcanza con el tipo **External** y tu mail como contacto.
+   - Si te pide configurar la pantalla de consentimiento (*Google Auth Platform*), alcanza con el tipo **External** y tu mail como contacto.
+   - En **Audience**, publicala (*In production*) o agregá los mails del equipo como *Test users*: en modo *Testing*, Google solo deja entrar a esos.
 3. **Supabase → Authentication → Sign In / Providers → Google**: activalo y pegá el *Client ID* y el *Client Secret* de Google.
 4. **Supabase → Authentication → URL Configuration**:
    - *Site URL*: la URL de producción.
-   - *Redirect URLs*: `http://localhost:3000/auth/callback` y `https://<tu-dominio>/auth/callback`.
+   - *Redirect URLs*: `http://localhost:3000/**` y `https://<tu-dominio>/**`. Para los previews de Vercel, también `https://*-<tu-equipo>.vercel.app/**`.
+   - Van con `/**` porque la vuelta del login lleva `?next=…` (la página desde la que entraste): con la URL exacta, Supabase puede rechazarla y mandarte a la *Site URL*.
 
 Si Google no está activado, el botón "Continuar con Google" avisa qué falta en lugar de mandar a una página de error.
 
@@ -148,6 +153,63 @@ verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
 Probado con 6 banners de 2–3 frames (300x250, 300x600, 728x90, 160x600, 320x50, 970x250): GIF válidos, duraciones y loop correctos, y todos dentro de 150 KB.
 
 Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos.
+
+---
+
+## Redacción
+
+Un lugar para escribir rápido (posteos, copys, mails) y sacar el texto más rápido todavía.
+
+- **Formato**: negrita, cursiva, subrayado, tachado, listas y mayúsculas/minúsculas, desde la barra de arriba del texto o con los atajos de siempre (ver la tabla). Pegar desde Word o Docs conserva negritas y cursivas; pegar texto común respeta las líneas vacías. Los `#hashtags` y las `@menciones` se pintan.
+- **Nombre**: cada redacción se llama como su primera línea hasta que le pongas uno. Si lo borrás, vuelve al automático.
+- **Cliente**: cada redacción puede tener uno. Los clientes son las marcas de Tarjetas (la misma lista; se agregan en Tarjetas → Ajustes). Una nueva sigue con el cliente de la anterior.
+- **A la izquierda** (en pantallas chicas, en la barra), dos pestañas:
+  - **Recientes**: todas, de la más nueva a la más vieja, con nombre, cliente y hace cuánto se editó. Se buscan por nombre, texto o cliente.
+  - **Clientes**: cada cliente con sus redacciones (de la más nueva a la más vieja; arriba el que tiene la más reciente). Se filtran escribiendo el nombre, o tocando un cliente para ver solo las suyas. Con el **+** de cada cliente se empieza una nueva para él.
+- Se guarda todo solo, mientras escribís.
+
+### Copiar
+
+El botón amarillo de la barra (o `Ctrl + Enter`) copia con formato: donde se entiende (Docs, Word, un mail) llega con negritas y listas; donde no (Instagram, WhatsApp), llega el texto. En **Exportar**:
+
+| Opción | Para qué |
+| --- | --- |
+| Copiar sin formato | Solo el texto (las listas con `•` y `1.`) |
+| Copiar para WhatsApp | `*negrita*`, `_cursiva_` y `~tachado~`, que WhatsApp muestra con formato |
+| Copiar para Instagram / LinkedIn | La negrita y la cursiva con letras especiales (𝗻𝗲𝗴𝗿𝗶𝘁𝗮, 𝘤𝘶𝘳𝘴𝘪𝘷𝘢), porque ahí no hay formato. Los hashtags, menciones y links quedan normales para que sigan funcionando. Ojo: los lectores de pantalla las leen mal; usarlas para resaltar, no para párrafos enteros |
+| Copiar sin hashtags / solo los hashtags | Para cuando los hashtags van en el primer comentario |
+| Descargar .txt · Compartir | El texto, como archivo o al menú de compartir del celular |
+
+### Emojis y hashtags
+
+Las dos burbujas al costado del texto (☺ y #) abren un panel. Arriba del panel se elige de qué cliente mostrar: arranca en el del texto, pero se puede cambiar para ver o cargar los de otro sin tocar el texto (un aviso indica que no es el del texto, con **Volver**).
+
+- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
+- **Hashtags**: los del cliente (uno o todos de un click: inserta solo los que faltan), los que ya escribiste en este texto (con un botón para guardarlos en el cliente) y los recientes de tus otras redacciones.
+
+### Atajos
+
+| Atajo | Qué hace |
+| --- | --- |
+| `Ctrl + B` · `Ctrl + I` · `Ctrl + U` | Negrita, cursiva, subrayado |
+| `Ctrl + Shift + S` | Tachado |
+| `Shift + F3` | minúsculas → MAYÚSCULAS → Capitalizar (como en Word). Sin selección, cambia la palabra del cursor |
+| `Ctrl + Shift + 8` · `Ctrl + Shift + 7` | Lista con viñetas, lista numerada |
+| `Ctrl + \` | Quitar formato |
+| `:` + nombre | Sugiere emojis mientras escribís (`:fuego` → 🔥) |
+| `#` | Sugiere los hashtags del cliente del texto (si no tiene, los de todos) y los recientes |
+| `Ctrl + E` · `Ctrl + H` | Abren la lista de emojis o de hashtags donde está el cursor |
+| `↑ ↓` · `Enter` / `Tab` · `Esc` | Elegir, insertar, cerrar |
+| `Ctrl + Enter` | Copiar todo el texto |
+
+Si un hashtag ya está escrito entero, `Enter` hace un salto de línea en vez de elegirlo. Las sugerencias de emojis usan `/api/emojis/search?modo=palabras` (sin la búsqueda por significado: tiene que responder letra por letra).
+
+### Dónde se guarda
+
+- **Sin sesión**: en el navegador (`localStorage`).
+- **Con sesión**: además, cada redacción en la tabla `redacciones` (`supabase/migracion-redaccion.sql`: el texto con formato y el texto plano) y los emojis/hashtags de cada cliente en `user_prefs`. Al entrar desde otra computadora aparece todo. Entre dos computadoras gana la edición más nueva (la base no deja que una versión vieja pise a una más nueva). Lo escrito sin sesión se sube a la cuenta con la que entrás.
+- Al cerrar sesión se borra la copia del navegador si ya estaba toda en la cuenta. Si quedó algo sin subir (por ejemplo, porque falta la tabla), se guarda sin mostrarse hasta que vuelvas a entrar.
+- Abajo a la derecha del editor se ve el estado: *En este navegador*, *Guardando…*, *Guardado en tu cuenta* o *Sin respaldo* (no se pudo guardar en la cuenta; se reintenta solo).
 
 ---
 
