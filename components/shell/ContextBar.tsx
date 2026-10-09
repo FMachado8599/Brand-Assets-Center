@@ -83,7 +83,7 @@ export function ContextBarHost({ onTarget }: { onTarget: (el: HTMLElement | null
       role="toolbar"
       aria-label="Acciones de la sección"
       className={cn(
-        "floating pointer-events-auto h-[50px] max-w-full overflow-hidden rounded-full transition-[width,opacity,transform] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+        "floating-ink pointer-events-auto h-[50px] max-w-full overflow-hidden rounded-full transition-[width,opacity,transform] duration-500 ease-smooth",
         empty && "pointer-events-none -translate-y-1 opacity-0"
       )}
       style={{ width }}
@@ -123,16 +123,16 @@ export const BarButton = forwardRef<HTMLButtonElement, BarButtonProps>(
         aria-label={label}
         aria-pressed={pressed}
         className={cn(
-          "relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-foreground/70 transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-secondary data-[state=open]:text-foreground",
+          "relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-cream/70 transition-colors hover:bg-cream/10 hover:text-cream disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-cream/15 data-[state=open]:text-cream",
           (pressed || highlight) &&
-            "bg-foreground text-background hover:bg-foreground/90 hover:text-background data-[state=open]:bg-foreground data-[state=open]:text-background",
+            "bg-cream text-ink hover:bg-cream/90 hover:text-ink data-[state=open]:bg-cream data-[state=open]:text-ink",
           className
         )}
         {...props}
       >
         {glyph ?? (Icon && <Icon className="h-[18px] w-[18px]" />)}
         {badge !== undefined && badge !== 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-white">
+          <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-ink">
             {badge}
           </span>
         )}
@@ -171,13 +171,13 @@ BarAction.displayName = "BarAction";
 
 export function BarDivider() {
   // En el celular cada píxel cuenta: los divisores se ocultan y la barra entra sin scrollear.
-  return <span aria-hidden className="mx-1 hidden h-5 w-px shrink-0 bg-border sm:block" />;
+  return <span aria-hidden className="mx-1 hidden h-5 w-px shrink-0 bg-cream/15 sm:block" />;
 }
 
 /** Texto chico dentro de la barra (contadores, estados). */
 export function BarNote({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className={cn("hidden shrink-0 whitespace-nowrap px-2 text-xs tabular-nums text-muted-foreground md:inline", className)}>
+    <span className={cn("hidden shrink-0 whitespace-nowrap px-2 text-xs tabular-nums text-cream/55 md:inline", className)}>
       {children}
     </span>
   );
@@ -221,7 +221,7 @@ export const BarSearch = forwardRef<HTMLInputElement, BarSearchProps>(
 
     return (
       <label className={cn("relative flex h-9 w-[clamp(7rem,30vw,20rem)] shrink-0 items-center", className)}>
-        <Search className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3 h-4 w-4 text-cream/45" />
         <input
           ref={input}
           value={value}
@@ -235,10 +235,10 @@ export const BarSearch = forwardRef<HTMLInputElement, BarSearchProps>(
           }}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="h-9 w-full rounded-full bg-secondary/80 pl-9 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:bg-secondary focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60 focus-visible:ring-offset-0"
+          className="h-9 w-full rounded-full bg-cream/10 pl-9 pr-9 text-sm text-cream outline-none transition-colors placeholder:text-cream/40 focus:bg-cream/15 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 focus-visible:ring-offset-0"
         />
         {busy ? (
-          <Loader2 className="pointer-events-none absolute right-3 h-4 w-4 animate-spin text-muted-foreground" />
+          <Loader2 className="pointer-events-none absolute right-3 h-4 w-4 animate-spin text-cream/50" />
         ) : value ? (
           <button
             type="button"
@@ -247,12 +247,12 @@ export const BarSearch = forwardRef<HTMLInputElement, BarSearchProps>(
               onChange("");
               input.current?.focus();
             }}
-            className="absolute right-1.5 grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-black/5 hover:text-foreground"
+            className="absolute right-1.5 grid h-6 w-6 place-items-center rounded-full text-cream/55 hover:bg-cream/10 hover:text-cream"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         ) : shortcut ? (
-          <kbd className="pointer-events-none absolute right-2.5 hidden h-5 place-items-center rounded border bg-card px-1.5 font-ui text-[10px] font-medium text-muted-foreground sm:grid">
+          <kbd className="pointer-events-none absolute right-2.5 hidden h-5 place-items-center rounded border border-cream/20 bg-cream/5 px-1.5 font-ui text-[10px] font-medium text-cream/50 sm:grid">
             /
           </kbd>
         ) : null}
@@ -299,12 +299,12 @@ export function BarSegmented<T extends string>({
       ref={container}
       role="tablist"
       aria-label={label}
-      className="relative flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-secondary/80 p-0.5"
+      className="relative flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-cream/10 p-0.5"
     >
       {pill && (
         <span
           aria-hidden
-          className="absolute top-0.5 h-8 rounded-full bg-primary shadow-sm transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+          className="absolute top-0.5 h-8 rounded-full bg-primary shadow-sm transition-all duration-300 ease-smooth"
           style={{ left: pill.left, width: pill.width }}
         />
       )}
@@ -320,7 +320,7 @@ export function BarSegmented<T extends string>({
           disabled={disabled}
           onClick={() => onChange(o.value)}
           className={cn(
-            "relative z-10 flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60",
+            "relative z-10 flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-cream/60 transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-60",
             value === o.value && "text-primary-foreground hover:text-primary-foreground"
           )}
         >

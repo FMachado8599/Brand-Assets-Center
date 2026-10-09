@@ -22,7 +22,7 @@ export function CardGrid({ groups, onEdit, onDelete }: Props) {
           {groups.length > 1 && (
             <div className="flex items-center gap-2">
               {g.brand && <span className="h-2.5 w-2.5 rounded-full" style={{ background: g.brand.color }} />}
-              <h2 className="text-base font-semibold tracking-tight">{g.brandName}</h2>
+              <h2 className="font-display text-2xl leading-none">{g.brandName}</h2>
             </div>
           )}
 

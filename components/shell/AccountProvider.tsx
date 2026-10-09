@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/toaster";
+import { STUDIO_DOMAIN } from "@/lib/site";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -79,10 +80,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       unsubscribe = () => data.subscription.unsubscribe();
     });
 
-    // /auth/callback vuelve con ?login=error si Google o Supabase rechazaron el ingreso.
+    // /auth/callback vuelve con ?login=error si Google o Supabase rechazaron el ingreso,
+    // o con ?login=sin-acceso si el mail no es del estudio (ver supabase/migracion-acceso.sql).
+    // Por las dudas también se mira el #error_description, por si Supabase manda el error en el fragmento.
     const params = new URLSearchParams(window.location.search);
-    if (params.get("login") === "error") {
-      toast("No se pudo iniciar sesión con Google", "error");
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const login = params.get("login");
+    const denied = login === "sin-acceso" || /saving new user/i.test(hash.get("error_description") ?? "");
+    if (denied || login === "error" || hash.has("error")) {
+      toast(
+        denied ? `Esa cuenta no tiene acceso: entrá con tu mail @${STUDIO_DOMAIN}` : "No se pudo iniciar sesión con Google",
+        "error"
+      );
       params.delete("login");
       const rest = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));

@@ -4,23 +4,33 @@ Un solo lugar para las herramientas del día a día del estudio:
 
 | Módulo | Ruta | Qué hace |
 | --- | --- | --- |
-| **Tarjetas** | `/` | Textos con su formato y su tipografía, listos para pegar |
+| Inicio | `/` | Portada con todas las herramientas y el ingreso con Google |
+| **Tarjetas** | `/tarjetas` | Textos con su formato y su tipografía, listos para pegar |
 | **Emojis** | `/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
 | **GIF** | `/gif` | Banners animados a partir de frames (lo que antes era Programática) |
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 
+La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
+
 ---
 
 ## Cómo se usa: sidebar + barra contextual
 
-- **El botón amarillo de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra.
+- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra.
 - **La barra flotante del centro** cambia según el módulo: es desde donde se hace todo (buscar, filtrar, agregar, exportar, configurar). Al pasar de un módulo a otro se transforma en lugar de recargarse.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
 - **El avatar de arriba a la derecha** es la cuenta: iniciar sesión con Google o cerrarla (ver "Cuentas y visitas").
 
-El fondo y las superficies flotantes viven en `app/globals.css` (clase `.floating`). La barra está en `components/shell/ContextBar.tsx`: cada página monta `<ContextBar>` con sus controles y estos se "teletransportan" a la barra del layout.
+### Diseño
+
+La app sigue la estética de Inicio (en la línea de tbwa.com): fondo crema, texto negro tinta, tarjetas en papel y el amarillo de marca solo como acento (acciones principales, foco y la barra invertida `\`). Los títulos van en Instrument Serif (`font-display`, se carga para toda la app en `app/layout.tsx`) y las etiquetas en mayúscula espaciada (`.eyebrow`).
+
+- Los colores son variables en `app/globals.css` (`--background`, `--card`, `--primary`…); en Tailwind también están `ink` y `cream` para usarlos directo.
+- Superficies flotantes: `.floating` (clara, para popovers y paneles) y `.floating-ink` (negra, para la píldora de módulos, la barra contextual, la cuenta y la sidebar).
+
+La barra está en `components/shell/ContextBar.tsx`: cada página monta `<ContextBar>` con sus controles y estos se "teletransportan" a la barra del layout. Sus piezas (`BarButton`, `BarSearch`, `BarSegmented`…) ya vienen pensadas para fondo negro.
 
 ---
 
@@ -67,14 +77,25 @@ El autor de cada tarjeta lo pone la base al crearla y después no se puede cambi
    - *Authorized JavaScript origins*: `http://localhost:3000` y la URL de producción.
    - *Authorized redirect URIs*: `https://<tu-proyecto>.supabase.co/auth/v1/callback` (la URL de tu proyecto de Supabase + `/auth/v1/callback`).
    - Si te pide configurar la pantalla de consentimiento (*Google Auth Platform*), alcanza con el tipo **External** y tu mail como contacto.
-   - En **Audience**, publicala (*In production*) o agregá los mails del equipo como *Test users*: en modo *Testing*, Google solo deja entrar a esos.
+   - En **Branding** completá nombre, mail de soporte, *Application home page* (`https://<tu-dominio>/`), *Privacy policy* (`https://<tu-dominio>/privacidad`) y tu dominio en *Authorized domains*.
+   - En **Audience**, publicala (*In production*): así cualquier cuenta de Google puede intentar entrar y quién entra lo decide la base (ver "Quién puede entrar"). Si queda en *Testing*, Google solo deja entrar a los *Test users*.
 3. **Supabase → Authentication → Sign In / Providers → Google**: activalo y pegá el *Client ID* y el *Client Secret* de Google.
 4. **Supabase → Authentication → URL Configuration**:
    - *Site URL*: la URL de producción.
    - *Redirect URLs*: `http://localhost:3000/**` y `https://<tu-dominio>/**`. Para los previews de Vercel, también `https://*-<tu-equipo>.vercel.app/**`.
    - Van con `/**` porque la vuelta del login lleva `?next=…` (la página desde la que entraste): con la URL exacta, Supabase puede rechazarla y mandarte a la *Site URL*.
 
+5. **Acceso**: corré `supabase/migracion-acceso.sql` (ver "Quién puede entrar").
+
 Si Google no está activado, el botón "Continuar con Google" avisa qué falta en lugar de mandar a una página de error.
+
+### Quién puede entrar
+
+Solo se crean cuentas con mail **@camaratbwa.com**. Lo controla la base (`supabase/migracion-acceso.sql`): si alguien entra con otra cuenta de Google, no se le crea la cuenta y la app le avisa "Esa cuenta no tiene acceso". Las cuentas que ya existían siguen entrando.
+
+- **Excepciones** (ej: un freelance): en el SQL Editor, `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');`, con el mail en minúsculas.
+- **Sacarle el acceso a alguien**: borrar su usuario en Supabase → Authentication → Users.
+- **Ojo:** el correo de @camaratbwa.com no es de Google (está en `mail.camaratbwa.com`). Para entrar con Google, cada persona necesita una cuenta de Google creada con su mail de trabajo: al crear la cuenta, la opción "Usar mi dirección de correo electrónico actual".
 
 ### Visitas
 

@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { Check, Loader2, LogIn, LogOut } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
+import { STUDIO_DOMAIN } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
 
@@ -88,7 +89,7 @@ const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, read
         type="button"
         aria-label={user ? `Tu cuenta: ${displayName(user)}` : "Iniciar sesión"}
         className={cn(
-          "floating pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] data-[state=open]:scale-100 md:pr-4",
+          "floating-ink pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] data-[state=open]:scale-100 md:pr-4",
           className
         )}
         {...props}
@@ -96,7 +97,7 @@ const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, read
         {ready ? (
           <UserAvatar user={user} size={36} />
         ) : (
-          <span className="skeleton block h-9 w-9 shrink-0 rounded-full" />
+          <span className="block h-9 w-9 shrink-0 animate-pulse rounded-full bg-cream/15" />
         )}
         <span className="hidden max-w-[7rem] truncate text-sm font-semibold tracking-tight md:inline">
           {ready ? label : "Cuenta"}
@@ -161,15 +162,18 @@ export function AccountPill() {
             </div>
             <SyncedList />
             {available ? (
-              <button
-                type="button"
-                onClick={() => run(signIn)}
-                disabled={busy || !ready}
-                className="flex h-10 w-full items-center justify-center gap-2.5 rounded-full border bg-white text-sm font-medium shadow-sm transition-colors hover:bg-secondary disabled:opacity-60"
-              >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
-                Continuar con Google
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => run(signIn)}
+                  disabled={busy || !ready}
+                  className="flex h-10 w-full items-center justify-center gap-2.5 rounded-full border bg-white text-sm font-medium shadow-sm transition-colors hover:bg-secondary disabled:opacity-60"
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
+                  Continuar con Google
+                </button>
+                <p className="text-center text-[11px] text-muted-foreground">Con tu cuenta @{STUDIO_DOMAIN}</p>
+              </div>
             ) : (
               <p className="rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
                 El inicio de sesión todavía no está configurado: faltan las variables de Supabase.

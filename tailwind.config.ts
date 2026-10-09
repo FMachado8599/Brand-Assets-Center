@@ -19,6 +19,9 @@ const config: Config = {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+        // Inicio y Privacidad: la paleta editorial (negro tinta y crema).
+        ink: "#0b0b0e",
+        cream: "#ebe7dd",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -27,7 +30,14 @@ const config: Config = {
       },
       fontFamily: {
         ui: ["ui-sans-serif", "-apple-system", "Segoe UI", "Inter", "sans-serif"],
+        // Se carga solo en Inicio y Privacidad (components/site/fonts.ts).
+        display: ["var(--font-display)", "Georgia", "serif"],
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      // Con nombre, sirve para transiciones y animaciones: como valor arbitrario (ease-[cubic-bezier(…)])
+      // Tailwind lo considera ambiguo con tailwindcss-animate y no genera nada.
+      transitionTimingFunction: {
+        smooth: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
       keyframes: {
         "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },

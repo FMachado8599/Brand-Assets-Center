@@ -128,7 +128,7 @@ export function GifShell() {
         {!hasContent ? (
           <div className="mx-auto max-w-2xl pt-6">
             <div className="mb-6 text-center">
-              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">GIFs desde frames</h2>
+              <h2 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">GIFs desde frames</h2>
               <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
                 Soltá todas las imágenes de una vez: se agrupan por medida, se ordenan por número y sale un GIF por banner.
               </p>

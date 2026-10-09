@@ -122,7 +122,7 @@ export function ConverterShell({ configured }: { configured: boolean }) {
 
       <main className="mx-auto max-w-3xl px-4 pb-16 pt-[6.5rem] sm:px-6">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{mode.title}</h1>
+          <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">{mode.title}</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{mode.lead}</p>
         </div>
 

@@ -1,4 +1,4 @@
-import { Film, PenLine, RefreshCw, Smile, StickyNote, type LucideIcon } from "lucide-react";
+import { Film, House, PenLine, RefreshCw, Smile, StickyNote, type LucideIcon } from "lucide-react";
 
 export type AppModule = {
   href: string;
@@ -11,7 +11,8 @@ export type AppModule = {
 
 /** Registro único de módulos: de acá salen la sidebar y el indicador de módulo activo. */
 export const MODULES: AppModule[] = [
-  { href: "/", label: "Tarjetas", description: "Textos con tipografía, para pegar", icon: StickyNote },
+  { href: "/", label: "Inicio", description: "Todas las herramientas", icon: House },
+  { href: "/tarjetas", label: "Tarjetas", description: "Textos con tipografía, para pegar", icon: StickyNote },
   { href: "/emojis", label: "Emojis", description: "Emojis de Apple en PNG", icon: Smile },
   { href: "/gif", label: "GIF", description: "Banners animados desde frames", icon: Film },
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw },

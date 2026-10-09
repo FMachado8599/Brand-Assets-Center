@@ -344,7 +344,7 @@ export function EmojiShell({ categories }: { categories: CategorySummary[] }) {
               <div className="flex items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageUrl(active.cover.i)} alt="" className="h-7 w-7" />
-                <h2 className="text-lg font-semibold tracking-tight">{active.name}</h2>
+                <h2 className="font-display text-3xl leading-none">{active.name}</h2>
                 <span className="text-sm tabular-nums text-muted-foreground">{sub ? sub.count : active.count}</span>
               </div>
             </div>
@@ -449,9 +449,9 @@ function ListError({ message, onRetry }: { message: string; onRetry: () => void 
 
 function SectionTitle({ title, count }: { title: string; count?: number }) {
   return (
-    <h2 className="mb-3 flex items-baseline gap-2 px-1 text-sm font-semibold">
+    <h2 className="mb-4 flex items-baseline gap-2.5 px-1 font-display text-3xl leading-none">
       {title}
-      {count !== undefined && <span className="text-xs font-normal tabular-nums text-muted-foreground">{count}</span>}
+      {count !== undefined && <span className="eyebrow tabular-nums">{count}</span>}
     </h2>
   );
 }

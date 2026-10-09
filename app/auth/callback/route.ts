@@ -21,5 +21,8 @@ export async function GET(req: Request) {
   }
 
   // Google o Supabase devolvieron un error (o el usuario canceló): avisamos con ?login=error.
-  return NextResponse.redirect(`${origin}${next}${next.includes("?") ? "&" : "?"}login=error`);
+  // Si la base rechazó crear la cuenta (mail de otro dominio, ver supabase/migracion-acceso.sql),
+  // Supabase lo informa como "Database error saving new user": avisamos con ?login=sin-acceso.
+  const denied = /saving new user/i.test(searchParams.get("error_description") ?? "");
+  return NextResponse.redirect(`${origin}${next}${next.includes("?") ? "&" : "?"}login=${denied ? "sin-acceso" : "error"}`);
 }
