@@ -41,12 +41,12 @@ export function FilterPanel({
       )}
       <div className="flex flex-col gap-2">
         <FilterSelect
-          label="Marca"
+          label="Cliente"
           className="w-full"
           selected={brandIds}
           onChange={onBrandChange}
           options={brandOptions}
-          emptyHint="Creá una marca en Ajustes"
+          emptyHint="Todavía no hay clientes"
         />
         <FilterSelect
           label="Producto"
@@ -54,7 +54,7 @@ export function FilterPanel({
           selected={productIds}
           onChange={onProductChange}
           options={productOptions}
-          emptyHint={brandIds.length ? "Esta marca no tiene modelos" : "Creá un modelo en Ajustes"}
+          emptyHint={brandIds.length ? "Este cliente no tiene productos" : "Los productos se cargan en cada cliente"}
         />
         <FilterSelect
           label="Categoría"

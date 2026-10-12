@@ -13,7 +13,15 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toaster";
 import { AlertTriangle, Loader2, UploadCloud } from "lucide-react";
 
-export function FontsTab() {
+export function FontsTab({
+  onSaved,
+  showSaved = true,
+}: {
+  /** Después de guardar, con las familias que se subieron (ej: la ficha de un cliente las suma a las suyas). */
+  onSaved?: (families: string[]) => void;
+  /** La lista de todo lo ya subido, abajo. */
+  showSaved?: boolean;
+} = {}) {
   const { fonts, reload } = useData();
   const q = useFontQueue(fonts);
   const { busy, run } = useAction();
@@ -23,6 +31,7 @@ export function FontsTab() {
     run(async () => {
       let saved = 0;
       let replaced = 0;
+      const families = new Set<string>();
 
       for (const file of q.queue) {
         const chosen = file.faces.filter((f) => f.include);
@@ -49,7 +58,10 @@ export function FontsTab() {
 
         const error = await fontsRepo.saveMany(rows);
         if (error) toast(`${file.file.name}: ${error.message}`, "error");
-        else rows.forEach((r) => (q.existingNames.has(r.full_name) ? replaced++ : saved++));
+        else {
+          rows.forEach((r) => (q.existingNames.has(r.full_name) ? replaced++ : saved++));
+          families.add(file.family.trim());
+        }
       }
 
       q.clear();
@@ -62,6 +74,7 @@ export function FontsTab() {
         ].filter(Boolean);
         toast(`Tipografías guardadas: ${partes.join(", ")}`);
       }
+      if (families.size) onSaved?.(Array.from(families));
     });
 
   return (
@@ -131,7 +144,7 @@ export function FontsTab() {
         </div>
       )}
 
-      <SavedFontsList />
+      {showSaved && <SavedFontsList />}
     </div>
   );
 }

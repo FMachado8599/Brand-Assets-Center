@@ -5,7 +5,7 @@ import { categorySummaries } from "@/lib/emojis/catalog.server";
 
 export const metadata: Metadata = {
   title: "Redacción",
-  description: "Escribí textos con los emojis y hashtags de cada marca a un click, y copialos al toque.",
+  description: "Escribí textos con los emojis y hashtags de cada cliente a un click, y copialos al toque.",
 };
 
 export default function RedaccionPage() {

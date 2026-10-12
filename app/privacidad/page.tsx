@@ -32,8 +32,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
           conversor de archivos y redacción.
         </p>
         <p>
-          Se puede usar sin cuenta. Si iniciás sesión con Google, lo tuyo se guarda también en tu cuenta para que lo
-          veas en cualquier computadora. Solo pueden crear una cuenta los mails @{STUDIO_DOMAIN}.
+          Para usarla hay que iniciar sesión con Google con una cuenta @{STUDIO_DOMAIN}. Lo tuyo se guarda en tu
+          cuenta, así lo ves en cualquier computadora.
         </p>
       </>
     ),
@@ -57,8 +57,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
           anónimo. <strong>No guardamos tu dirección IP.</strong>
         </li>
         <li>
-          <strong>En tu navegador.</strong> Una copia de tus preferencias y redacciones, para que todo cargue al instante
-          y funcione sin cuenta. Al cerrar sesión se borra de ese navegador lo que ya está guardado en tu cuenta.
+          <strong>En tu navegador.</strong> Una copia de tus preferencias y redacciones, para que todo cargue al
+          instante. Al cerrar sesión se borra de ese navegador lo que ya está guardado en tu cuenta.
         </li>
       </ul>
     ),

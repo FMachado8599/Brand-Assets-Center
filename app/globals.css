@@ -51,12 +51,12 @@
       0 1px 1px hsl(240 12% 5% / 0.04),
       0 16px 36px -16px hsl(240 12% 5% / 0.32);
   }
-  /* Superficie flotante negra: la píldora de módulos, la barra contextual, la cuenta y la sidebar. */
+  /* Superficie flotante negra: la píldora de módulos, la barra contextual, la cuenta y la sidebar.
+     Casi opaca y sin backdrop-filter: así de oscura el desenfoque no se veía, y recalcularlo en cada
+     cuadro (al scrollear, o sobre la luz animada de Inicio) traba las placas de video modestas. */
   .floating-ink {
     color: hsl(var(--background));
-    background-color: hsl(240 12% 5% / 0.92);
-    backdrop-filter: saturate(1.4) blur(16px);
-    -webkit-backdrop-filter: saturate(1.4) blur(16px);
+    background-color: hsl(240 12% 5% / 0.96);
     border: 1px solid hsl(43 26% 89% / 0.12);
     box-shadow:
       0 1px 1px hsl(240 12% 5% / 0.12),
@@ -168,15 +168,33 @@
   @apply absolute left-0 text-primary;
 }
 
-/* La luz que se mueve despacio detrás del título. */
+/* La luz que se mueve despacio detrás del título. El degradé ya es suave: sin filter: blur, que
+   en placas de video modestas traba la animación. En su propia capa (will-change) para que
+   moverla no obligue a redibujar el título ni el grano. */
 @keyframes site-drift {
   0%, 100% { transform: translate3d(-6%, -4%, 0) scale(1); }
   50% { transform: translate3d(8%, 6%, 0) scale(1.18); }
 }
 .site-light {
+  background: radial-gradient(closest-side, hsl(0 0% 100% / 0.13), hsl(0 0% 100% / 0.05) 45%, transparent 75%);
+  will-change: transform;
   animation: site-drift 26s ease-in-out infinite;
+}
+.site-glow {
+  background: radial-gradient(closest-side, hsl(50 100% 50% / 0.07), hsl(50 100% 50% / 0.025) 45%, transparent 75%);
+}
+
+/* El corte amarillo de la portada de Inicio (components/site/InicioMotion.tsx). Tapa la portada
+   desde el primer pintado y GSAP lo barre. Si el JS nunca llega, se va solo a los 4 s. */
+@keyframes site-cut-failsafe {
+  to { opacity: 0; visibility: hidden; }
+}
+.site-cut {
+  will-change: transform;
+  animation: site-cut-failsafe 0.4s 4s forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .site-cut { display: none; }
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

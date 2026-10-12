@@ -1,42 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useClients } from "@/hooks/useClients";
 import { useStoredState } from "@/hooks/useStoredState";
 import { uniqueTags } from "@/lib/redaccion/text";
 import { GENERAL, type BrandKit, type BrandKits, type BrandLite, type SlimEmoji } from "@/lib/redaccion/types";
 
-let brandCache: BrandLite[] | null = null;
-
 /**
- * Los clientes de Redacción: son las marcas de Tarjetas (se crean en Tarjetas
- * → Ajustes). Solo lo que hace falta para elegir uno: nombre y color.
+ * Los clientes de Redacción: la lista de toda la app (se crean desde el
+ * selector, desde Tarjetas o en Clientes). Para elegir uno alcanza con
+ * nombre y color.
  */
-export function useBrands() {
-  const [brands, setBrands] = useState<BrandLite[]>(brandCache ?? []);
-  const [loading, setLoading] = useState(brandCache === null);
-
-  useEffect(() => {
-    let alive = true;
-    import("@/lib/supabase").then(async ({ supabase, hasSupabase }) => {
-      if (!hasSupabase) {
-        if (alive) setLoading(false);
-        return;
-      }
-      const { data, error } = await supabase.from("brands").select("id, name, color").order("name");
-      if (!alive) return;
-      if (error) console.warn("[redacción] no se pudieron leer los clientes:", error.message);
-      if (data) {
-        brandCache = data as BrandLite[];
-        setBrands(brandCache);
-      }
-      setLoading(false);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  return { brands, loading };
+export function useBrands(): { brands: BrandLite[]; loading: boolean } {
+  const { clients, loading } = useClients();
+  return { brands: clients, loading };
 }
 
 const EMPTY: BrandKit = { emojis: [], hashtags: [] };

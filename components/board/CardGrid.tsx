@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { CardTile } from "./CardTile";
+import { ClientMark } from "@/components/clients/ClientMark";
 import { useData } from "@/components/data/DataProvider";
 import { NO_PRODUCT, type BrandGroup } from "@/lib/cards/grouping";
 import type { Card } from "@/lib/types";
@@ -11,7 +13,7 @@ type Props = {
   onDelete: (id: string) => void;
 };
 
-/** Marca en columna; adentro, cada producto abre una fila con wrap. */
+/** Cliente en columna; adentro, cada producto abre una fila con wrap. */
 export function CardGrid({ groups, onEdit, onDelete }: Props) {
   const { brands, products, categories, fonts } = useData();
 
@@ -20,9 +22,17 @@ export function CardGrid({ groups, onEdit, onDelete }: Props) {
       {groups.map((g) => (
         <section key={g.brandId} className="flex flex-col gap-5">
           {groups.length > 1 && (
-            <div className="flex items-center gap-2">
-              {g.brand && <span className="h-2.5 w-2.5 rounded-full" style={{ background: g.brand.color }} />}
-              <h2 className="font-display text-2xl leading-none">{g.brandName}</h2>
+            <div className="flex items-center gap-2.5">
+              {g.brand && <ClientMark brand={g.brand} className="h-7 w-7 rounded-full text-[11px]" pad="p-[16%]" />}
+              <h2 className="font-display text-2xl leading-none">
+                {g.brand ? (
+                  <Link href={`/clientes/${g.brand.id}`} className="underline-offset-4 hover:underline">
+                    {g.brandName}
+                  </Link>
+                ) : (
+                  g.brandName
+                )}
+              </h2>
             </div>
           )}
 

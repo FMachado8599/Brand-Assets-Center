@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { PanelLeft } from "lucide-react";
 import { TooltipProvider, Hint } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
-import { activeModule, type AppModule } from "@/lib/modules";
+import { NewClientHost } from "@/components/clients/NewClientHost";
+import { activeModule, LAST_MODULE_KEY, type AppModule } from "@/lib/modules";
 import { AccountPill } from "./AccountPill";
 import { AccountProvider } from "./AccountProvider";
 import { BarTargetProvider, ContextBarHost } from "./ContextBar";
@@ -25,6 +26,15 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => setNavOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (current.href === "/") return;
+    try {
+      localStorage.setItem(LAST_MODULE_KEY, current.href);
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [current.href]);
 
   return (
     <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
@@ -47,6 +57,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
 
           <Sidebar open={navOpen} onOpenChange={setNavOpen} current={current} />
           {children}
+          <NewClientHost />
           <Toaster />
           <VisitTracker />
         </BarTargetProvider>

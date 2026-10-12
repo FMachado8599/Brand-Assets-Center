@@ -12,6 +12,20 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Copy, Check, MoreHorizontal, Pencil, Trash2, FileDown, Type, Shapes } from "lucide-react";
+import DOMPurify from "dompurify";
+
+// El texto de la tarjeta se "limpia" antes de mostrarlo: solo el formato que
+// produce el editor (negrita, cursiva, listas, tipografia). Asi, aunque alguien
+// guarde HTML malicioso en la base, no se ejecuta nada.
+const SANITIZE = {
+  ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "s", "span", "ul", "ol", "li"],
+  ALLOWED_ATTR: ["style", "class"],
+};
+function cleanHtml(html: string) {
+  // En el servidor no hay DOM: el tablero se arma en el navegador, asi que aca
+  // va vacio y el contenido ya limpio aparece al hidratar.
+  return typeof window === "undefined" ? "" : DOMPurify.sanitize(html, SANITIZE);
+}
 
 type Props = {
   card: CardType;
@@ -108,7 +122,7 @@ export function CardTile({ card, brand, category, product, fonts, onEdit, onDele
       {/* El texto se muestra con su tipografía real: la tarjeta es su propia muestra */}
       <div
         className="rich min-h-[92px] flex-1 px-4 py-3.5 text-[15px]"
-        dangerouslySetInnerHTML={{ __html: card.content_html }}
+        dangerouslySetInnerHTML={{ __html: cleanHtml(card.content_html) }}
       />
 
       <div className="flex items-center justify-between gap-2 border-t bg-secondary/30 px-4 py-2">

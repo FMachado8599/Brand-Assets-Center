@@ -5,8 +5,8 @@ import type { EmojiEntry } from "@/lib/emojis/types";
  * muestra el editor) y plano (`body`: para buscar, contar, sacar los hashtags
  * y pegar donde no hay formato, como Instagram).
  *
- * En Redacción, las marcas de Tarjetas se llaman clientes: es la misma tabla
- * (`brands`), por eso en el código siguen siendo `brand`.
+ * Los clientes son la tabla `brands` (la de Tarjetas y Clientes), por eso
+ * en el código siguen siendo `brand`.
  *
  * Se guarda en este navegador y, con sesión iniciada, en la tabla
  * `redacciones` de la cuenta (ver useRedacciones).

@@ -15,8 +15,8 @@ const nameOf = (id: string, list: { id: string; name: string }[], fallback: stri
   id === NO_BRAND || id === NO_PRODUCT ? fallback : list.find((x) => x.id === id)?.name || fallback;
 
 /**
- * Dos niveles: la marca es una columna y, dentro, cada producto abre una
- * fila con sus tarjetas al lado. "Sin marca" y "Sin producto" van al final.
+ * Dos niveles: el cliente es una columna y, dentro, cada producto abre una
+ * fila con sus tarjetas al lado. "Sin cliente" y "Sin producto" van al final.
  */
 export function groupCards(cards: Card[], brands: Brand[], products: Product[]): BrandGroup[] {
   const byBrand = new Map<string, Map<string, Card[]>>();
@@ -33,7 +33,7 @@ export function groupCards(cards: Card[], brands: Brand[], products: Product[]):
     .map(([brandId, inner]) => ({
       brandId,
       brand: brands.find((b) => b.id === brandId),
-      brandName: nameOf(brandId, brands, "Sin marca"),
+      brandName: nameOf(brandId, brands, "Sin cliente"),
       products: Array.from(inner.entries())
         .map(([productId, list]) => ({
           productId,

@@ -1,6 +1,31 @@
-export type Brand = { id: string; name: string; color: string; created_at: string };
+/** Fondo del logo: papel, negro o el color del cliente. */
+export type LogoBg = "light" | "dark" | "brand";
+
+/** Un color de la paleta de un cliente. */
+export type BrandColor = { hex: string; name: string };
+
+/**
+ * Un cliente (en la base, `brands`: en Tarjetas se llamaban marcas).
+ * Lo de la ficha (logo, paleta, tipografías y notas) llega con
+ * migracion-clientes.sql: sin ella esos campos no vienen.
+ */
+export type Brand = {
+  id: string;
+  name: string;
+  /** El que lo identifica en las listas (el puntito de color). */
+  color: string;
+  created_at: string;
+  logo_url?: string | null;
+  logo_path?: string | null;
+  /** Sobre qué fondo se ve bien el logo (uno blanco no se ve sobre papel). */
+  logo_bg?: LogoBg;
+  palette?: BrandColor[];
+  /** Familias tipográficas ("Montserrat"): pueden estar subidas o no. */
+  font_families?: string[];
+  notes?: string;
+};
 export type Category = { id: string; name: string; created_at: string };
-/** Modelo dentro de una marca. Ej: Changan → Lumin, Hunter, Eado. */
+/** Modelo de un cliente. Ej: Changan → Lumin, Hunter, Eado. */
 export type Product = { id: string; name: string; brand_id: string; created_at: string };
 
 export type FontFace = {

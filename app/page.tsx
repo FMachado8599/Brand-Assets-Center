@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { AccountCta } from "@/components/site/AccountCta";
+import { Dashboard } from "@/components/site/Dashboard";
+import { FeedbackSection } from "@/components/site/FeedbackSection";
+import { InicioMotion } from "@/components/site/InicioMotion";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { studioSession } from "@/lib/access";
 import { MODULES } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
+import { createSupabaseServer, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const metadata: Metadata = {
   title: { absolute: `Herramientas · ${STUDIO}` },
@@ -22,34 +27,41 @@ const SYNCED = [
 
 const two = (n: number) => String(n).padStart(2, "0");
 
-export default function InicioPage() {
+export default async function InicioPage() {
+  // Con sesión del estudio, Inicio es el panel con las herramientas: la presentación es para quien llega por primera vez.
+  const session = hasSupabaseEnv ? await studioSession(createSupabaseServer()) : null;
+  if (session?.allowed) return <Dashboard name={session.name} />;
+
   return (
+    <InicioMotion>
     <div className="bg-ink">
       {/* Portada */}
       <section className="grain flex min-h-[100svh] flex-col overflow-hidden bg-ink text-cream">
-        <div
-          aria-hidden
-          className="site-light pointer-events-none absolute -left-[22%] -top-[35%] h-[85vmax] w-[85vmax] rounded-full bg-[radial-gradient(closest-side,rgba(255,255,255,0.14),transparent)] blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-[45%] -right-[25%] h-[65vmax] w-[65vmax] rounded-full bg-[radial-gradient(closest-side,rgba(255,212,0,0.07),transparent)] blur-3xl"
-        />
+        <div data-intro="light" aria-hidden className="site-light pointer-events-none absolute -left-[22%] -top-[35%] h-[85vmax] w-[85vmax] rounded-full" />
+        <div data-intro="light" aria-hidden className="site-glow pointer-events-none absolute -bottom-[45%] -right-[25%] h-[65vmax] w-[65vmax] rounded-full" />
 
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-end px-5 pb-12 pt-32 sm:px-8 md:pb-16">
-          <p className="site-label text-cream/60 duration-700 animate-in fade-in-0">
+          <p data-intro="label" className="site-label text-cream/60">
             {STUDIO} <span className="text-primary">\</span> Herramientas internas
           </p>
-          <h1 className="mt-6 max-w-5xl font-display text-[clamp(3.25rem,10.5vw,9.5rem)] leading-[0.9] tracking-[-0.025em] duration-1000 animate-in fade-in-0 slide-in-from-bottom-6">
+          <h1 data-intro="title" className="mt-6 max-w-5xl font-display text-[clamp(3.25rem,10.5vw,9.5rem)] leading-[0.9] tracking-[-0.025em]">
             Las herramientas del estudio, <em className="text-cream/50">en un solo lugar.</em>
           </h1>
-          <div className="mt-10 grid gap-8 border-t border-cream/15 pt-8 delay-300 duration-1000 animate-in fade-in-0 fill-mode-backwards md:grid-cols-[1fr_auto] md:items-end">
-            <p className="max-w-md text-[15px] leading-relaxed text-cream/65">
+          <div className="relative mt-10 grid gap-8 pt-8 md:grid-cols-[1fr_auto] md:items-end">
+            <span data-intro="rule" aria-hidden className="absolute inset-x-0 top-0 h-px origin-left bg-cream/15" />
+            <p data-intro="fade" className="max-w-md text-[15px] leading-relaxed text-cream/65">
               Textos con su tipografía, emojis listos para pegar, banners animados, archivos convertidos y redacción para
               cada cliente. Hechas acá, para el trabajo de todos los días.
             </p>
-            <AccountCta greet />
+            <div data-intro="fade">
+              <AccountCta greet />
+            </div>
           </div>
+        </div>
+
+        {/* La barra invertida amarilla: tapa la portada al entrar y GSAP la barre hacia la derecha. */}
+        <div data-intro="cut" aria-hidden className="site-cut pointer-events-none absolute inset-y-0 -left-[60%] z-20 w-[220%]">
+          <div className="h-full w-full -skew-x-[18deg] bg-primary" />
         </div>
       </section>
 
@@ -57,7 +69,7 @@ export default function InicioPage() {
       <section className="bg-cream text-ink">
         <div className="mx-auto grid max-w-6xl gap-6 px-5 py-24 sm:px-8 md:grid-cols-[12rem_1fr] md:gap-10 md:py-36">
           <p className="site-label pt-3 text-ink/50">Por qué</p>
-          <p className="font-display text-[clamp(2rem,4.8vw,4rem)] leading-[1.04] tracking-[-0.015em]">
+          <p data-read className="font-display text-[clamp(2rem,4.8vw,4rem)] leading-[1.04] tracking-[-0.015em]">
             Copiar un texto y perder la tipografía, buscar el mismo emoji por quinta vez o armar diez banners a mano no es
             trabajo creativo. <span className="text-ink/40">Es tiempo que no vuelve. Lo resolvimos una vez, para todo el equipo.</span>
           </p>
@@ -122,7 +134,10 @@ export default function InicioPage() {
         </div>
       </section>
 
+      <FeedbackSection />
+
       <SiteFooter />
     </div>
+    </InicioMotion>
   );
 }

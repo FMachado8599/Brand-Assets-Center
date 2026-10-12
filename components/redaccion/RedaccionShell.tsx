@@ -121,8 +121,13 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
 
   // Lo de esta computadora se lee después de montar (no rompe la hidratación).
   useEffect(() => {
-    setCurrentId(readLocal(CURRENT_KEY));
-    setDraftBrand(readLocal(CLIENT_KEY));
+    // Desde la ficha de un cliente se llega con ?abrir=<redacción> o ?cliente=<id> (una nueva para él).
+    const params = new URLSearchParams(window.location.search);
+    const toOpen = params.get("abrir");
+    const forClient = params.get("cliente");
+    if (toOpen || forClient) window.history.replaceState(window.history.state, "", window.location.pathname);
+    setCurrentId(toOpen ?? (forClient ? null : readLocal(CURRENT_KEY)));
+    setDraftBrand(forClient ?? readLocal(CLIENT_KEY));
     // El panel que quedó abierto se vuelve a abrir solo en pantallas anchas: en el celular taparía el texto.
     const savedPanel = readLocal(PANEL_KEY);
     const wide = window.matchMedia("(min-width: 1024px)").matches;

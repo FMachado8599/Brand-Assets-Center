@@ -87,9 +87,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     const hash = new URLSearchParams(window.location.hash.slice(1));
     const login = params.get("login");
     const denied = login === "sin-acceso" || /saving new user/i.test(hash.get("error_description") ?? "");
-    if (denied || login === "error" || hash.has("error")) {
+    // ?login=requerido: el middleware mandó acá a alguien sin sesión que quería abrir una herramienta.
+    if (denied || login === "requerido" || login === "error" || hash.has("error")) {
       toast(
-        denied ? `Esa cuenta no tiene acceso: entrá con tu mail @${STUDIO_DOMAIN}` : "No se pudo iniciar sesión con Google",
+        denied
+          ? `Esa cuenta no tiene acceso: entrá con tu mail @${STUDIO_DOMAIN}`
+          : login === "requerido"
+            ? `Iniciá sesión con tu cuenta @${STUDIO_DOMAIN} para usar las herramientas`
+            : "No se pudo iniciar sesión con Google",
         "error"
       );
       params.delete("login");
@@ -225,7 +230,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       toast("No se pudo conectar con Supabase: revisá la configuración del proyecto", "error");
       return;
     }
-    const next = window.location.pathname + window.location.search;
+    // Si el middleware dejó ?next=/tarjetas (la herramienta que se quería abrir), se vuelve ahí después de entrar.
+    const wanted = new URLSearchParams(window.location.search).get("next");
+    const next = wanted?.startsWith("/") && !wanted.startsWith("//") ? wanted : window.location.pathname + window.location.search;
     const supabase = await loadClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

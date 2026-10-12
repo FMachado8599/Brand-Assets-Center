@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, FileText, Plus, Search, Trash2 } from "lucide-react";
 import { Hint } from "@/components/ui/tooltip";
+import { openNewClient } from "@/components/clients/newClient";
 import { fold, fullDate, timeAgo } from "@/lib/redaccion/text";
 import type { BrandLite, Redaccion } from "@/lib/redaccion/types";
 import { cn } from "@/lib/utils";
@@ -167,7 +168,12 @@ export function RecentList({ items, brands, currentId, onOpen, onDelete, onNewFo
           </section>
         ) : groups.length === 0 ? (
           brands.length === 0 && !items.length ? (
-            <Empty>Todavía no hay clientes. Se agregan en Tarjetas → Ajustes → Marcas.</Empty>
+            <Empty>
+              Todavía no hay clientes.{" "}
+              <button type="button" onClick={() => openNewClient()} className="font-medium text-foreground underline underline-offset-2">
+                Crear uno
+              </button>
+            </Empty>
           ) : (
             <p className="px-2 py-4 text-center text-xs text-muted-foreground">Ningún cliente se llama “{query.trim()}”.</p>
           )
@@ -181,6 +187,15 @@ export function RecentList({ items, brands, currentId, onOpen, onDelete, onNewFo
                 )}
               </section>
             ))}
+            {!q && (
+              <button
+                type="button"
+                onClick={() => openNewClient()}
+                className="flex h-8 w-full items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" /> Nuevo cliente
+              </button>
+            )}
           </div>
         )}
       </div>

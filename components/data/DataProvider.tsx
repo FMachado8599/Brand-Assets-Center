@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { hasSupabase } from "@/lib/supabase";
-import { brandsRepo, cardsRepo, categoriesRepo, fontsRepo, productsRepo } from "@/lib/repos";
+import { cardsRepo, categoriesRepo, fontsRepo, productsRepo } from "@/lib/repos";
+import { refreshClients, useClients } from "@/hooks/useClients";
 import { injectFontFaces } from "@/lib/fonts/fonts";
 import { toast } from "@/components/ui/toaster";
 import type { Brand, Card, Category, FontFace, Product } from "@/lib/types";
@@ -15,7 +16,7 @@ type DataState = {
   cards: Card[];
   loading: boolean;
   reload: () => Promise<void>;
-  /** Modelos de una marca, ya filtrados. */
+  /** Modelos de un cliente, ya filtrados. */
   productsOf: (brandId: string | null) => Product[];
 };
 
@@ -25,9 +26,12 @@ const DataContext = createContext<DataState | null>(null);
  * Una sola fuente de verdad para las cinco listas. Se recargan enteras
  * después de cada escritura: son pocos registros y evita mantener un
  * espejo del estado sincronizado a mano.
+ *
+ * Los clientes (brands) son la lista compartida de toda la app (useClients):
+ * así uno creado desde Redacción o desde la sidebar ya está acá.
  */
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [brands, setBrands] = useState<Brand[]>([]);
+  const { clients: brands } = useClients();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [fonts, setFonts] = useState<FontFace[]>([]);
@@ -36,14 +40,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     const [b, p, c, f, k] = await Promise.all([
-      brandsRepo.list(),
+      refreshClients(),
       productsRepo.list(),
       categoriesRepo.list(),
       fontsRepo.list(),
       cardsRepo.list(),
     ]);
 
-    if (b.data) setBrands(b.data as Brand[]);
     if (p.data) setProducts(p.data as Product[]);
     if (c.data) setCategories(c.data as Category[]);
     if (k.data) setCards(k.data as Card[]);

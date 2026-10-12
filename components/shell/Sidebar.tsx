@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { openNewClient } from "@/components/clients/newClient";
+import { Hint } from "@/components/ui/tooltip";
 import { MODULES, type AppModule } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -20,9 +22,9 @@ export function Sidebar({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        {/* Sin backdrop-filter, ni en el fondo ni en el panel: desenfocar mientras se anima hace que la apertura se trabe. */}
+        {/* Sin backdrop-filter en el fondo: desenfocar toda la página mientras se anima traba la apertura. */}
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/25 duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <DialogPrimitive.Content className="floating-ink fixed bottom-3 left-3 top-3 z-50 flex w-[min(19rem,calc(100vw-1.5rem))] flex-col rounded-[1.75rem] bg-ink p-3 outline-none will-change-transform ease-smooth [-webkit-backdrop-filter:none] [backdrop-filter:none] data-[state=closed]:duration-200 data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-left-8 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-left-8">
+        <DialogPrimitive.Content className="floating-ink fixed bottom-3 left-3 top-3 z-50 flex w-[min(19rem,calc(100vw-1.5rem))] flex-col rounded-[1.75rem] bg-ink p-3 outline-none will-change-transform ease-smooth data-[state=closed]:duration-200 data-[state=open]:duration-500 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-left-8 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-left-8">
           <div className="flex items-start justify-between gap-2 px-2 pb-6 pt-2">
             <div>
               <DialogPrimitive.Description className="site-label text-cream/50">
@@ -72,16 +74,40 @@ export function Sidebar({
                   </div>
                 );
               }
-              return (
+              const link = (
                 <Link
                   key={m.href}
                   href={m.href}
                   aria-current={active ? "page" : undefined}
                   onClick={() => onOpenChange(false)}
-                  className={cn("group flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-cream/10", active && "bg-cream/10")}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-cream/10",
+                    active && "bg-cream/10",
+                    m.href === "/clientes" && "pr-12"
+                  )}
                 >
                   {body}
                 </Link>
+              );
+              if (m.href !== "/clientes") return link;
+              // Un cliente nuevo se crea desde cualquier módulo, sin ir a Clientes.
+              return (
+                <div key={m.href} className="relative">
+                  {link}
+                  <Hint label="Nuevo cliente" side="right">
+                    <button
+                      type="button"
+                      aria-label="Nuevo cliente"
+                      onClick={() => {
+                        onOpenChange(false);
+                        openNewClient();
+                      }}
+                      className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-cream/10 text-cream/70 transition-colors hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </Hint>
+                </div>
               );
             })}
           </nav>

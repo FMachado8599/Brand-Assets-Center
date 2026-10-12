@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { hasSupabase } from "@/lib/supabase";
 import { useData } from "@/components/data/DataProvider";
 import { useFilters } from "@/hooks/useFilters";
@@ -22,6 +22,22 @@ export function AppShell() {
   const filters = useFilters(cards, brands, products, userId);
   const actions = useCardActions();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** "Nueva tarjeta" desde la ficha de un cliente: arranca con ese cliente elegido. */
+  const [newFor, setNewFor] = useState<string | null>(null);
+
+  // Desde Clientes se llega con ?cliente=<id> (ver las suyas) o ?nueva=<id> (crear una para él).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const client = params.get("cliente");
+    const fresh = params.get("nueva");
+    if (client) filters.setBrandIds([client]);
+    if (fresh) {
+      setNewFor(fresh);
+      actions.openNew();
+    }
+    if (client || fresh) window.history.replaceState(window.history.state, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const groups = groupCards(filters.visible, brands, products);
   const filterCount =
@@ -90,7 +106,15 @@ export function AppShell() {
         )}
       </main>
 
-      <CardDialog open={actions.editorOpen} onOpenChange={actions.setEditorOpen} card={actions.editing} />
+      <CardDialog
+        open={actions.editorOpen}
+        onOpenChange={(open) => {
+          actions.setEditorOpen(open);
+          if (!open) setNewFor(null);
+        }}
+        card={actions.editing}
+        defaultBrandId={newFor}
+      />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );

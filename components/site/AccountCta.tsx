@@ -14,13 +14,14 @@ export function AccountCta({ greet = false }: { greet?: boolean }) {
   const [busy, setBusy] = useState(false);
   if (!account?.available) return null;
 
-  if (!account.ready) return <span aria-hidden className="block h-12 w-52 animate-pulse rounded-full bg-cream/10" />;
+  // Hasta saber si hay sesión se reserva el lugar (sin esqueleto que titile) y después aparece con un fundido.
+  if (!account.ready) return <span aria-hidden className="block h-12" />;
 
   const { user } = account;
   if (user) {
     if (!greet) {
       return (
-        <p className="flex items-center gap-2 text-sm text-cream/60">
+        <p className="flex items-center gap-2 text-sm text-cream/60 duration-500 animate-in fade-in-0">
           <Check className="h-4 w-4 text-primary" /> Entraste como {user.email}
         </p>
       );
@@ -29,7 +30,7 @@ export function AccountCta({ greet = false }: { greet?: boolean }) {
     return (
       <a
         href="#herramientas"
-        className="group inline-flex h-12 items-center gap-3 rounded-full border border-cream/25 px-6 text-sm font-medium transition-colors hover:border-cream hover:bg-cream hover:text-ink"
+        className="group inline-flex h-12 items-center gap-3 rounded-full border border-cream/25 px-6 text-sm font-medium transition-colors duration-500 animate-in fade-in-0 hover:border-cream hover:bg-cream hover:text-ink"
       >
         {first ? `Hola, ${first}` : "Hola"}
         <span className="text-cream/35 transition-colors group-hover:text-ink/35">—</span>
@@ -40,7 +41,7 @@ export function AccountCta({ greet = false }: { greet?: boolean }) {
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="flex flex-col items-start gap-3 duration-500 animate-in fade-in-0">
       <button
         type="button"
         disabled={busy}

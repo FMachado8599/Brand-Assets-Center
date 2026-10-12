@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Check, ChevronDown, Cloud, CloudOff, HardDrive, Hash, Loader2, PenLine, Smile } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Cloud, CloudOff, HardDrive, Hash, Loader2, PenLine, Plus, Smile } from "lucide-react";
+import Link from "next/link";
+import { openNewClient } from "@/components/clients/newClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,7 +72,8 @@ export function TitleInput({
 }
 
 /**
- * Elegir cliente (en Tarjetas se llaman marcas: es la misma lista).
+ * Elegir cliente (la misma lista de Tarjetas y Clientes). Abajo, crear uno
+ * nuevo sin salir del texto o ir a la ficha del elegido.
  * `size="sm"` es el de los paneles, que puede mirar otro cliente que el del texto.
  */
 export function ClientPicker({
@@ -131,10 +134,17 @@ export function ClientPicker({
         ))}
         {loading && <p className="px-2 py-2 text-xs text-muted-foreground">Cargando clientes…</p>}
         <DropdownMenuSeparator />
-        <p className="px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
-          Los clientes son las marcas de Tarjetas (se agregan en Tarjetas → Ajustes). Cada uno guarda sus emojis y hashtags de
-          siempre.
-        </p>
+        {/* Se abre después de que el menú termina de cerrarse: si no, el menú le devuelve el foco a su botón. */}
+        <DropdownMenuItem onSelect={() => setTimeout(() => openNewClient({ onCreated: (b) => onChange(b.id) }), 0)}>
+          <Plus className="h-4 w-4" /> Nuevo cliente…
+        </DropdownMenuItem>
+        {brand && (
+          <DropdownMenuItem asChild>
+            <Link href={`/clientes/${brand.id}`}>
+              <ArrowUpRight className="h-4 w-4" /> <span className="truncate">Ver la ficha de {brand.name}</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

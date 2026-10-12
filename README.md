@@ -52,14 +52,21 @@ Abrí http://localhost:3000
 | `FREECONVERT_API_KEY` | Conversor | Sí, para convertir |
 | `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
+| `RESEND_API_KEY` | Inicio → Sugerencias | Sí, para que lleguen los mails (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
+
+### Sugerencias y errores
+
+Al final del Inicio hay un formulario para mandar una sugerencia o avisar un error. Llega por mail a `fmachado@camaratbwa.com` (`FEEDBACK_EMAIL` en `lib/site.ts`, o `FEEDBACK_TO`); el nombre es opcional. No se guarda nada: el mail es el registro. Funciona sin iniciar sesión (así también se puede avisar "no puedo entrar"); para frenar spam tiene un campo trampa para bots y un límite de 5 envíos por minuto.
+
+Para activarlo: crear una cuenta en [Resend](https://resend.com) **con el mismo mail que recibe**, sacar una API key y cargarla como `RESEND_API_KEY` en `.env.local` y en Vercel. Sin dominio verificado, Resend manda desde `onboarding@resend.dev` y solo al mail de su cuenta; para mandar a otro mail o desde una dirección propia, verificar un dominio en Resend y completar `FEEDBACK_FROM`.
 
 ---
 
 ## Cuentas y visitas
 
-Iniciar sesión es opcional: sin cuenta se usa todo igual y lo personal queda guardado solo en ese navegador. Con cuenta (Google), se guarda también en Supabase y aparece en cualquier computadora:
+Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
 
 - Favoritos y recientes de emojis.
 - Ajustes de Emojis, GIF y Conversor.
@@ -91,10 +98,14 @@ Si Google no está activado, el botón "Continuar con Google" avisa qué falta e
 
 ### Quién puede entrar
 
-Solo se crean cuentas con mail **@camaratbwa.com**. Lo controla la base (`supabase/migracion-acceso.sql`): si alguien entra con otra cuenta de Google, no se le crea la cuenta y la app le avisa "Esa cuenta no tiene acceso". Las cuentas que ya existían siguen entrando.
+Solo entran las cuentas **@camaratbwa.com** y las de la lista de excepciones. Hay tres capas:
 
-- **Excepciones** (ej: un freelance): en el SQL Editor, `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');`, con el mail en minúsculas.
-- **Sacarle el acceso a alguien**: borrar su usuario en Supabase → Authentication → Users.
+1. **La base** (`supabase/migracion-acceso.sql`): no crea cuentas de otros dominios, y tarjetas, marcas, productos, categorías y tipografías solo se leen y editan con sesión del estudio. Es la protección real: sin ella, cualquiera con la clave pública podría leer y editar todo.
+2. **Las páginas** (`middleware.ts`): sin sesión, las herramientas mandan a Inicio con "Iniciá sesión con tu cuenta @camaratbwa.com" y, después de entrar, vuelven a la herramienta que se quería abrir. A una cuenta de afuera le cierra la sesión y le avisa "Esa cuenta no tiene acceso".
+3. **Las APIs**: sin sesión del estudio responden 401, así nadie de afuera usa el Conversor ni la búsqueda de emojis (cuestan plata). Quedan públicas Inicio, Privacidad, la vuelta del login, las visitas y las imágenes de emojis.
+
+- **Excepciones** (ej: un freelance): en el SQL Editor, `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');`, con el mail en minúsculas. Si vos entrás con una cuenta que no es @camaratbwa.com, agregala acá o te quedás afuera.
+- **Sacarle el acceso a alguien**: borrarlo de `allowed_emails` (y, si querés, su usuario en Supabase → Authentication → Users).
 - **Ojo:** el correo de @camaratbwa.com no es de Google (está en `mail.camaratbwa.com`). Para entrar con Google, cada persona necesita una cuenta de Google creada con su mail de trabajo: al crear la cuenta, la opción "Usar mi dirección de correo electrónico actual".
 
 ### Visitas
@@ -288,7 +299,7 @@ Cada archivo se registra con su **nombre completo** ("Montserrat Light") como si
 
 ### Sobre el acceso
 
-Tal como está, cualquiera con el link puede ver y editar, con o sin sesión. El login ya existe (ver "Cuentas y visitas"): si más adelante querés que solo editen quienes iniciaron sesión, o tarjetas privadas, en `supabase/schema.sql` reemplazá las políticas `acceso abierto` por políticas basadas en `auth.uid()` y `owner_id`.
+Ven y editan todo quienes iniciaron sesión con una cuenta del estudio: `supabase/migracion-acceso.sql` reemplaza las políticas `acceso abierto` de `schema.sql` por "solo el estudio". Si más adelante querés tarjetas privadas, se puede sumar una política basada en `auth.uid()` y `owner_id`.
 
 ---
 

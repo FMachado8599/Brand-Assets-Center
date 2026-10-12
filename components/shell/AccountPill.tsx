@@ -5,7 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { Check, Loader2, LogIn, LogOut } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
-import { STUDIO_DOMAIN } from "@/lib/site";
+import { STUDIO, STUDIO_DOMAIN } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
 
@@ -180,7 +180,7 @@ export function AccountPill() {
               </p>
             )}
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Sin cuenta podés usar todo igual: lo tuyo queda guardado solo en este navegador.
+              Herramientas es solo para el equipo de {STUDIO}.
             </p>
           </div>
         )}

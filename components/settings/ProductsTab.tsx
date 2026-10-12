@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
+import { openNewClient } from "@/components/clients/newClient";
 
 export function ProductsTab() {
   const { brands, products, reload } = useData();
@@ -24,7 +25,7 @@ export function ProductsTab() {
     const { error } = await productsRepo.create(name, brandId);
     if (error) {
       return toast(
-        isDuplicateError(error.message) ? "Esa marca ya tiene un modelo con ese nombre" : error.message,
+        isDuplicateError(error.message) ? "Ese cliente ya tiene un producto con ese nombre" : error.message,
         "error"
       );
     }
@@ -42,9 +43,12 @@ export function ProductsTab() {
 
   if (!brands.length) {
     return (
-      <p className="rounded-lg border px-3 py-6 text-center text-sm text-muted-foreground">
-        Primero creá una marca. Cada producto pertenece a una.
-      </p>
+      <div className="flex flex-col items-center gap-3 rounded-lg border px-3 py-6 text-center text-sm text-muted-foreground">
+        Primero creá un cliente: cada producto es de uno.
+        <Button size="sm" onClick={() => openNewClient({ onCreated: (b) => setBrandId(b.id) })}>
+          <Plus /> Nuevo cliente
+        </Button>
+      </div>
     );
   }
 
@@ -52,7 +56,7 @@ export function ProductsTab() {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-2">
         <div className="w-[150px]">
-          <Label>Marca</Label>
+          <Label>Cliente</Label>
           <Select value={brandId} onValueChange={setBrandId}>
             <SelectTrigger className="mt-1.5">
               <SelectValue />

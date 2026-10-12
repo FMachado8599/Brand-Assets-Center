@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { openNewClient } from "@/components/clients/newClient";
+import { Plus } from "lucide-react";
 
 const NONE = "__none__";
 
@@ -23,9 +25,15 @@ const EMPTY: CardDraft = {
   category_id: null,
 };
 
-type Props = { open: boolean; onOpenChange: (v: boolean) => void; card: Card | null };
+type Props = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  card: Card | null;
+  /** Una tarjeta nueva arranca con este cliente (ej: "Nueva tarjeta" desde la ficha del cliente). */
+  defaultBrandId?: string | null;
+};
 
-export function CardDialog({ open, onOpenChange, card }: Props) {
+export function CardDialog({ open, onOpenChange, card, defaultBrandId = null }: Props) {
   const { brands, products, categories, fonts, reload } = useData();
   const { busy, run } = useAction();
   const [draft, setDraft] = useState<CardDraft>(EMPTY);
@@ -43,18 +51,19 @@ export function CardDialog({ open, onOpenChange, card }: Props) {
             product_id: card.product_id,
             category_id: card.category_id,
           }
-        : EMPTY
+        : { ...EMPTY, brand_id: defaultBrandId }
     );
-  }, [open, card]);
+  }, [open, card, defaultBrandId]);
 
-  /* Solo se ofrecen los modelos de la marca elegida. */
+  /* Solo se ofrecen los modelos del cliente elegido. */
   const brandProducts = products.filter((p) => p.brand_id === draft.brand_id);
 
-  /* Cambiar de marca suelta el modelo si ya no pertenece. */
-  const setBrand = (brandId: string | null) => {
-    const stillValid = products.find((p) => p.id === draft.product_id)?.brand_id === brandId;
-    setDraft({ ...draft, brand_id: brandId, product_id: stillValid ? draft.product_id : null });
-  };
+  /* Cambiar de cliente suelta el modelo si ya no pertenece. */
+  const setBrand = (brandId: string | null) =>
+    setDraft((d) => {
+      const stillValid = products.find((p) => p.id === d.product_id)?.brand_id === brandId;
+      return { ...d, brand_id: brandId, product_id: stillValid ? d.product_id : null };
+    });
 
   const save = async () => {
     const ok = await run(() => cardsRepo.save(draft), draft.id ? "Tarjeta guardada" : "Tarjeta creada");
@@ -85,13 +94,22 @@ export function CardDialog({ open, onOpenChange, card }: Props) {
             </div>
 
             <div>
-              <Label>Marca</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Cliente</Label>
+                <button
+                  type="button"
+                  onClick={() => openNewClient({ onCreated: (b) => setBrand(b.id) })}
+                  className="-my-1 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <Plus className="h-3 w-3" /> Nuevo
+                </button>
+              </div>
               <Select value={draft.brand_id || NONE} onValueChange={(v) => setBrand(v === NONE ? null : v)}>
                 <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Elegir marca" />
+                  <SelectValue placeholder="Elegir cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>Sin marca</SelectItem>
+                  <SelectItem value={NONE}>Sin cliente</SelectItem>
                   {brands.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
                       {b.name}
@@ -112,9 +130,9 @@ export function CardDialog({ open, onOpenChange, card }: Props) {
                   <SelectValue
                     placeholder={
                       !draft.brand_id
-                        ? "Elegí una marca"
+                        ? "Elegí un cliente"
                         : !brandProducts.length
-                        ? "Esta marca no tiene modelos"
+                        ? "Este cliente no tiene productos"
                         : "Elegir producto"
                     }
                   />

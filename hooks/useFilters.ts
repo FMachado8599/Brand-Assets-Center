@@ -6,8 +6,8 @@ import type { Brand, Card, Product } from "@/lib/types";
 /**
  * Estado de los tres filtros y sus opciones derivadas.
  *
- * La regla que justifica el hook: el filtro de producto depende del de marca.
- * Al cambiar de marca hay que recortar las opciones y soltar los modelos que
+ * La regla que justifica el hook: el filtro de producto depende del de cliente.
+ * Al cambiar de cliente hay que recortar las opciones y soltar los modelos que
  * ya no corresponden. Tenerlo acá deja a FilterPanel como puro render.
  */
 export function useFilters(cards: Card[], brands: Brand[], products: Product[], userId: string | null = null) {
@@ -23,7 +23,7 @@ export function useFilters(cards: Card[], brands: Brand[], products: Product[], 
     return list.map((p) => ({
       value: p.id,
       label: p.name,
-      group: showBrandGroup ? brands.find((b) => b.id === p.brand_id)?.name || "Sin marca" : undefined,
+      group: showBrandGroup ? brands.find((b) => b.id === p.brand_id)?.name || "Sin cliente" : undefined,
     }));
   }, [products, brands, brandIds]);
 
