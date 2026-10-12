@@ -65,6 +65,34 @@ Para activarlo: crear una cuenta en [Resend](https://resend.com) **con el mismo 
 
 ---
 
+## Entornos: producción y testing
+
+| | Producción | Testing |
+| --- | --- | --- |
+| Rama | `main` | `testing` |
+| URL | `brand-assets-center.vercel.app` | `brand-assets-center-testing.vercel.app` (dominio vinculado a la rama) |
+| Supabase | Brand Assets Center (`eqzcpacqlwvowugmeads`) | FMachado8599's Project (`xsxbrhkorqudwnimkfho`) |
+
+**El flujo:** cada cambio se mergea a `testing`, se prueba en su URL y, recién cuando está todo bien, `testing` se mergea a `main`. Las migraciones de `supabase/` se corren primero en la base de testing y después en producción.
+
+**En Vercel** (plan Hobby, sin entornos personalizados) testing es el Preview de la rama `testing`:
+
+- `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` están cargadas para *Preview* solo en la rama `testing`, apuntando a la base de testing.
+- Las demás claves (FreeConvert, OpenAI, Resend) también tienen que estar en *Preview*; si no, el Conversor, la búsqueda por significado y Sugerencias no andan en testing.
+- Los previews piden iniciar sesión en Vercel (Deployment Protection). En Hobby esa sesión solo la tiene el dueño del proyecto.
+
+**Armar una base de testing de cero:**
+
+1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql` y `migracion-acceso.sql`.
+2. En *Authentication → Sign In / Providers → Google*, activar Google con el mismo cliente OAuth de producción. En Google Cloud, sumar `https://<proyecto>.supabase.co/auth/v1/callback` a los *Authorized redirect URIs* de ese cliente.
+3. En *Authentication → URL Configuration*, poner la URL de testing como *Site URL* y sumar `https://brand-assets-center-testing.vercel.app/**` y `http://localhost:3000/**` a las *Redirect URLs*.
+
+**Datos de testing:** una copia del catálogo de producción del 2026-10-12 (clientes, productos, categorías, tarjetas y tipografías; las fuentes siguen apuntando a los archivos de producción). No tiene cuentas, redacciones ni visitas.
+
+**Otra tabla en producción:** `emojis_search` y `match_emojis` (la búsqueda semántica de camara-focus-v2, 1949 emojis con vectores) quedaron guardadas en la base de producción. Herramientas no las usa: su buscador lee `data/emojis/embeddings.json`.
+
+---
+
 ## Cuentas y visitas
 
 Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:

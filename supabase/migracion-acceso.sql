@@ -65,6 +65,14 @@ drop policy if exists "acceso abierto" on public.categories;
 drop policy if exists "acceso abierto" on public.fonts;
 drop policy if exists "acceso abierto" on public.cards;
 
+-- Las que se crearon a mano en producción el 2026-10-12 ("cualquiera con sesión"): sin
+-- borrarlas, se sumarían a "solo el estudio" y una cuenta de afuera seguiría entrando.
+drop policy if exists "equipo con sesion" on public.brands;
+drop policy if exists "equipo con sesion" on public.products;
+drop policy if exists "equipo con sesion" on public.categories;
+drop policy if exists "equipo con sesion" on public.fonts;
+drop policy if exists "equipo con sesion" on public.cards;
+
 drop policy if exists "solo el estudio" on public.brands;
 drop policy if exists "solo el estudio" on public.products;
 drop policy if exists "solo el estudio" on public.categories;
@@ -87,6 +95,9 @@ create policy "solo el estudio" on public.cards
 -- pero solo el estudio puede listarlos, subirlos, cambiarlos o borrarlos.
 drop policy if exists "fonts lectura" on storage.objects;
 drop policy if exists "fonts escritura" on storage.objects;
+drop policy if exists "fonts subir" on storage.objects;
+drop policy if exists "fonts actualizar" on storage.objects;
+drop policy if exists "fonts borrar" on storage.objects;
 drop policy if exists "fonts del estudio" on storage.objects;
 create policy "fonts del estudio" on storage.objects
   for all to authenticated
@@ -96,6 +107,10 @@ create policy "fonts del estudio" on storage.objects
 -- 6. Logos de los clientes --------------------------------------
 -- Igual que las tipografías. El bucket lo crea migracion-clientes.sql; la política
 -- se puede crear antes (solo nombra al bucket), así el orden de las dos no importa.
+drop policy if exists "logos leer" on storage.objects;
+drop policy if exists "logos subir" on storage.objects;
+drop policy if exists "logos actualizar" on storage.objects;
+drop policy if exists "logos borrar" on storage.objects;
 drop policy if exists "logos del estudio" on storage.objects;
 create policy "logos del estudio" on storage.objects
   for all to authenticated
