@@ -10,6 +10,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **GIF** | `/gif` | Banners animados a partir de frames (lo que antes era Programática) |
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
+| **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -100,7 +101,7 @@ Si Google no está activado, el botón "Continuar con Google" avisa qué falta e
 
 Solo entran las cuentas **@camaratbwa.com** y las de la lista de excepciones. Hay tres capas:
 
-1. **La base** (`supabase/migracion-acceso.sql`): no crea cuentas de otros dominios, y tarjetas, marcas, productos, categorías y tipografías solo se leen y editan con sesión del estudio. Es la protección real: sin ella, cualquiera con la clave pública podría leer y editar todo.
+1. **La base** (`supabase/migracion-acceso.sql`): no crea cuentas de otros dominios, y tarjetas, clientes (y sus logos), productos, categorías y tipografías solo se leen y editan con sesión del estudio. Es la protección real: sin ella, cualquiera con la clave pública podría leer y editar todo.
 2. **Las páginas** (`middleware.ts`): sin sesión, las herramientas mandan a Inicio con "Iniciá sesión con tu cuenta @camaratbwa.com" y, después de entrar, vuelven a la herramienta que se quería abrir. A una cuenta de afuera le cierra la sesión y le avisa "Esa cuenta no tiene acceso".
 3. **Las APIs**: sin sesión del estudio responden 401, así nadie de afuera usa el Conversor ni la búsqueda de emojis (cuestan plata). Quedan públicas Inicio, Privacidad, la vuelta del login, las visitas y las imágenes de emojis.
 
@@ -194,7 +195,7 @@ Un lugar para escribir rápido (posteos, copys, mails) y sacar el texto más rá
 
 - **Formato**: negrita, cursiva, subrayado, tachado, listas y mayúsculas/minúsculas, desde la barra de arriba del texto o con los atajos de siempre (ver la tabla). Pegar desde Word o Docs conserva negritas y cursivas; pegar texto común respeta las líneas vacías. Los `#hashtags` y las `@menciones` se pintan.
 - **Nombre**: cada redacción se llama como su primera línea hasta que le pongas uno. Si lo borrás, vuelve al automático.
-- **Cliente**: cada redacción puede tener uno. Los clientes son las marcas de Tarjetas (la misma lista; se agregan en Tarjetas → Ajustes). Una nueva sigue con el cliente de la anterior.
+- **Cliente**: cada redacción puede tener uno (la misma lista de Tarjetas y Clientes). Si no está, se crea desde el mismo selector con **Nuevo cliente…**. Una nueva sigue con el cliente de la anterior.
 - **A la izquierda** (en pantallas chicas, en la barra), dos pestañas:
   - **Recientes**: todas, de la más nueva a la más vieja, con nombre, cliente y hace cuánto se editó. Se buscan por nombre, texto o cliente.
   - **Clientes**: cada cliente con sus redacciones (de la más nueva a la más vieja; arriba el que tiene la más reciente). Se filtran escribiendo el nombre, o tocando un cliente para ver solo las suyas. Con el **+** de cada cliente se empieza una nueva para él.
@@ -245,6 +246,28 @@ Si un hashtag ya está escrito entero, `Enter` hace un salto de línea en vez de
 
 ---
 
+## Clientes
+
+Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en Tarjetas se llamaban marcas).
+
+- **Crear uno, desde cualquier lado**: el **+** de Clientes en la sidebar, **Nuevo cliente** en Clientes, **+ Nuevo** al lado del cliente en el editor de una tarjeta, o **Nuevo cliente…** en el selector de Redacción. Pide nombre, color y, si lo tenés, el logo: el color se saca solo del logo. El cliente nuevo queda elegido donde lo creaste y aparece al instante en los otros módulos. Si ya existe uno con ese nombre (sin importar mayúsculas ni acentos), ofrece usar ese.
+- **La lista** (`/clientes`): cada cliente con su logo (o sus iniciales), su paleta y cuánto tiene a su nombre.
+- **La ficha** (`/clientes/<id>`), donde se edita todo y se guarda solo:
+  - **Logo**: se suelta o se elige (SVG, PNG, JPG, WEBP o GIF, hasta 5 MB). Se elige sobre qué fondo se ve (claro, oscuro o su color: un logo blanco no se ve sobre papel), y se descarga o se cambia desde ahí.
+  - **Nombre, color y notas**: el color es el que lo identifica en las listas. Las notas son libres (tono, contactos, links).
+  - **Colores**: la paleta, con nombre para cada color. Un click copia el HEX (o el RGB). Si hay logo, sugiere sus colores para sumarlos de un click. La estrella marca el color del cliente.
+  - **Tipografías**: se eligen entre las subidas, se suben ahí mismo (quedan en la biblioteca de Tarjetas) o se anota una que todavía no está. Cada peso se copia con su nombre completo, como lo nombran Illustrator e InDesign.
+  - **Productos**: se agregan y se quitan ahí.
+  - **Tarjetas** y **Redacciones**: las suyas, con atajos para crear una nueva para el cliente. Las redacciones son las tuyas (las de los demás no se ven).
+  - **Emojis y hashtags**: los que guardaste para el cliente desde los paneles de Redacción. Un click copia.
+  - **Eliminar cliente**: borra su ficha, su logo y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
+
+### Activarlo (una sola vez)
+
+En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+---
+
 ## Tarjetas
 
 Guarda textos con su formato y su tipografía, y los copia listos para pegar.
@@ -253,8 +276,8 @@ Guarda textos con su formato y su tipografía, y los copia listos para pegar.
 - Cambio de caja: MAYÚSCULAS, minúsculas y Capitalizar Cada Palabra — reescribe las letras de verdad, así viajan bien al portapapeles
 - **Cada fragmento guarda su tipografía exacta**, incluido el peso: "Montserrat Light" y "Montserrat Bold" conviven en el mismo párrafo
 - Subida de archivos de fuente (`.woff2`, `.woff`, `.ttf`, `.otf`) con detección automática de familia y peso
-- Clasificación por **marca**, **producto** (el modelo dentro de la marca) y **categoría**, con filtros de selección múltiple (en la barra, ícono de filtros)
-- Las tarjetas se agrupan solas: la marca es una columna y cada producto abre su propia fila
+- Clasificación por **cliente**, **producto** (el modelo dentro del cliente) y **categoría**, con filtros de selección múltiple (en la barra, ícono de filtros)
+- Las tarjetas se agrupan solas: el cliente es una columna (con su logo y un link a su ficha) y cada producto abre su propia fila
 - Copiar con formato · Copiar sin formato · Descargar `.rtf` / `.svg`
 
 ### Supabase
@@ -267,17 +290,17 @@ Guarda textos con su formato y su tipografía, y los copia listos para pegar.
 
 Eso crea las tablas, los permisos y el bucket `fonts` para los archivos de tipografía.
 
-### Marcas, productos y categorías
+### Clientes, productos y categorías
 
 Son tres clasificaciones independientes que se cruzan:
 
-- **Marca** — Changan, por ejemplo.
-- **Producto** — el modelo dentro de esa marca: Lumin, Hunter, Eado, CS55, Q05. Un producto siempre pertenece a una marca, así que el selector de producto solo te ofrece los modelos de la marca elegida, tanto al crear una tarjeta como al filtrar.
-- **Categoría** — transversal a todas las marcas: Autonomía, Seguridad, Tecnología.
+- **Cliente** — Changan, por ejemplo. Se crean y se editan en [Clientes](#clientes) (o con **+ Nuevo** en el editor de la tarjeta); ya no están en Ajustes.
+- **Producto** — el modelo dentro de ese cliente: Lumin, Hunter, Eado, CS55, Q05. Un producto siempre pertenece a un cliente, así que el selector de producto solo te ofrece los modelos del cliente elegido, tanto al crear una tarjeta como al filtrar. Se cargan en la ficha del cliente o en Ajustes → Productos.
+- **Categoría** — transversal a todos los clientes: Autonomía, Seguridad, Tecnología.
 
-Las tarjetas se ordenan solas en dos niveles. La marca es una columna, y adentro cada producto abre un divisor con su nombre a la izquierda y sus tarjetas en fila. El encabezado de marca aparece solo cuando hay más de una a la vista. Las tarjetas sin producto quedan al final bajo "Sin producto".
+Las tarjetas se ordenan solas en dos niveles. El cliente es una columna, y adentro cada producto abre un divisor con su nombre a la izquierda y sus tarjetas en fila. El encabezado del cliente aparece solo cuando hay más de uno a la vista. Las tarjetas sin producto quedan al final bajo "Sin producto".
 
-Borrar una marca borra también sus productos; las tarjetas sobreviven, quedan sin marca.
+Desde la ficha de un cliente, `/tarjetas?cliente=<id>` abre Tarjetas filtrado por él y `/tarjetas?nueva=<id>` abre una tarjeta nueva con él elegido. Borrar un cliente borra también sus productos; las tarjetas sobreviven, quedan sin cliente.
 
 ### Cómo pegar en Illustrator conservando la tipografía
 

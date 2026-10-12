@@ -119,13 +119,22 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
   /** La que se creó al empezar a escribir una nueva: los cambios siguientes van a ella aunque todavía no se haya vuelto a pintar. */
   const created = useRef<string | null>(null);
 
+  /**
+   * Desde la ficha de un cliente se llega con ?abrir=<redacción> o ?cliente=<id> (una nueva para él).
+   * Se lee una sola vez: después se limpia la URL, y en desarrollo React corre este efecto dos veces.
+   */
+  const fromUrl = useRef<{ open: string | null; client: string | null } | null>(null);
+
   // Lo de esta computadora se lee después de montar (no rompe la hidratación).
   useEffect(() => {
-    // Desde la ficha de un cliente se llega con ?abrir=<redacción> o ?cliente=<id> (una nueva para él).
-    const params = new URLSearchParams(window.location.search);
-    const toOpen = params.get("abrir");
-    const forClient = params.get("cliente");
-    if (toOpen || forClient) window.history.replaceState(window.history.state, "", window.location.pathname);
+    if (!fromUrl.current) {
+      const params = new URLSearchParams(window.location.search);
+      fromUrl.current = { open: params.get("abrir"), client: params.get("cliente") };
+      if (fromUrl.current.open || fromUrl.current.client) {
+        window.history.replaceState(window.history.state, "", window.location.pathname);
+      }
+    }
+    const { open: toOpen, client: forClient } = fromUrl.current;
     setCurrentId(toOpen ?? (forClient ? null : readLocal(CURRENT_KEY)));
     setDraftBrand(forClient ?? readLocal(CLIENT_KEY));
     // El panel que quedó abierto se vuelve a abrir solo en pantallas anchas: en el celular taparía el texto.

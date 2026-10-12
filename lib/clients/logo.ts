@@ -82,3 +82,25 @@ export async function logoColors(src: File | string, max = 5): Promise<string[]>
     if (local) URL.revokeObjectURL(url);
   }
 }
+
+/** Saturación y luminosidad (HSL, de 0 a 1) de un color hex. */
+function satLight(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const s = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+  return { s, l };
+}
+
+/**
+ * De los colores de un logo, el que mejor lo identifica: el primero (el más
+ * usado) que tenga color de verdad. Muchos logos son texto negro o gris con
+ * un acento de marca: el acento dice más que el negro.
+ */
+export function brandColorOf(colors: string[]) {
+  return colors.find((hex) => {
+    const { s, l } = satLight(hex);
+    return s > 0.35 && l > 0.15 && l < 0.85;
+  }) ?? colors[0];
+}

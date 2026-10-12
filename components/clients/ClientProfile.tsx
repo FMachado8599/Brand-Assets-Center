@@ -362,7 +362,7 @@ function ProfileHeader({
         <p className="eyebrow">
           Cliente <span className="text-primary">\</span>
         </p>
-        <NameInput key={brand.id} name={brand.name} onSave={(name) => save({ name })} />
+        <NameInput key={`nombre-${brand.id}`} name={brand.name} onSave={(name) => save({ name })} />
 
         <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           {stats.map(([href, n, one, many]) => (
@@ -381,7 +381,7 @@ function ProfileHeader({
           />
         </div>
 
-        <Notes key={brand.id} value={brand.notes ?? ""} onChange={(notes) => saveSoon({ notes })} />
+        <Notes key={`notas-${brand.id}`} value={brand.notes ?? ""} onChange={(notes) => saveSoon({ notes })} />
       </div>
     </header>
   );

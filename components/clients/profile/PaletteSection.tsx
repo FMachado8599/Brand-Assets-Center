@@ -105,19 +105,19 @@ export function PaletteSection({ brand, saveSoon }: { brand: Brand; saveSoon: (p
           {palette.map((c, i) => {
             const main = c.hex === normalizeHex(brand.color);
             return (
-            <Swatch
-              // Por posición: al cambiarle el color no se vuelve a montar (y no se cierra el selector).
-              key={i}
-              color={c}
-              main={main}
-              onRename={(name) => setPalette(palette.map((p, j) => (j === i ? { ...p, name } : p)))}
-              onRecolor={(hex) =>
+              <Swatch
+                // Por posición: al cambiarle el color no se vuelve a montar (y no se cierra el selector).
+                key={i}
+                color={c}
+                main={main}
+                onRename={(name) => setPalette(palette.map((p, j) => (j === i ? { ...p, name } : p)))}
                 // Si era el color del cliente, el cliente cambia con él.
-                saveSoon({ palette: palette.map((p, j) => (j === i ? { ...p, hex } : p)), ...(main ? { color: hex } : {}) })
-              }
-              onRemove={() => setPalette(palette.filter((_, j) => j !== i))}
-              onMain={() => saveSoon({ color: c.hex })}
-            />
+                onRecolor={(hex) =>
+                  saveSoon({ palette: palette.map((p, j) => (j === i ? { ...p, hex } : p)), ...(main ? { color: hex } : {}) })
+                }
+                onRemove={() => setPalette(palette.filter((_, j) => j !== i))}
+                onMain={() => saveSoon({ color: c.hex })}
+              />
             );
           })}
         </ul>

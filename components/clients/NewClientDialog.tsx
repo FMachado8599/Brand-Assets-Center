@@ -11,7 +11,7 @@ import { toast } from "@/components/ui/toaster";
 import { findClientByName, rememberClient, useClients } from "@/hooks/useClients";
 import { brandsRepo, clientErrorMessage } from "@/lib/repos/brands";
 import { PRESET_COLORS } from "@/lib/clients/color";
-import { logoColors } from "@/lib/clients/logo";
+import { brandColorOf, logoColors } from "@/lib/clients/logo";
 import type { Brand } from "@/lib/types";
 import { ColorChoice } from "./ColorChoice";
 import { LogoDrop } from "./LogoDrop";
@@ -60,7 +60,7 @@ export function NewClientDialog({ request }: { request: NewClientRequest | null 
     const colors = await logoColors(file);
     setFromLogo(colors);
     // El color del cliente sale del logo, salvo que ya hayas elegido uno.
-    if (!colorPicked && colors[0]) setColor(colors[0]);
+    if (!colorPicked && colors.length) setColor(brandColorOf(colors));
   };
 
   const finish = (brand: Brand, openProfile: boolean) => {
