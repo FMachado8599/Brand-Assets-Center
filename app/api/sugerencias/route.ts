@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server";
 import { FEEDBACK_EMAIL, STUDIO } from "@/lib/site";
+import { createSupabaseServer, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Sugerencias y errores del Inicio: llegan por mail (con Resend, https://resend.com).
+ * Sugerencias y errores del Inicio. Se guardan en la base (enviar_sugerencia, ver
+ * supabase/migracion-sugerencias.sql) y aparecen en el tablero del estudio. Si Resend
+ * está configurado (https://resend.com), además llega un mail:
  *
- *   RESEND_API_KEY   obligatoria
+ *   RESEND_API_KEY   opcional: sin ella no hay mail, pero la sugerencia queda en el tablero
  *   FEEDBACK_TO      a quién llegan (por defecto FEEDBACK_EMAIL)
  *   FEEDBACK_FROM    remitente. Sin dominio verificado en Resend se usa
  *                    onboarding@resend.dev, que solo puede mandar al mail de
  *                    la cuenta de Resend: creala con el mismo mail que recibe.
  *
- * No se guarda nada: el mail es el registro.
+ * Con sesión del estudio se puede firmar con nombre y foto (showIdentity). Sin sesión
+ * se manda anónima o con el nombre escrito, y no se ve el tablero.
  */
 
 type Kind = "sugerencia" | "error";
@@ -53,10 +57,27 @@ export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
   if (tooMany(ip)) return NextResponse.json({ error: "Demasiados envíos seguidos: probá en un minuto" }, { status: 429 });
 
+  // 1. Al tablero. Con la sesión de quien manda: la base decide si firma o va anónima.
+  let saved: string | null = null;
+  if (hasSupabaseEnv) {
+    const supabase = createSupabaseServer();
+    const { data, error } = await supabase.rpc("enviar_sugerencia", {
+      p_kind: kind === "error" ? "error" : "idea",
+      p_body: message,
+      p_show_identity: body.showIdentity === true,
+      p_name: name || null,
+      p_page: page || null,
+    });
+    if (error) console.error("[sugerencias] no se pudo guardar:", error.message);
+    else saved = typeof data === "string" ? data : "ok";
+  }
+
+  // 2. El mail, si está configurado. Si no, alcanza con el tablero.
   const key = process.env.RESEND_API_KEY;
   if (!key) {
-    console.warn("[sugerencias] falta RESEND_API_KEY: no se puede mandar el mail");
-    return NextResponse.json({ error: "El envío todavía no está configurado" }, { status: 503 });
+    if (saved) return NextResponse.json({ ok: true, id: saved });
+    console.warn("[sugerencias] no se pudo guardar y falta RESEND_API_KEY para el mail");
+    return NextResponse.json({ error: "No se pudo mandar: probá de nuevo en un rato" }, { status: 503 });
   }
 
   const label = kind === "error" ? "Error" : "Sugerencia";
@@ -91,7 +112,8 @@ export async function POST(req: Request) {
 
   if (!res?.ok) {
     if (res) console.error("[sugerencias] Resend respondió", res.status, await res.text().catch(() => ""));
-    return NextResponse.json({ error: "No se pudo mandar: probá de nuevo en un rato" }, { status: 502 });
+    // Si quedó en el tablero, para quien la mandó salió bien: solo faltó el mail.
+    if (!saved) return NextResponse.json({ error: "No se pudo mandar: probá de nuevo en un rato" }, { status: 502 });
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, id: saved });
 }

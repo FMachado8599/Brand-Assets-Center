@@ -53,15 +53,18 @@ Abrí http://localhost:3000
 | `FREECONVERT_API_KEY` | Conversor | Sí, para convertir |
 | `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
-| `RESEND_API_KEY` | Inicio → Sugerencias | Sí, para que lleguen los mails (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
+| `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
 ### Sugerencias y errores
 
-Al final del Inicio hay un formulario para mandar una sugerencia o avisar un error. Llega por mail a `fmachado@camaratbwa.com` (`FEEDBACK_EMAIL` en `lib/site.ts`, o `FEEDBACK_TO`); el nombre es opcional. No se guarda nada: el mail es el registro. Funciona sin iniciar sesión (así también se puede avisar "no puedo entrar"); para frenar spam tiene un campo trampa para bots y un límite de 5 envíos por minuto.
+Al final del Inicio hay un formulario para mandar una **idea** o avisar un **error**. Se guarda en la base (`supabase/migracion-sugerencias.sql`) y, con sesión del estudio, se ve debajo en **el tablero**: post-its amarillos (ideas) y rojos (errores), sueltos e inclinados. Cada post-it muestra el principio del texto; al tocarlo se abre entero.
 
-Para activarlo: crear una cuenta en [Resend](https://resend.com) **con el mismo mail que recibe**, sacar una API key y cargarla como `RESEND_API_KEY` en `.env.local` y en Vercel. Sin dominio verificado, Resend manda desde `onboarding@resend.dev` y solo al mail de su cuenta; para mandar a otro mail o desde una dirección propia, verificar un dominio en Resend y completar `FEEDBACK_FROM`.
+- **Firmar o no:** con sesión se manda firmada con el nombre y la foto de la cuenta, o anónima (el nombre no se muestra en el tablero). Sin sesión también se puede mandar (así se puede avisar "no puedo entrar"), anónima o con el nombre que se escriba, pero el tablero no se ve. Las anónimas sin sesión tienen un tope de 10 por minuto entre todas.
+- **Me sumo / Me pasa también:** cada persona del estudio puede apoyar una idea o un error una vez.
+- **Estado:** quien administra (`feedback_admins`, hoy `fmachado@camaratbwa.com`) marca *En camino* o *Hecha*; las hechas quedan al final, más claras. Cada uno puede borrar las suyas y quien administra, cualquiera.
+- **Mail (opcional):** si está `RESEND_API_KEY`, además llega un mail a `fmachado@camaratbwa.com` (`FEEDBACK_EMAIL` en `lib/site.ts`, o `FEEDBACK_TO`). Para activarlo: crear una cuenta en [Resend](https://resend.com) **con el mismo mail que recibe**, sacar una API key y cargarla como `RESEND_API_KEY` en `.env.local` y en Vercel. Sin dominio verificado, Resend manda desde `onboarding@resend.dev` y solo al mail de su cuenta; para mandar a otro mail o desde una dirección propia, verificar un dominio en Resend y completar `FEEDBACK_FROM`.
 
 ---
 
@@ -78,12 +81,12 @@ Para activarlo: crear una cuenta en [Resend](https://resend.com) **con el mismo 
 **En Vercel** (plan Hobby, sin entornos personalizados) testing es el Preview de la rama `testing`:
 
 - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` están cargadas para *Preview* solo en la rama `testing`, apuntando a la base de testing.
-- Las demás claves (FreeConvert, OpenAI, Resend) también tienen que estar en *Preview*; si no, el Conversor, la búsqueda por significado y Sugerencias no andan en testing.
+- Las demás claves (FreeConvert, OpenAI, Resend) también tienen que estar en *Preview*; si no, el Conversor, la búsqueda por significado y el mail de Sugerencias no andan en testing.
 - Los previews piden iniciar sesión en Vercel (Deployment Protection). En Hobby esa sesión solo la tiene el dueño del proyecto.
 
 **Armar una base de testing de cero:**
 
-1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql` y `migracion-acceso.sql`.
+1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql` y `migracion-sugerencias.sql`.
 2. En *Authentication → Sign In / Providers → Google*, activar Google con el mismo cliente OAuth de producción. En Google Cloud, sumar `https://<proyecto>.supabase.co/auth/v1/callback` a los *Authorized redirect URIs* de ese cliente.
 3. En *Authentication → URL Configuration*, poner la URL de testing como *Site URL* y sumar `https://brand-assets-center-testing.vercel.app/**` y `http://localhost:3000/**` a las *Redirect URLs*.
 

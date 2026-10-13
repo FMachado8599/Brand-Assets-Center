@@ -6,6 +6,9 @@ type Toast = { id: number; message: string; kind: "ok" | "error" };
 
 let emit: ((t: Omit<Toast, "id">) => void) | null = null;
 
+/** Lo que tarda en leerse: los avisos cortos se van rápido; los largos (ej: "iniciá sesión…") esperan más. */
+const readingTime = (message: string) => Math.min(9000, Math.max(3200, 2000 + message.length * 55));
+
 export function toast(message: string, kind: "ok" | "error" = "ok") {
   emit?.({ message, kind });
 }
@@ -17,7 +20,7 @@ export function Toaster() {
     emit = (t) => {
       const id = Date.now() + Math.random();
       setItems((prev) => [...prev, { ...t, id }]);
-      setTimeout(() => setItems((prev) => prev.filter((i) => i.id !== id)), 3200);
+      setTimeout(() => setItems((prev) => prev.filter((i) => i.id !== id)), readingTime(t.message));
     };
     return () => {
       emit = null;

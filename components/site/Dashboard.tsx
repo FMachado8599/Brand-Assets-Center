@@ -98,7 +98,7 @@ export function Dashboard({ name }: { name: string | null }) {
       <div className="mx-auto max-w-6xl px-4 sm:px-8">
         <div className="border-t border-ink/15" />
       </div>
-      <FeedbackSection />
+      <FeedbackSection board />
       <SiteFooter />
     </div>
   );
@@ -178,7 +178,7 @@ function FeedbackCard() {
           <ArrowDown className="hidden h-6 w-6 shrink-0 transition-[color,transform] duration-500 group-hover:translate-y-0.5 group-hover:text-ink sm:block" />
         </span>
         <span className="mt-2 hidden text-sm text-cream/55 transition-colors duration-500 group-hover:text-ink/60 sm:block">
-          Algo para mejorar o algo que no anda
+          Ideas y errores del equipo, en un tablero
         </span>
       </span>
     </a>
