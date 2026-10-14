@@ -4,3 +4,7 @@ node_modules
 .DS_Store
 .next-*
 *.tsbuildinfo
+
+# Servicio de YouTube: los programas (yt-dlp, ffmpeg) y la clave quedan solo en la PC que lo corre
+worker/youtube/bin/
+worker/youtube/.env

@@ -13,6 +13,27 @@ export type MediaFile = {
   thumbnail?: string;
 };
 
+/** Una calidad que ofrece un video de YouTube: `q` es el tope que se le pide al servicio, `res` lo que sale. */
+export type YoutubeQuality = {
+  q: number;
+  res: number;
+  /** Peso estimado con audio y sin audio, en bytes. */
+  video?: number;
+  mute?: number;
+};
+
+/**
+ * YouTube no se baja desde Vercel: lo baja el servicio de la PC (worker/youtube) en la calidad que se elija.
+ * El navegador le habla directo, con un permiso firmado por la app que sirve solo para este video.
+ */
+export type YoutubeSource = {
+  worker: string;
+  token: string;
+  qualities: YoutubeQuality[];
+  /** Peso estimado del audio solo, en bytes. */
+  audio?: number;
+};
+
 export type MediaInfo = {
   platform: Platform;
   id: string;
@@ -24,5 +45,21 @@ export type MediaInfo = {
   thumbnail?: string;
   /** En segundos, solo cuando es un video solo. */
   duration?: number;
+  /** Vacío en YouTube: el archivo se arma en el servicio cuando se pide (ver `youtube`). */
   files: MediaFile[];
+  youtube?: YoutubeSource;
+};
+
+/** Qué hacer con el sonido de los videos. */
+export type AudioMode = "con" | "sin" | "solo";
+
+/** Dónde se guarda lo que se baja. */
+export type Destination = "compu" | "ambos" | "drive";
+
+export type DriveFolder = { id: string; name: string; url: string };
+
+export type SaveSettings = {
+  destino: Destination;
+  audio: AudioMode;
+  carpeta: DriveFolder | null;
 };

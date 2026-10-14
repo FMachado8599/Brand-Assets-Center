@@ -1,4 +1,4 @@
-import type { MediaFile, MediaInfo, Platform } from "./types";
+import type { AudioMode, MediaFile, MediaInfo, Platform } from "./types";
 
 /** `id` es null en los links cortos (pin.it): el pin recién se conoce siguiendo la redirección. */
 export type Link = { platform: Platform; url: string; id: string | null };
@@ -10,7 +10,7 @@ const YOUTUBE_ID = /^[\w-]{11}$/;
 const YOUTUBE_HOSTS = new Set(["youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com"]);
 const URLISH = /(?:https?:\/\/)?(?:[\w-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi;
 
-export const NO_LINKS = "Pegá el link de un posteo o reel de Instagram, o de un pin de Pinterest.";
+export const NO_LINKS = "Pegá el link de un video de YouTube, un posteo o reel de Instagram, o un pin de Pinterest.";
 
 export function isPinterestHost(host: string) {
   return host === "pin.it" || /(^|\.)pinterest(\.[a-z]{2,3}){1,2}$/.test(host);
@@ -52,12 +52,26 @@ export function parseLink(raw: string): Link | null {
 
 /** Los links soportados que aparezcan en un texto pegado (un mensaje, una lista), sin repetir. */
 export function findLinks(text: string): Link[] {
+  return scanLinks(text).links;
+}
+
+/**
+ * Como findLinks, y además cuenta los links que no son de ninguna plataforma soportada (para avisar).
+ * Solo cuentan los que empiezan con http o www: un "topic.media" suelto en el texto no es un link.
+ */
+export function scanLinks(text: string) {
   const links: Link[] = [];
-  for (const candidate of text.match(URLISH) ?? []) {
+  let ignored = 0;
+  // Links pegados sin espacio entre medio ("…/p/abc/https://…") se separan.
+  for (const candidate of text.replace(/(\S)(https?:\/\/)/gi, "$1 $2").match(URLISH) ?? []) {
     const link = parseLink(candidate);
-    if (link && !links.some((l) => l.url === link.url)) links.push(link);
+    if (!link) {
+      if (/^(https?:\/\/|www\.)/i.test(candidate)) ignored++;
+      continue;
+    }
+    if (!links.some((l) => l.url === link.url)) links.push(link);
   }
-  return links;
+  return { links, ignored };
 }
 
 function httpsUrl(src: string) {
@@ -110,12 +124,18 @@ export function clip(text: string, max: number) {
   return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:–—-]+$/, "");
 }
 
-export function downloadName(info: MediaInfo, file: MediaFile) {
-  // En Instagram la cuenta dice de quién es; en Pinterest es quien lo guardó, que no importa. Los títulos
-  // de Pinterest además suelen arrastrar palabras clave después de un " | ": quedan afuera.
+/**
+ * El nombre con que se guarda: el del posteo, el número dentro del carrusel, y si se le sacó o se separó
+ * el audio. `ext` es la del archivo que sale (un video convertido a solo audio termina en .m4a).
+ */
+export function downloadName(info: MediaInfo, ext: string, opts: { file?: MediaFile; audio?: AudioMode } = {}) {
+  // En Instagram la cuenta dice de quién es y en YouTube el canal; en Pinterest es quien lo guardó, que no
+  // importa. Los títulos de Pinterest además suelen arrastrar palabras clave después de un " | ": quedan afuera.
   const parts = info.platform === "pinterest" ? [info.title.split(" | ")[0]] : [info.author, info.title];
   // Sin puntuación al final: "…mucho después." no puede terminar en "después..mp4".
   const base = clip(safeFileName(parts.filter(Boolean).join(" - ")), 90).replace(/[\s.,;:!?¿¡…–—-]+$/, "") || "descarga";
-  const index = info.files.indexOf(file);
-  return `${base}${info.files.length > 1 ? ` (${index + 1})` : ""}.${file.ext}`;
+  const index = opts.file ? info.files.indexOf(opts.file) : -1;
+  const number = info.files.length > 1 && index >= 0 ? ` (${index + 1})` : "";
+  const tag = opts.audio === "sin" ? " (sin audio)" : opts.audio === "solo" ? " (audio)" : "";
+  return `${base}${number}${tag}.${ext}`;
 }

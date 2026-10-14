@@ -11,7 +11,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
-| **Descargas** | `/descargas` | Bajar videos, fotos y carruseles de Instagram y videos e imágenes de Pinterest con el link |
+| **Descargas** | `/descargas` | Bajar videos y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -55,6 +55,8 @@ Abrí http://localhost:3000
 | `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
+| `YOUTUBE_WORKER_URL`, `YOUTUBE_WORKER_SECRET` | Descargas → YouTube | Sí, para YouTube: la dirección pública del servicio de la PC y su clave (ver "Descargas") |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -372,25 +374,47 @@ Necesita `FREECONVERT_API_KEY` (sacala en [freeconvert.com/api](https://www.free
 
 ## Descargas
 
-Baja lo que hay en un link de Instagram o de Pinterest, en la mejor calidad que den, sin keys ni cuentas.
+Baja lo que hay en links de YouTube, Instagram y Pinterest, en la mejor calidad que den, a la compu, a una carpeta de Drive o a las dos.
 
-- **Pegá el link** con Ctrl+V en cualquier parte de la página, con el botón de pegar de la barra o escribiéndolo en la barra + Enter. Si pegás un mensaje con varios links, entra uno por fila; los repetidos se ignoran.
+- **Pegar links**: en la caja de la página (o en el botón de lista de la barra) entra un mensaje o una lista entera: muestra cuántos links reconoce y de qué plataforma antes de agregarlos. También anda Ctrl+V en cualquier parte de la página, el botón de pegar de la barra o escribir en la barra + Enter. Entra un link por fila; los repetidos y los de otras páginas se ignoran (y se avisa cuántos).
+- **YouTube**: videos, Shorts y vivos ya terminados. Se elige la calidad en cada fila (hasta 1080p en H.264 + AAC, el MP4 que abre cualquier editor). Lo baja **el servicio de la PC de la oficina** (ver abajo): si esa PC está apagada, las filas de YouTube lo avisan.
 - **Instagram**: posteos (`/p/…`), reels (`/reel/…`, también con el usuario adelante) y `/tv/…`, de cuentas públicas. Los videos salen en MP4 (720p, lo que da Instagram sin sesión), las fotos en su mayor tamaño (1080 px) y los carruseles enteros: **Descargar N** baja todo y la tira de miniaturas baja cada archivo por separado. El ícono de copiar trae el texto del posteo. Las historias no se pueden: piden sesión.
 - **Pinterest**: pins de video y de imagen, de cualquier dominio (`pinterest.com/pin/…`, `ar.pinterest.com`, `pinterest.es`…) y los links cortos (`pin.it/…`). Las imágenes salen en su tamaño original.
-- Los archivos se llaman como el posteo: `@cuenta - primera línea del texto.mp4` en Instagram y el título del pin en Pinterest. Con dos o más links listos aparece **Descargar** en la barra para bajar todo junto (el navegador puede pedir permiso para descargas múltiples la primera vez).
+- **Cómo se guarda** (ícono de ajustes de la barra, o el resumen debajo del título). Se recuerda en la cuenta de cada uno:
+  - *Sonido de los videos*: con audio, sin audio (el video mudo) o solo audio (`.m4a`). No se vuelve a comprimir nada: se copian las pistas tal cual. En Instagram y Pinterest lo hace el navegador (`lib/downloads/audio.client.ts`, con [mediabunny](https://mediabunny.dev)); en YouTube, el servicio de la PC.
+  - *Dónde*: compu, compu y Drive, o solo Drive.
+  - *Carpeta de Drive*: se pega el link de la carpeta. La primera vez Google pide permiso y abre su selector ya parado en esa carpeta, para confirmarla con un click; después queda guardada.
+- Los archivos se llaman como el posteo: `@cuenta - primera línea del texto.mp4` en Instagram, `Canal - Título.mp4` en YouTube y el título del pin en Pinterest; con `(3)` si es del carrusel, `(sin audio)` o `(audio)`. Con dos o más links listos aparece la acción de la barra para guardar todo junto (el navegador puede pedir permiso para descargas múltiples la primera vez).
 
 ### Cómo funciona
 
 - `/api/descargas/info?url=…` lee el link en el servidor:
   - **Instagram** (`lib/downloads/instagram.server.ts`): abre la página *embed* del posteo (`/p/<código>/embed/captioned/`, la que usan los sitios para insertar un posteo), que trae los datos sin sesión. Solo responde si el pedido parece una navegación (`Sec-Fetch-Mode: navigate`), y el `fetch()` de Node no deja poner ese encabezado: por eso va con `node:https`. Las fotos sueltas no traen datos y se leen del HTML del embed. Las APIs internas (GraphQL, `?__a=1`) piden iniciar sesión.
   - **Pinterest** (`lib/downloads/pinterest.server.ts`): abre la página pública del pin y lee el schema.org que publica para los buscadores (`VideoObject` en los videos, `SocialMediaPosting` en las imágenes). La API interna de Pinterest pide sesión.
-- `/api/descargas/file?src=…&name=…` baja el archivo a través del servidor (edge), para que salga con su nombre (y porque el CDN de Pinterest no habilita CORS). Solo acepta archivos de los CDN de Pinterest (`v*.pinimg.com/videos`, `i.pinimg.com/originals`) e Instagram (`*.fbcdn.net`, `*.cdninstagram.com`), y la extensión la decide el tipo que manda el origen. Cada descarga pasa por Vercel, así que consume transferencia.
+  - **YouTube** (`lib/downloads/youtube.server.ts`): le pide los datos al servicio de la PC con la clave compartida y firma un permiso para ese video (vence a las 6 horas). El navegador le habla directo al servicio con ese permiso: le pide que prepare el archivo, sigue el avance y lo baja de ahí. Los videos de YouTube no pasan por Vercel.
+- `/api/descargas/file?src=…&name=…` baja los archivos de Instagram y Pinterest a través del servidor (edge), para que salgan con su nombre (y porque el CDN de Pinterest no habilita CORS). Solo acepta archivos de los CDN de Pinterest (`v*.pinimg.com/videos`, `i.pinimg.com/originals`) e Instagram (`*.fbcdn.net`, `*.cdninstagram.com`), y la extensión la decide el tipo que manda el origen. Cada descarga pasa por Vercel, así que consume transferencia.
+- `lib/downloads/save.client.ts` arma cada guardado: de dónde sale el archivo, si hay que sacarle o separarle el audio y adónde va. Solo a la compu y sin procesar, lo baja el navegador directamente; si hay que procesarlo o subirlo a Drive, primero se baja a la memoria de la página.
+- **Drive** (`lib/downloads/drive.client.ts`) usa la cuenta de Google de cada persona, con el permiso `drive.file`: la app solo ve lo que ella sube y las carpetas que la persona le confirma en el selector de Google (Google Picker). Así nadie le da acceso a todo su Drive y Google no pide verificar la app. Los archivos van directo del navegador a Google.
 - Los links de archivos de Instagram vencen a los pocos días: si una fila quedó abierta mucho tiempo, sacala y volvé a pegar el link.
 - **Si un día deja de andar**, lo más probable es que Instagram o Pinterest hayan cambiado su página: lo que hay que ajustar está en esos dos archivos. Instagram además puede tratar distinto a los servidores en la nube que a una conexión de oficina; si en Vercel falla y en local anda, es eso.
 
-### YouTube (pendiente)
+### YouTube: el servicio de la PC
 
-YouTube bloquea seguido los pedidos que salen de servidores en la nube (como Vercel) y, en calidad alta, manda video y audio por separado, que hay que unir con ffmpeg. La opción confiable es un servicio aparte con `yt-dlp` en una PC siempre prendida (conexión de casa u oficina), publicado con Cloudflare Tunnel o Tailscale. Hasta entonces, los links de YouTube avisan que todavía no está disponible.
+YouTube corta las descargas en buena calidad que salen de servidores en la nube (deja bajar el primer mega y después responde 403, si el pedido no trae un token que genera su reproductor). Por eso lo baja un servicio aparte, `worker/youtube/`, con [yt-dlp](https://github.com/yt-dlp/yt-dlp) y ffmpeg, en una PC con conexión de oficina. Está en Node sin dependencias; los programas van en `worker/youtube/bin/` (fuera de git) y yt-dlp se actualiza solo cada día. Las instrucciones para instalarlo en otra PC (o en el servidor de la empresa) están en [`worker/youtube/README.md`](worker/youtube/README.md).
+
+1. **Arrancarlo**: doble click en `worker/youtube/iniciar.cmd`. La primera vez crea `worker/youtube/.env` con una clave nueva (`YOUTUBE_WORKER_SECRET`). Para que arranque con Windows, poné un acceso directo a `iniciar.cmd` en la carpeta de inicio (`Win+R` → `shell:startup`).
+2. **Publicarlo** con una dirección https fija, para que lo alcancen Vercel y los navegadores del equipo. Lo más simple es [Tailscale Funnel](https://tailscale.com/kb/1223/funnel): instalar Tailscale en la PC, iniciar sesión y correr `tailscale funnel --bg 8787` (da una dirección `https://<pc>.<red>.ts.net` que no cambia). Si la empresa tiene un dominio en Cloudflare, Cloudflare Tunnel sirve igual.
+3. **Cargar en Vercel** `YOUTUBE_WORKER_URL` (esa dirección) y `YOUTUBE_WORKER_SECRET` (la misma clave del `.env` del servicio). En local van en `.env.local`, con `YOUTUBE_WORKER_URL=http://localhost:8787`.
+
+### Drive: activarlo (una sola vez)
+
+En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOOGLE_OAUTH_CLIENT_ID`):
+
+1. **APIs y servicios → Biblioteca**: habilitar *Google Drive API* y *Google Picker API*.
+2. **Credenciales → Crear credenciales → Clave de API**: restringirla a *Google Picker API* y, en "Restricciones de aplicaciones", a sitios web: el dominio de producción, el de testing/preview y `http://localhost:3000`. Va en `GOOGLE_PICKER_API_KEY`.
+3. **Credenciales → el cliente OAuth → Orígenes autorizados de JavaScript**: agregar los mismos dominios (producción, preview y `http://localhost:3000`).
+4. **Pantalla de consentimiento → Acceso a los datos**: agregar el permiso `.../auth/drive.file` (no es sensible: no hace falta verificar la app).
+5. Cargar `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_PICKER_API_KEY` en Vercel (y en `.env.local`). Sin ellas, las opciones de Drive aparecen deshabilitadas.
 
 ---
 

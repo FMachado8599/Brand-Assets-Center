@@ -1,12 +1,22 @@
 "use client";
 
-import { AlertCircle, Copy, Download, Film, ImageIcon, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, CloudUpload, Copy, Download, ExternalLink, Film, ImageIcon, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { formatBytes } from "@/lib/converter/catalog";
-import { downloadName, type Link } from "@/lib/downloads/links";
-import type { MediaFile, MediaInfo, Platform } from "@/lib/downloads/types";
+import type { Link } from "@/lib/downloads/links";
+import type { MediaFile, MediaInfo, Platform, SaveSettings, YoutubeQuality } from "@/lib/downloads/types";
+
+/** Lo que está pasando con lo que se pidió guardar de esta fila. */
+export type Transfer = {
+  state: "working" | "done" | "error";
+  label: string;
+  percent?: number;
+  /** El archivo (o la carpeta, si fueron varios) en Drive. */
+  driveUrl?: string;
+};
 
 export type DownloadItem = {
   link: Link;
@@ -15,25 +25,12 @@ export type DownloadItem = {
   error?: string;
   /** Solo los errores pasajeros (red, la plataforma caída) tienen sentido de reintentar. */
   retryable?: boolean;
+  /** YouTube: la calidad elegida (el `q` de YoutubeQuality). */
+  quality?: number;
+  transfer?: Transfer;
 };
 
 const PLATFORMS: Record<Platform, string> = { instagram: "Instagram", pinterest: "Pinterest", youtube: "YouTube" };
-
-export function fileHref(info: MediaInfo, file: MediaFile) {
-  const qs = new URLSearchParams({ src: file.url, name: downloadName(info, file) });
-  return `/api/descargas/file?${qs}`;
-}
-
-/** Baja varios archivos seguidos: los navegadores frenan las descargas en ráfaga, así que se espacian un poco. */
-export async function saveAll(pairs: { info: MediaInfo; file: MediaFile }[]) {
-  for (const [i, { info, file }] of pairs.entries()) {
-    if (i) await new Promise((r) => setTimeout(r, 400));
-    const a = document.createElement("a");
-    a.href = fileHref(info, file);
-    a.download = downloadName(info, file);
-    a.click();
-  }
-}
 
 function clock(total: number) {
   const h = Math.floor(total / 3600);
@@ -51,27 +48,53 @@ function countLabel(files: MediaFile[]) {
     .join(" y ");
 }
 
+/** El peso de lo que va a salir de YouTube con la calidad y el sonido elegidos. */
+function youtubeSize(info: MediaInfo, quality: YoutubeQuality | undefined, audio: SaveSettings["audio"]) {
+  const size = audio === "solo" ? info.youtube?.audio : audio === "sin" ? quality?.mute : quality?.video;
+  return size ? `~${formatBytes(size)}` : null;
+}
+
+export function actionLabel(destino: SaveSettings["destino"], count = 1) {
+  const n = count > 1 ? ` ${count}` : "";
+  if (destino === "drive") return `Guardar${n} en Drive`;
+  if (destino === "ambos") return `Descargar${n} y subir`;
+  return `Descargar${n}`;
+}
+
 export function DownloadRow({
   item,
+  settings,
+  onSave,
+  onQuality,
   onRetry,
   onRemove,
 }: {
   item: DownloadItem;
+  settings: SaveSettings;
+  /** Sin archivo: todo lo de la fila (el video de YouTube, o todos los del carrusel). */
+  onSave: (file?: MediaFile) => void;
+  onQuality: (q: number) => void;
   onRetry: () => void;
   onRemove: () => void;
 }) {
-  const { info } = item;
+  const { info, transfer } = item;
   const files = info?.files ?? [];
+  const yt = info?.youtube;
+  const quality = yt?.qualities.find((q) => q.q === item.quality) ?? yt?.qualities[0];
   const single = files.length === 1 ? files[0] : undefined;
+  const busy = transfer?.state === "working";
   const totalSize = files.length && files.every((f) => f.size) ? files.reduce((n, f) => n + f.size!, 0) : undefined;
   const meta = [
     PLATFORMS[item.link.platform],
-    info?.platform === "instagram" && info.author,
+    info?.platform !== "pinterest" && info?.author,
     files.length > 1 && countLabel(files),
     info?.duration && clock(info.duration),
     single?.width && single.height && `${single.width}×${single.height}`,
     totalSize && formatBytes(totalSize),
+    info && yt && youtubeSize(info, quality, settings.audio),
   ].filter(Boolean);
+  const canSave = !!info && (files.length > 0 || !!yt);
+  const ActionIcon = settings.destino === "compu" ? Download : CloudUpload;
 
   const copyCaption = async () => {
     try {
@@ -83,7 +106,14 @@ export function DownloadRow({
   };
 
   return (
-    <li className="px-4 py-3">
+    <li className="relative overflow-hidden px-4 py-3">
+      {busy && (
+        <span
+          className="absolute inset-x-0 bottom-0 h-0.5 bg-primary transition-[width] duration-300"
+          style={{ width: transfer.percent === undefined ? "100%" : `${transfer.percent}%`, opacity: transfer.percent === undefined ? 0.4 : 1 }}
+        />
+      )}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:flex-nowrap">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-secondary text-muted-foreground">
@@ -101,7 +131,7 @@ export function DownloadRow({
                 {files.length}
               </span>
             ) : (
-              single?.kind === "video" && (
+              (single?.kind === "video" || yt) && (
                 <span className="absolute right-1 top-1 grid h-4 w-4 place-items-center rounded-full bg-ink/75 text-cream">
                   <Play className="h-2 w-2 fill-current" />
                 </span>
@@ -131,7 +161,7 @@ export function DownloadRow({
         <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
           {item.status === "loading" && (
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando…
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> {item.link.platform === "youtube" ? "Leyendo el video…" : "Buscando…"}
             </span>
           )}
 
@@ -149,6 +179,8 @@ export function DownloadRow({
             </>
           )}
 
+          {transfer && <TransferStatus transfer={transfer} onRetry={() => onSave()} />}
+
           {info?.caption && (
             <Hint label="Copiar el texto del posteo">
               <Button variant="ghost" size="iconSm" onClick={copyCaption} aria-label="Copiar el texto del posteo">
@@ -157,20 +189,28 @@ export function DownloadRow({
             </Hint>
           )}
 
-          {single && info && (
-            <Button size="sm" asChild>
-              <a href={fileHref(info, single)} download={downloadName(info, single)}>
-                <Download /> Descargar
-              </a>
-            </Button>
+          {yt && settings.audio !== "solo" && yt.qualities.length > 1 && (
+            <Select value={String(quality?.q)} onValueChange={(v) => onQuality(Number(v))} disabled={busy}>
+              <SelectTrigger className="h-8 w-[5.5rem] rounded-md text-xs" aria-label="Calidad">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {yt.qualities.map((q) => (
+                  <SelectItem key={q.q} value={String(q.q)} className="text-xs">
+                    {q.res}p
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          {files.length > 1 && (
-            <Button size="sm" onClick={() => saveAll(files.map((file) => ({ info: info!, file })))}>
-              <Download /> Descargar {files.length}
+
+          {canSave && !busy && transfer?.state !== "error" && (
+            <Button size="sm" onClick={() => onSave()}>
+              <ActionIcon /> {actionLabel(settings.destino, files.length)}
             </Button>
           )}
 
-          {item.status !== "loading" && (
+          {item.status !== "loading" && !busy && (
             <Button variant="ghost" size="iconSm" onClick={onRemove} aria-label="Quitar">
               <X />
             </Button>
@@ -182,11 +222,12 @@ export function DownloadRow({
         <ul className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 sm:ml-[4.25rem] sm:mr-0 sm:pl-0">
           {files.map((file, i) => (
             <li key={file.url} className="shrink-0">
-              <a
-                href={fileHref(info, file)}
-                download={downloadName(info, file)}
-                title={`Descargar ${file.kind === "video" ? "el video" : "la foto"} ${i + 1}`}
-                className="group relative grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-secondary text-muted-foreground outline-none ring-ring focus-visible:ring-2"
+              <button
+                type="button"
+                onClick={() => onSave(file)}
+                disabled={busy}
+                title={`${settings.destino === "drive" ? "Guardar en Drive" : "Descargar"} ${file.kind === "video" ? "el video" : "la foto"} ${i + 1}`}
+                className="group relative grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-secondary text-muted-foreground outline-none ring-ring focus-visible:ring-2 disabled:cursor-wait"
               >
                 {file.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -202,16 +243,55 @@ export function DownloadRow({
                   </span>
                 )}
                 <span className="absolute inset-0 grid place-items-center bg-ink/55 text-cream opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                  <Download className="h-4 w-4" />
+                  <ActionIcon className="h-4 w-4" />
                 </span>
                 <span className="absolute bottom-1 right-1 rounded bg-ink/75 px-1 text-[10px] font-semibold tabular-nums leading-4 text-cream group-hover:opacity-0">
                   {i + 1}
                 </span>
-              </a>
+              </button>
             </li>
           ))}
         </ul>
       )}
     </li>
+  );
+}
+
+function TransferStatus({ transfer, onRetry }: { transfer: Transfer; onRetry: () => void }) {
+  if (transfer.state === "working") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+        <span className="tabular-nums">
+          {transfer.label}
+          {transfer.percent !== undefined && ` ${transfer.percent}%`}
+        </span>
+      </span>
+    );
+  }
+  if (transfer.state === "error") {
+    return (
+      <>
+        <span className="flex max-w-[18rem] items-center gap-1.5 text-xs text-destructive" title={transfer.label}>
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span className="line-clamp-2">{transfer.label}</span>
+        </span>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RotateCcw /> Reintentar
+        </Button>
+      </>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+      {transfer.driveUrl ? (
+        <a href={transfer.driveUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+          {transfer.label} <ExternalLink className="h-3 w-3" />
+        </a>
+      ) : (
+        transfer.label
+      )}
+    </span>
   );
 }

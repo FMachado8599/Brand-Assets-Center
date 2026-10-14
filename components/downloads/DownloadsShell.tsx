@@ -1,26 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ClipboardPaste, Download, Instagram, Layers, Link2, Pin } from "lucide-react";
-import { BarAction, BarButton, BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar";
+import { ClipboardPaste, CloudUpload, Download, FolderInput, Instagram, Link2, ListPlus, MonitorDown, Pin, SlidersHorizontal, Youtube } from "lucide-react";
+import { useAccount } from "@/components/shell/AccountProvider";
+import { BarAction, BarButton, BarDivider, BarPopover, BarSearch, ContextBar, PanelTitle } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
-import { findLinks, NO_LINKS, type Link } from "@/lib/downloads/links";
-import type { MediaInfo } from "@/lib/downloads/types";
-import { DownloadRow, saveAll, type DownloadItem } from "./DownloadRow";
+import { useStoredState } from "@/hooks/useStoredState";
+import { DriveError, getDriveToken, type DriveConfig } from "@/lib/downloads/drive.client";
+import { findLinks, NO_LINKS, scanLinks, type Link } from "@/lib/downloads/links";
+import { saveTarget, type SaveTarget } from "@/lib/downloads/save.client";
+import type { MediaFile, MediaInfo, SaveSettings } from "@/lib/downloads/types";
+import { actionLabel, DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
+import { LinkList } from "./LinkList";
+import { DEFAULT_SETTINGS, describeSettings, SaveOptions } from "./SaveOptions";
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 }
 
-export function DownloadsShell() {
+const DONE_LABEL = { compu: "Descargado", ambos: "Descargado y en Drive", drive: "En Drive" } as const;
+
+export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
+  const account = useAccount();
+  const email = account?.user?.email ?? null;
+  const [settings, setSettings] = useStoredState<SaveSettings>("descargas:opciones", DEFAULT_SETTINGS);
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [draft, setDraft] = useState("");
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loading = items.some((i) => i.status === "loading");
-  const ready = items.filter((i): i is DownloadItem & { info: MediaInfo } => i.status === "ready" && !!i.info?.files.length);
-  const readyFiles = ready.flatMap(({ info }) => info.files.map((file) => ({ info, file })));
+  const ready = items.filter(
+    (i): i is DownloadItem & { info: MediaInfo } => i.status === "ready" && !!i.info && (i.info.files.length > 0 || !!i.info.youtube)
+  );
+  const readyCount = ready.reduce((n, i) => n + Math.max(1, i.info.files.length), 0);
+  const customized = settings.destino !== "compu" || settings.audio !== "con";
 
   const update = useCallback((url: string, patch: Partial<DownloadItem>) => {
     setItems((prev) => prev.map((i) => (i.link.url === url ? { ...i, ...patch } : i)));
@@ -46,13 +62,15 @@ export function DownloadsShell() {
   /** Suma a la lista los links del texto; false si no había ninguno que sirva. */
   const add = useCallback(
     (text: string) => {
-      const links = findLinks(text);
+      const { links, ignored } = scanLinks(text);
       if (!links.length) {
-        toast(NO_LINKS, "error");
+        toast(ignored ? "Esos links no son de YouTube, Instagram ni Pinterest." : NO_LINKS, "error");
         return false;
       }
       const fresh = links.filter((l) => !items.some((i) => i.link.url === l.url));
+      const skipped = ignored ? ` (${ignored} no ${ignored === 1 ? "es" : "son"} de YouTube, Instagram ni Pinterest)` : "";
       if (!fresh.length) toast(links.length > 1 ? "Esos links ya están en la lista" : "Ese link ya está en la lista");
+      else if (fresh.length > 1 || skipped) toast(`Se ${fresh.length === 1 ? "agregó 1 link" : `agregaron ${fresh.length} links`}${skipped}`);
       setItems((prev) => [...fresh.map((link): DownloadItem => ({ link, status: "loading" })), ...prev]);
       fresh.forEach(load);
       return true;
@@ -60,7 +78,7 @@ export function DownloadsShell() {
     [items, load]
   );
 
-  // Ctrl+V en cualquier parte de la página agrega el link, sin tener que enfocar nada.
+  // Ctrl+V en cualquier parte de la página agrega los links, sin tener que enfocar nada.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const inBar = e.target === inputRef.current;
@@ -84,11 +102,85 @@ export function DownloadsShell() {
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      toast("El navegador no dejó leer el portapapeles: pegá el link con Ctrl+V.", "error");
+      toast("El navegador no dejó leer el portapapeles: pegá los links con Ctrl+V.", "error");
       return;
     }
     add(text);
   };
+
+  /* ───────────── Guardar ───────────── */
+
+  /**
+   * El permiso de Google para Drive. Va primero en el click (antes de cualquier otra espera): si no, el
+   * navegador bloquea la ventana de Google. undefined si todo va solo a la compu.
+   */
+  const driveToken = async () => {
+    if (settings.destino === "compu") return undefined;
+    if (!drive) throw new DriveError("Drive no está configurado en el servidor.");
+    if (!settings.carpeta) {
+      setOptionsOpen(true);
+      throw new DriveError("Primero pegá el link de la carpeta de Drive.");
+    }
+    return getDriveToken(drive, email);
+  };
+
+  const saveItem = async (item: DownloadItem & { info: MediaInfo }, token: string | undefined, file?: MediaFile) => {
+    const url = item.link.url;
+    const { info } = item;
+    const targets: SaveTarget[] = info.youtube
+      ? [{ info, quality: item.quality }]
+      : (file ? [file] : info.files).map((f) => ({ info, file: f }));
+    const progress = (transfer: Transfer) => update(url, { transfer });
+    progress({ state: "working", label: "Empezando" });
+
+    let driveUrl: string | undefined;
+    for (const [i, target] of targets.entries()) {
+      const prefix = targets.length > 1 ? `${i + 1} de ${targets.length} · ` : "";
+      try {
+        const saved = await saveTarget(target, settings, token, (p) =>
+          progress({ state: "working", label: prefix + p.label, percent: p.percent })
+        );
+        driveUrl = saved.driveUrl;
+      } catch (err) {
+        if (err instanceof DriveError && err.lostFolder) setSettings((s) => ({ ...s, carpeta: null }));
+        progress({ state: "error", label: err instanceof Error ? err.message : "No se pudo guardar." });
+        return;
+      }
+      // Los navegadores frenan descargas en ráfaga: se espacian un poco.
+      if (i < targets.length - 1) await new Promise((r) => setTimeout(r, 400));
+    }
+    progress({
+      state: "done",
+      label: DONE_LABEL[settings.destino],
+      driveUrl: settings.destino === "compu" ? undefined : targets.length === 1 ? driveUrl : settings.carpeta?.url,
+    });
+  };
+
+  const save = async (item: DownloadItem & { info: MediaInfo }, file?: MediaFile) => {
+    let token: string | undefined;
+    try {
+      token = await driveToken();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo conectar con Drive.", "error");
+      return;
+    }
+    await saveItem(item, token, file);
+  };
+
+  const saveAll = async () => {
+    let token: string | undefined;
+    try {
+      token = await driveToken();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo conectar con Drive.", "error");
+      return;
+    }
+    for (const item of ready) {
+      if (item.transfer?.state !== "working") await saveItem(item, token);
+    }
+  };
+
+  const ActionIcon = settings.destino === "compu" ? Download : CloudUpload;
 
   return (
     <div className="min-h-screen">
@@ -103,11 +195,33 @@ export function DownloadsShell() {
           busy={loading}
         />
         <BarButton label="Pegar del portapapeles" icon={ClipboardPaste} onClick={pasteFromClipboard} />
+        <BarPopover label="Pegar varios links" icon={ListPlus} className="w-[22rem]" open={listOpen} onOpenChange={setListOpen}>
+          <PanelTitle title="Pegar varios links" hint="Un mensaje, una lista, lo que tengas: entra un link por fila." />
+          <LinkList
+            autoFocus
+            onAdd={(text) => {
+              const added = add(text);
+              if (added) setListOpen(false);
+              return added;
+            }}
+          />
+        </BarPopover>
+        <BarPopover
+          label="Cómo se guarda"
+          icon={SlidersHorizontal}
+          highlight={customized}
+          className="w-80"
+          align="end"
+          open={optionsOpen}
+          onOpenChange={setOptionsOpen}
+        >
+          <SaveOptions settings={settings} onChange={setSettings} drive={drive} email={email} />
+        </BarPopover>
         {ready.length > 1 && (
           <>
             <BarDivider />
-            <BarAction label="Descargar todo" icon={Download} onClick={() => saveAll(readyFiles)}>
-              Descargar {readyFiles.length}
+            <BarAction label="Guardar todo" icon={ActionIcon} onClick={saveAll}>
+              {actionLabel(settings.destino, readyCount)}
             </BarAction>
           </>
         )}
@@ -117,25 +231,25 @@ export function DownloadsShell() {
         <div className="mb-6 text-center">
           <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Descargas</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Pegá el link de un posteo de Instagram o de un pin de Pinterest y bajá los videos y las fotos en la mejor
-            calidad que tengan.
+            Pegá links de YouTube, Instagram o Pinterest y bajá los videos y las fotos en la mejor calidad que tengan:
+            a tu compu, a una carpeta de Drive o a las dos.
           </p>
+          <button
+            type="button"
+            onClick={() => setOptionsOpen(true)}
+            className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card/80 px-3 py-1 text-xs font-medium transition-colors hover:border-foreground/30"
+          >
+            {settings.destino === "compu" ? <MonitorDown className="h-3.5 w-3.5 shrink-0" /> : <CloudUpload className="h-3.5 w-3.5 shrink-0" />}
+            <span className="truncate">{describeSettings(settings)}</span>
+            <span className="shrink-0 text-muted-foreground">· Cambiar</span>
+          </button>
         </div>
 
         {items.length === 0 ? (
-          <button
-            type="button"
-            onClick={pasteFromClipboard}
-            className="flex w-full flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-foreground/10 bg-card/80 px-6 py-14 text-center shadow-sm transition-colors hover:border-primary"
-          >
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/25">
-              <Link2 className="h-6 w-6" />
-            </span>
-            <span className="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-base font-semibold text-primary-foreground shadow-sm">
-              <ClipboardPaste className="h-4 w-4" /> Pegar link
-            </span>
-            <span className="text-sm text-muted-foreground">o apretá Ctrl+V en cualquier parte de la página</span>
-          </button>
+          <div className="rounded-3xl border-2 border-dashed border-foreground/10 bg-card/80 p-4 shadow-sm sm:p-6">
+            <LinkList onAdd={add} onPasteClipboard={pasteFromClipboard} />
+            <p className="mt-3 text-center text-xs text-muted-foreground">o apretá Ctrl+V en cualquier parte de la página</p>
+          </div>
         ) : (
           <div className="overflow-hidden rounded-3xl border bg-card shadow-sm">
             <ul className="divide-y">
@@ -143,6 +257,9 @@ export function DownloadsShell() {
                 <DownloadRow
                   key={item.link.url}
                   item={item}
+                  settings={settings}
+                  onSave={(file) => item.info && save(item as DownloadItem & { info: MediaInfo }, file)}
+                  onQuality={(quality) => update(item.link.url, { quality })}
                   onRetry={() => load(item.link)}
                   onRemove={() => setItems((prev) => prev.filter((i) => i.link.url !== item.link.url))}
                 />
@@ -151,7 +268,7 @@ export function DownloadsShell() {
             {items.length > 1 && (
               <div className="flex items-center gap-2 border-t bg-secondary/40 px-4 py-2.5">
                 <span className="text-xs tabular-nums text-muted-foreground">{items.length} links</span>
-                {!loading && (
+                {!loading && !items.some((i) => i.transfer?.state === "working") && (
                   <button
                     type="button"
                     onClick={() => setItems([])}
@@ -165,11 +282,12 @@ export function DownloadsShell() {
           </div>
         )}
 
-        <ul className="mt-8 grid gap-3 text-sm sm:grid-cols-3">
+        <ul className="mt-8 grid gap-3 text-sm sm:grid-cols-2">
           {[
+            { icon: Youtube, title: "YouTube", text: "Hasta 1080p, con o sin audio, o solo el audio. Lo baja la PC de la oficina." },
             { icon: Instagram, title: "Instagram", text: "Reels, videos, fotos y carruseles enteros, de cuentas públicas." },
             { icon: Pin, title: "Pinterest", text: "Videos e imágenes en su tamaño original, también con links pin.it." },
-            { icon: Layers, title: "Varios a la vez", text: "Pegá un mensaje con varios links y entra uno por fila." },
+            { icon: FolderInput, title: "Directo a Drive", text: "Pegás el link de una carpeta y lo que bajes se guarda ahí." },
           ].map((f) => (
             <li key={f.title} className="rounded-2xl border bg-card/80 p-4">
               <f.icon className="mb-2 h-4 w-4" />
