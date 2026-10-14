@@ -5,6 +5,9 @@
 // La app le pide los datos de un video con una clave compartida, y el navegador baja el archivo con un
 // permiso firmado que le da la app (vence a las pocas horas y sirve solo para ese video).
 //
+// Para que la app y los navegadores lo alcancen, abre solo un túnel gratis de Cloudflare (sin cuenta). Esa
+// dirección cambia en cada arranque, así que la anota en el Blob store de Vercel, de donde la lee la app.
+//
 // Uso: node server.mjs   (o iniciar.cmd). La configuración está en .env, al lado de este archivo.
 
 import http from "node:http";
@@ -29,6 +32,11 @@ const EXTRA_ARGS = (process.env.YTDLP_ARGS ?? "").split(/\s+/).filter(Boolean);
 const TMP = process.env.TMP_DIR || path.join(os.tmpdir(), "herramientas-youtube");
 const ORIGINS = (process.env.ALLOWED_ORIGINS || "*").split(",").map((o) => o.trim()).filter(Boolean);
 const MAX_PARALLEL = Number(process.env.MAX_PARALLEL || 2);
+/** Túnel de Cloudflare: "off" si el servicio ya tiene una dirección pública propia (ej: el servidor de la empresa). */
+const CLOUDFLARED = process.env.TUNNEL === "off" ? null : process.env.CLOUDFLARED || local("cloudflared.exe") || null;
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN?.trim() || "";
+/** Dónde se anota la dirección pública (la lee lib/downloads/youtube.server.ts). */
+const BLOB_PATH = "descargas/servicio-youtube.json";
 /** Lo bajado queda una hora: si otra persona pide el mismo video, sale al instante. */
 const KEEP_MS = 60 * 60 * 1000;
 const INFO_TTL = 30 * 60 * 1000;
@@ -283,7 +291,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return end(res, 204);
 
   try {
-    if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true, jobs: jobs.size });
+    if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true, jobs: jobs.size, public: publicUrl });
 
     // Datos del video: solo la app (servidor a servidor, con la clave).
     if (req.method === "GET" && url.pathname === "/info") {
@@ -420,7 +428,7 @@ function attachment(name) {
 }
 
 function log(message) {
-  console.log(`${new Date().toLocaleTimeString("es-AR")}  ${message}`);
+  console.log(`${new Date().toLocaleTimeString("es-AR", { hourCycle: "h23" })}  ${message}`);
 }
 
 function loadEnv(file) {
@@ -437,7 +445,7 @@ function firstRun() {
   const secret = crypto.randomBytes(32).toString("base64url");
   fs.writeFileSync(
     ENV_FILE,
-    `# Configuración del servicio de YouTube (ver README.md)\nPORT=8787\nYOUTUBE_WORKER_SECRET=${secret}\n# Orígenes que pueden bajar archivos (coma entre cada uno). * = cualquiera con un permiso firmado.\nALLOWED_ORIGINS=*\n`
+    `# Configuración del servicio de YouTube (ver README.md)\nPORT=8787\nYOUTUBE_WORKER_SECRET=${secret}\n# Token del Blob store de Vercel, donde se anota la dirección del túnel (Vercel → Storage → el store → .env.local).\nBLOB_READ_WRITE_TOKEN=\n# Orígenes que pueden bajar archivos (coma entre cada uno). * = cualquiera con un permiso firmado.\nALLOWED_ORIGINS=*\n`
   );
   console.log(`Creé ${ENV_FILE} con una clave nueva. Copiala en Vercel como YOUTUBE_WORKER_SECRET.`);
 }
@@ -447,7 +455,139 @@ function firstRun() {
 server.listen(PORT, () => {
   log(`Servicio de YouTube en http://localhost:${PORT}  (yt-dlp: ${YTDLP})`);
   if (process.env.YTDLP_AUTO_UPDATE !== "0") updateYtdlp();
+  if (CLOUDFLARED) startTunnel();
+  else if (process.env.PUBLIC_URL) announce(process.env.PUBLIC_URL.replace(/\/+$/, ""));
+  else log("Sin túnel ni PUBLIC_URL: solo se puede usar desde esta PC (YOUTUBE_WORKER_URL=http://localhost:" + PORT + ").");
 });
+
+// Al cerrar el servicio se cierra también el túnel.
+process.on("exit", () => tunnel?.kill());
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit(0));
+
+/* ───────────── Túnel y dirección pública ───────────── */
+
+let tunnel = null;
+let publicUrl = null;
+let failedChecks = 0;
+
+/** Túnel de Cloudflare sin cuenta: da una dirección https://<palabras>.trycloudflare.com nueva cada vez. */
+function startTunnel() {
+  publicUrl = null;
+  const child = spawn(CLOUDFLARED, ["tunnel", "--url", `http://localhost:${PORT}`, "--no-autoupdate"], { windowsHide: true });
+  tunnel = child;
+  let buffer = "";
+  const onData = (chunk) => {
+    if (publicUrl) return;
+    buffer = (buffer + chunk).slice(-4000);
+    const url = buffer.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/)?.[0];
+    if (url) {
+      publicUrl = url;
+      waitAndAnnounce(url, child);
+    }
+  };
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", onData);
+  child.stderr.on("data", onData);
+  child.on("error", (err) => log(`No pude abrir el túnel de Cloudflare (${err.message}).`));
+  child.on("close", (code) => {
+    if (tunnel !== child) return;
+    tunnel = null;
+    publicUrl = null;
+    log(`El túnel se cerró (código ${code}): lo vuelvo a abrir en 10 segundos.`);
+    setTimeout(startTunnel, 10_000);
+  });
+}
+
+/** Cloudflare tarda unos segundos en publicar la dirección: se espera a que responda antes de anotarla. */
+async function waitAndAnnounce(url, child) {
+  for (let i = 0; i < 30 && tunnel === child; i++) {
+    if (await reachable(url)) return announce(url);
+    await sleep(2000);
+  }
+  if (tunnel === child) {
+    log("El túnel no respondió: lo reinicio.");
+    child.kill();
+  }
+}
+
+async function reachable(url) {
+  try {
+    const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(8000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function announce(url) {
+  log(`Dirección pública: ${url}`);
+  if (!BLOB_TOKEN) {
+    log("Falta BLOB_READ_WRITE_TOKEN en .env: la app no se va a enterar de esta dirección (ver README).");
+    return;
+  }
+  for (let attempt = 0; ; attempt++) {
+    const error = await writeBlob(url);
+    if (!error) return log("Dirección anotada en Vercel: la app ya la usa.");
+    log(`No pude anotar la dirección en Vercel (${error}).`);
+    await sleep(Math.min(5 * 60_000, 15_000 * 2 ** attempt));
+    // Si mientras tanto el túnel cambió de dirección, ya la anota el intento nuevo.
+    if (CLOUDFLARED && url !== publicUrl) return;
+  }
+}
+
+/**
+ * Anota la dirección en el Blob store de Vercel: el mismo pedido que hace put() de @vercel/blob (API v12).
+ * Prueba como privado y como público, según cómo se haya creado el store.
+ */
+let blobAccess = null;
+async function writeBlob(url) {
+  const body = JSON.stringify({ url, actualizado: new Date().toISOString() });
+  let lastError = "";
+  for (const access of blobAccess ? [blobAccess] : ["private", "public"]) {
+    try {
+      const res = await fetch(`https://vercel.com/api/blob/?${new URLSearchParams({ pathname: BLOB_PATH })}`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${BLOB_TOKEN}`,
+          // El token es "vercel_blob_rw_<store>_<secreto>": la API pide el store aparte.
+          "x-vercel-blob-store-id": BLOB_TOKEN.split("_")[3] ?? "",
+          "x-api-version": "12",
+          "x-vercel-blob-access": access,
+          "x-add-random-suffix": "0",
+          "x-allow-overwrite": "1",
+          "x-content-type": "application/json",
+          "x-cache-control-max-age": "60",
+        },
+        body,
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (res.ok) {
+        blobAccess = access;
+        return null;
+      }
+      lastError = `${res.status} ${(await res.text()).slice(0, 160)}`;
+    } catch (err) {
+      lastError = err.message;
+    }
+  }
+  return lastError;
+}
+
+// Si el túnel deja de responder (pasa después de cortes de internet), se reinicia y se anota la dirección nueva.
+setInterval(async () => {
+  if (!tunnel || !publicUrl) return;
+  failedChecks = (await reachable(publicUrl)) ? 0 : failedChecks + 1;
+  if (failedChecks >= 3) {
+    failedChecks = 0;
+    log("El túnel no responde hace rato: lo reinicio.");
+    tunnel.kill();
+  }
+}, 5 * 60 * 1000).unref();
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 /** YouTube cambia seguido y yt-dlp se actualiza casi todas las semanas: se pone al día al arrancar y cada día. */
 function updateYtdlp() {

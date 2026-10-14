@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { get } from "@vercel/blob";
 import { DownloadError } from "./http.server";
 import type { Link } from "./links";
 import type { MediaInfo, YoutubeQuality } from "./types";
@@ -12,13 +13,43 @@ import type { MediaInfo, YoutubeQuality } from "./types";
 /** El permiso sirve para un solo video y vence a las 6 horas (después alcanza con volver a pegar el link). */
 const TOKEN_HOURS = 6;
 
-function config() {
-  const worker = process.env.YOUTUBE_WORKER_URL?.trim().replace(/\/+$/, "");
+/** Donde el servicio anota su dirección pública cada vez que arranca (worker/youtube/server.mjs). */
+const BLOB_PATH = "descargas/servicio-youtube.json";
+
+async function config() {
   const secret = process.env.YOUTUBE_WORKER_SECRET?.trim();
-  if (!worker || !secret) {
+  if (!secret) {
     throw new DownloadError("YouTube todavía no está configurado: falta el servicio de la PC (ver README, Descargas).", 501);
   }
-  return { worker, secret };
+  // Una dirección fija (en local, o si el servicio pasa a un servidor propio) manda sobre la anotada.
+  const fixed = process.env.YOUTUBE_WORKER_URL?.trim().replace(/\/+$/, "");
+  return { worker: fixed || (await announcedUrl()), secret };
+}
+
+let cached: { url: string; at: number } | null = null;
+
+/**
+ * La dirección del túnel de Cloudflare, que cambia cada vez que arranca el servicio: la lee del Blob store
+ * de Vercel (se guarda un rato en memoria para no leerla en cada pedido).
+ */
+async function announcedUrl() {
+  if (cached && Date.now() - cached.at < 30_000) return cached.url;
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new DownloadError("YouTube todavía no está configurado: falta conectar el Blob store en Vercel (ver README, Descargas).", 501);
+  }
+  for (const access of ["private", "public"] as const) {
+    try {
+      const blob = await get(BLOB_PATH, { access, useCache: false });
+      if (blob?.statusCode !== 200) break;
+      const { url } = JSON.parse(await new Response(blob.stream).text()) as { url?: string };
+      if (!url) break;
+      cached = { url: url.replace(/\/+$/, ""), at: Date.now() };
+      return cached.url;
+    } catch {
+      /* el store es del otro tipo (público o privado): se prueba el siguiente */
+    }
+  }
+  throw new DownloadError("El servicio de YouTube todavía no avisó su dirección. ¿Está abierto en la PC?", 503);
 }
 
 type WorkerInfo = {
@@ -32,7 +63,7 @@ type WorkerInfo = {
 };
 
 export async function getYoutubeInfo(link: Link): Promise<MediaInfo> {
-  const { worker, secret } = config();
+  const { worker, secret } = await config();
   const id = link.id!;
 
   let res: Response;

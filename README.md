@@ -55,7 +55,7 @@ Abrí http://localhost:3000
 | `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
-| `YOUTUBE_WORKER_URL`, `YOUTUBE_WORKER_SECRET` | Descargas → YouTube | Sí, para YouTube: la dirección pública del servicio de la PC y su clave (ver "Descargas") |
+| `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
@@ -402,9 +402,13 @@ Baja lo que hay en links de YouTube, Instagram y Pinterest, en la mejor calidad 
 
 YouTube corta las descargas en buena calidad que salen de servidores en la nube (deja bajar el primer mega y después responde 403, si el pedido no trae un token que genera su reproductor). Por eso lo baja un servicio aparte, `worker/youtube/`, con [yt-dlp](https://github.com/yt-dlp/yt-dlp) y ffmpeg, en una PC con conexión de oficina. Está en Node sin dependencias; los programas van en `worker/youtube/bin/` (fuera de git) y yt-dlp se actualiza solo cada día. Las instrucciones para instalarlo en otra PC (o en el servidor de la empresa) están en [`worker/youtube/README.md`](worker/youtube/README.md).
 
-1. **Arrancarlo**: doble click en `worker/youtube/iniciar.cmd`. La primera vez crea `worker/youtube/.env` con una clave nueva (`YOUTUBE_WORKER_SECRET`). Para que arranque con Windows, poné un acceso directo a `iniciar.cmd` en la carpeta de inicio (`Win+R` → `shell:startup`).
-2. **Publicarlo** con una dirección https fija, para que lo alcancen Vercel y los navegadores del equipo. Lo más simple es [Tailscale Funnel](https://tailscale.com/kb/1223/funnel): instalar Tailscale en la PC, iniciar sesión y correr `tailscale funnel --bg 8787` (da una dirección `https://<pc>.<red>.ts.net` que no cambia). Si la empresa tiene un dominio en Cloudflare, Cloudflare Tunnel sirve igual.
-3. **Cargar en Vercel** `YOUTUBE_WORKER_URL` (esa dirección) y `YOUTUBE_WORKER_SECRET` (la misma clave del `.env` del servicio). En local van en `.env.local`, con `YOUTUBE_WORKER_URL=http://localhost:8787`.
+Para que lo alcancen Vercel y los navegadores del equipo, el servicio abre solo un **túnel de Cloudflare sin cuenta** (gratis, con `bin/cloudflared.exe`). Esa dirección (`https://<palabras>.trycloudflare.com`) cambia cada vez que arranca, así que el servicio la anota en un **Blob store de Vercel** y la app la lee de ahí (`lib/downloads/youtube.server.ts`). Nadie tiene que copiar direcciones a mano.
+
+1. **Crear el Blob store** (una sola vez): en Vercel, **Storage → Create → Blob**, y conectarlo al proyecto (Production, Preview y Development). Vercel agrega solo la variable `BLOB_READ_WRITE_TOKEN` al proyecto. Ese mismo token (en el store, pestaña *.env.local*) va también en `worker/youtube/.env`, para que el servicio pueda anotar la dirección.
+2. **Cargar en Vercel** `YOUTUBE_WORKER_SECRET`: la clave que está en `worker/youtube/.env` (se crea la primera vez que se abre el servicio). Después, *Redeploy*.
+3. **Arrancar el servicio**: doble click en `worker/youtube/iniciar.cmd`. Al ratito muestra "Dirección anotada en Vercel: la app ya la usa". Para que arranque con Windows, poné un acceso directo a `iniciar.cmd` en la carpeta de inicio (`Win+R` → `shell:startup`).
+
+En local, `.env.local` tiene `YOUTUBE_WORKER_URL=http://localhost:8787`: una dirección fija manda sobre la anotada (sirve también si el servicio pasa a un servidor con dirección propia). Los túneles sin cuenta de Cloudflare no tienen garantía de funcionamiento y Cloudflare pide no usarlos para mover mucho video: para lo que baja el estudio alcanza, pero si el uso crece, lo prolijo es el servidor de la empresa o un túnel con cuenta y dominio.
 
 ### Drive: activarlo (una sola vez)
 
