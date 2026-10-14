@@ -1,0 +1,100 @@
+import type { Aprobacion, Formato, PlaniEstado, PlaniTipo, Plataforma, Proporcion, Rol, StickerTipo } from "./types";
+
+export const MESES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Setiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+export const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+/** El calendario arranca el lunes, como en la plani de siempre. */
+export const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+export const TIPOS: Record<PlaniTipo, { label: string; hint: string }> = {
+  plani: { label: "Plani", hint: "Contenido orgánico del mes" },
+  pauta: { label: "Pauta", hint: "Contenido pautado" },
+  programatica: { label: "Programática", hint: "Programática y YouTube" },
+};
+
+/** Las etapas de una plani, en orden. El color es el del punto en la lista. */
+export const ESTADOS: { value: PlaniEstado; label: string; hint: string; color: string }[] = [
+  { value: "redaccion", label: "Redacción", hint: "Se piensan las ideas y los copys", color: "#6D28D9" },
+  { value: "diseno", label: "Diseño", hint: "Se diseña el material", color: "#1D4ED8" },
+  { value: "revision", label: "Revisión", hint: "Validación interna", color: "#B45309" },
+  { value: "cliente", label: "En cliente", hint: "Esperando la aprobación del cliente", color: "#B61760" },
+  { value: "programacion", label: "Programación", hint: "El CM la está programando", color: "#047857" },
+  { value: "lista", label: "Lista", hint: "Todo programado", color: "#0b0b0e" },
+];
+
+export const estadoInfo = (estado: PlaniEstado) => ESTADOS.find((e) => e.value === estado) ?? ESTADOS[0];
+
+/** Formatos, con sus medidas para diseño (en px, como se exportan). */
+export const FORMATOS: Record<
+  Formato,
+  { label: string; plural: string; proporciones: Proporcion[]; color: string; video: boolean; multiple: boolean }
+> = {
+  post: { label: "Post", plural: "Posts", proporciones: ["4:5", "1:1"], color: "#FFD100", video: false, multiple: false },
+  carrusel: { label: "Carrusel", plural: "Carruseles", proporciones: ["4:5", "1:1"], color: "#FFB000", video: false, multiple: true },
+  reel: { label: "Reel", plural: "Reels", proporciones: ["9:16"], color: "#E5484D", video: true, multiple: false },
+  historia: { label: "Historia", plural: "Historias", proporciones: ["9:16"], color: "#FF7A00", video: true, multiple: false },
+};
+
+export const FORMATO_ORDEN: Formato[] = ["post", "carrusel", "reel", "historia"];
+
+export const MEDIDAS: Record<Proporcion, { w: number; h: number; label: string }> = {
+  "4:5": { w: 1080, h: 1350, label: "Feed 4:5" },
+  "1:1": { w: 1080, h: 1080, label: "Feed 1:1" },
+  "9:16": { w: 1080, h: 1920, label: "Vertical 9:16" },
+  "16:9": { w: 1920, h: 1080, label: "Horizontal 16:9" },
+};
+
+/** Cómo se nombra el formato en la presentación ("Feed 4:5", "Historia"…), como en la plani de siempre. */
+export function nombreFormato(formato: Formato, proporcion: Proporcion) {
+  if (formato === "post") return `Feed ${proporcion}`;
+  if (formato === "carrusel") return `Carrusel ${proporcion}`;
+  return FORMATOS[formato].label;
+}
+
+export const PLATAFORMAS: { value: Plataforma; label: string; limite: number }[] = [
+  { value: "instagram", label: "Instagram", limite: 2200 },
+  { value: "facebook", label: "Facebook", limite: 63206 },
+  { value: "tiktok", label: "TikTok", limite: 2200 },
+  { value: "linkedin", label: "LinkedIn", limite: 3000 },
+  { value: "youtube", label: "YouTube", limite: 5000 },
+  { value: "x", label: "X", limite: 280 },
+];
+
+export const plataformaInfo = (p: Plataforma) => PLATAFORMAS.find((x) => x.value === p) ?? PLATAFORMAS[0];
+
+export const APROBACION: Record<Aprobacion, { label: string; className: string }> = {
+  pendiente: { label: "Pendiente", className: "bg-secondary text-muted-foreground" },
+  aprobada: { label: "Aprobada", className: "bg-emerald-600/15 text-emerald-800" },
+  cambios: { label: "Con cambios", className: "bg-destructive/12 text-destructive" },
+};
+
+export const ROLES: { value: Rol; label: string; hint: string }[] = [
+  { value: "redaccion", label: "Redacción", hint: "Ideas, copys e indicaciones para diseño" },
+  { value: "diseno", label: "Diseño", hint: "Lo que pidió redacción y el material final" },
+  { value: "cm", label: "CM", hint: "Copys listos, material para bajar y qué está programado" },
+];
+
+export const STICKERS: { value: StickerTipo; label: string }[] = [
+  { value: "link", label: "Link" },
+  { value: "encuesta", label: "Encuesta" },
+  { value: "pregunta", label: "Pregunta" },
+  { value: "cuenta", label: "Cuenta regresiva" },
+  { value: "mencion", label: "Mención" },
+  { value: "ubicacion", label: "Ubicación" },
+  { value: "hashtag", label: "Hashtag" },
+  { value: "slider", label: "Slider de emoji" },
+  { value: "reaccion", label: "Reacción" },
+];

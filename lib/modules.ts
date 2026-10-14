@@ -1,4 +1,4 @@
-import { Briefcase, Film, House, PenLine, RefreshCw, Smile, StickyNote, type LucideIcon } from "lucide-react";
+import { Briefcase, CalendarDays, Film, House, PenLine, RefreshCw, Smile, StickyNote, type LucideIcon } from "lucide-react";
 
 export type AppModule = {
   href: string;
@@ -18,6 +18,7 @@ export const MODULES: AppModule[] = [
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw },
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase },
+  { href: "/planificacion", label: "Planificación", description: "La plani del mes: copys, diseño y lo que se programa", icon: CalendarDays },
 ];
 
 /** La última herramienta abierta en este navegador: el panel de Inicio la marca. */

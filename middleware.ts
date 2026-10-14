@@ -12,13 +12,16 @@ import { studioSession } from "@/lib/access";
 // Inicio también es público, pero pasa por acá: con sesión del estudio muestra el panel (app/page.tsx),
 // y la sesión tiene que llegar renovada, porque desde la página no se pueden guardar las cookies nuevas.
 const PUBLIC = new Set(["/privacidad", "/auth/callback", "/api/visits", "/api/sugerencias"]);
+// La plani compartida con un cliente (/p/<token>) y sus archivos: la llave es el link, no la sesión.
+// La base valida el token en cada pedido (supabase/migracion-plani-cliente.sql).
+const PUBLIC_PREFIXES = ["/p/", "/api/p/"];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (PUBLIC.has(pathname) || !url || !key) return NextResponse.next();
+  if (PUBLIC.has(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p)) || !url || !key) return NextResponse.next();
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {

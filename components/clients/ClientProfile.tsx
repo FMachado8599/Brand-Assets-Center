@@ -24,6 +24,7 @@ import { LogoDrop } from "./LogoDrop";
 import { FontsSection } from "./profile/FontsSection";
 import { PaletteSection } from "./profile/PaletteSection";
 import { MigrationNotice } from "./profile/Section";
+import { TrabajoDelMes } from "./profile/PlaniSections";
 import { CardsSection, KitSection, ProductsSection, RedaccionesSection } from "./profile/WorkSections";
 
 const SAVE_DELAY = 600;
@@ -207,6 +208,7 @@ export function ClientProfile({ id }: { id: string }) {
         />
 
         <div className="mt-8 grid gap-4">
+          <TrabajoDelMes brand={brand} />
           <PaletteSection brand={brand} saveSoon={saveSoon} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
           <div className="grid gap-4 lg:grid-cols-2">
