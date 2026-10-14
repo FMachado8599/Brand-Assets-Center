@@ -11,6 +11,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
+| **Descargas** | `/descargas` | Bajar videos, fotos y carruseles de Instagram y videos e imágenes de Pinterest con el link |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -366,6 +367,30 @@ Conversor y compresor de archivos con la API de [FreeConvert](https://www.freeco
 - **Configuración** (en la barra): archivos en paralelo y formato preferido por tipo (imágenes, videos, audio, documentos).
 
 Necesita `FREECONVERT_API_KEY` (sacala en [freeconvert.com/api](https://www.freeconvert.com/api)). La key vive solo en el servidor (`app/api/freeconvert/*`): el navegador recibe un formulario de subida firmado y manda el archivo directo a FreeConvert, así que los archivos grandes no pasan por Vercel. Cada conversión consume minutos de tu plan.
+
+---
+
+## Descargas
+
+Baja lo que hay en un link de Instagram o de Pinterest, en la mejor calidad que den, sin keys ni cuentas.
+
+- **Pegá el link** con Ctrl+V en cualquier parte de la página, con el botón de pegar de la barra o escribiéndolo en la barra + Enter. Si pegás un mensaje con varios links, entra uno por fila; los repetidos se ignoran.
+- **Instagram**: posteos (`/p/…`), reels (`/reel/…`, también con el usuario adelante) y `/tv/…`, de cuentas públicas. Los videos salen en MP4 (720p, lo que da Instagram sin sesión), las fotos en su mayor tamaño (1080 px) y los carruseles enteros: **Descargar N** baja todo y la tira de miniaturas baja cada archivo por separado. El ícono de copiar trae el texto del posteo. Las historias no se pueden: piden sesión.
+- **Pinterest**: pins de video y de imagen, de cualquier dominio (`pinterest.com/pin/…`, `ar.pinterest.com`, `pinterest.es`…) y los links cortos (`pin.it/…`). Las imágenes salen en su tamaño original.
+- Los archivos se llaman como el posteo: `@cuenta - primera línea del texto.mp4` en Instagram y el título del pin en Pinterest. Con dos o más links listos aparece **Descargar** en la barra para bajar todo junto (el navegador puede pedir permiso para descargas múltiples la primera vez).
+
+### Cómo funciona
+
+- `/api/descargas/info?url=…` lee el link en el servidor:
+  - **Instagram** (`lib/downloads/instagram.server.ts`): abre la página *embed* del posteo (`/p/<código>/embed/captioned/`, la que usan los sitios para insertar un posteo), que trae los datos sin sesión. Solo responde si el pedido parece una navegación (`Sec-Fetch-Mode: navigate`), y el `fetch()` de Node no deja poner ese encabezado: por eso va con `node:https`. Las fotos sueltas no traen datos y se leen del HTML del embed. Las APIs internas (GraphQL, `?__a=1`) piden iniciar sesión.
+  - **Pinterest** (`lib/downloads/pinterest.server.ts`): abre la página pública del pin y lee el schema.org que publica para los buscadores (`VideoObject` en los videos, `SocialMediaPosting` en las imágenes). La API interna de Pinterest pide sesión.
+- `/api/descargas/file?src=…&name=…` baja el archivo a través del servidor (edge), para que salga con su nombre (y porque el CDN de Pinterest no habilita CORS). Solo acepta archivos de los CDN de Pinterest (`v*.pinimg.com/videos`, `i.pinimg.com/originals`) e Instagram (`*.fbcdn.net`, `*.cdninstagram.com`), y la extensión la decide el tipo que manda el origen. Cada descarga pasa por Vercel, así que consume transferencia.
+- Los links de archivos de Instagram vencen a los pocos días: si una fila quedó abierta mucho tiempo, sacala y volvé a pegar el link.
+- **Si un día deja de andar**, lo más probable es que Instagram o Pinterest hayan cambiado su página: lo que hay que ajustar está en esos dos archivos. Instagram además puede tratar distinto a los servidores en la nube que a una conexión de oficina; si en Vercel falla y en local anda, es eso.
+
+### YouTube (pendiente)
+
+YouTube bloquea seguido los pedidos que salen de servidores en la nube (como Vercel) y, en calidad alta, manda video y audio por separado, que hay que unir con ffmpeg. La opción confiable es un servicio aparte con `yt-dlp` en una PC siempre prendida (conexión de casa u oficina), publicado con Cloudflare Tunnel o Tailscale. Hasta entonces, los links de YouTube avisan que todavía no está disponible.
 
 ---
 

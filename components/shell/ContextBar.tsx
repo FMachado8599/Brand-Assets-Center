@@ -198,11 +198,13 @@ type BarSearchProps = {
   busy?: boolean;
   /** Atajo "/" para enfocar el buscador desde cualquier lado. */
   shortcut?: boolean;
+  /** Reemplaza la lupa cuando el campo no es para buscar (ej: pegar un link). */
+  icon?: LucideIcon;
   className?: string;
 };
 
 export const BarSearch = forwardRef<HTMLInputElement, BarSearchProps>(
-  ({ value, onChange, placeholder = "Buscar…", onEnter, busy, shortcut = true, className }, ref) => {
+  ({ value, onChange, placeholder = "Buscar…", onEnter, busy, shortcut = true, icon: Icon = Search, className }, ref) => {
     const input = useRef<HTMLInputElement>(null);
     useImperativeHandle(ref, () => input.current!);
 
@@ -221,7 +223,7 @@ export const BarSearch = forwardRef<HTMLInputElement, BarSearchProps>(
 
     return (
       <label className={cn("relative flex h-9 w-[clamp(7rem,30vw,20rem)] shrink-0 items-center", className)}>
-        <Search className="pointer-events-none absolute left-3 h-4 w-4 text-cream/45" />
+        <Icon className="pointer-events-none absolute left-3 h-4 w-4 text-cream/45" />
         <input
           ref={input}
           value={value}
