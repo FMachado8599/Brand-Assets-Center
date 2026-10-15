@@ -76,7 +76,7 @@ function NavPill({ module, onClick }: { module: AppModule; onClick?: () => void 
       aria-label={onClick ? `Módulos · estás en ${module.label}` : undefined}
       className="floating-ink pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] md:pr-3"
     >
-      <span key={module.href} className="grid h-9 w-9 place-items-center rounded-full bg-primary shadow-sm duration-300 animate-in zoom-in-75">
+      <span key={module.href} className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm duration-300 animate-in zoom-in-75">
         <Icon className="h-[18px] w-[18px]" />
       </span>
       <span className="hidden text-sm font-semibold tracking-tight md:inline">{module.label}</span>
