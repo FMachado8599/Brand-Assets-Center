@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { AlertTriangle, Eye, EyeOff, ImagePlus, ScanLine, BoxSelect, Upload, X } from "lucide-react";
-import { ClientMark } from "@/components/clients/ClientMark";
-import { BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
+import { AlertTriangle, BoxSelect, Copy, Download, Eye, EyeOff, ImagePlus, ScanLine, Upload, X } from "lucide-react";
+import { ClientMark, logoBackground } from "@/components/clients/ClientMark";
+import { BarAction, BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,7 +15,9 @@ import { fold } from "@/lib/redaccion/text";
 import { DEFAULT_COLORS, sampleColors, type AdColors } from "@/lib/ads/color";
 import { CTAS, ratioGap, ratioLabel, type AdMedia } from "@/lib/ads/reel";
 import { cn } from "@/lib/utils";
+import { initials } from "@/lib/clients/color";
 import { PHONE, ReelMockup } from "./ReelMockup";
+import { canvasToPng, renderReelImage, type AvatarSource } from "./renderReel";
 
 type AdOptions = {
   account: string;
@@ -130,6 +132,8 @@ export function AdsShell() {
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
   const phoneCol = useRef<HTMLDivElement>(null);
+  const mediaRef = useRef<HTMLImageElement & HTMLVideoElement>(null);
+  const [exporting, setExporting] = useState(false);
   const time = useClock();
   const { clients } = useClients();
   const client = clients.find((c) => c.id === opts.clientId) ?? null;
@@ -205,7 +209,71 @@ export function AdsShell() {
     <span className="text-[13px] font-semibold uppercase">{(opts.account || "t").slice(0, 1)}</span>
   );
 
+  /** La misma foto de perfil, para dibujarla en la imagen. */
+  const avatarSource: AvatarSource = avatarUrl
+    ? { url: avatarUrl }
+    : client?.logo_url
+      ? { url: client.logo_url, background: logoBackground(client), pad: 0.18 }
+      : client
+        ? { letter: initials(client.name), background: client.color }
+        : { letter: (opts.account || "t").slice(0, 1) };
+
   const offRatio = media ? ratioGap(media) > 0.02 : false;
+
+  /** El teléfono con el anuncio como PNG, tal como se ve (con la interfaz, las marcas y la zona segura que estén). */
+  const buildImage = async () => {
+    if (!media || !mediaRef.current) throw new Error("Primero subí la imagen o el video del anuncio.");
+    const canvas = await renderReelImage({
+      media,
+      source: mediaRef.current,
+      fit: offRatio ? fit : "cover",
+      account: opts.account,
+      avatar: avatarSource,
+      caption: opts.caption,
+      cta: opts.cta,
+      colors: { ...colors, cta: ctaColor ?? colors.cta },
+      social: opts.social,
+      showUI,
+      mark,
+      safeZone: opts.safeZone,
+      time,
+    });
+    return canvasToPng(canvas);
+  };
+
+  const failed = (err: unknown) => toast(err instanceof Error ? err.message : "No se pudo armar la imagen.", "error");
+
+  const downloadImage = async () => {
+    setExporting(true);
+    try {
+      const url = URL.createObjectURL(await buildImage());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `anuncio-reels-${(opts.account || "anuncio").replace(/[^\w.-]+/g, "-")}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+      failed(err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const copyImage = async () => {
+    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+      return toast("Este navegador no deja copiar imágenes: usá Descargar.", "error");
+    }
+    setExporting(true);
+    try {
+      // La promesa va directo al portapapeles: Safari solo deja copiar si el pedido sale del mismo click.
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": buildImage() })]);
+      toast("Imagen copiada: pegala donde quieras");
+    } catch (err) {
+      failed(err instanceof DOMException ? new Error("El navegador no dejó copiar la imagen: usá Descargar.") : err);
+    } finally {
+      setExporting(false);
+    }
+  };
   const lowRes = media ? Math.min(media.width, (media.height * 9) / 16) < 1080 : false;
 
   return (
@@ -227,6 +295,11 @@ export function AdsShell() {
         <BarButton label="Marcar lo que tapa" icon={BoxSelect} pressed={mark} onClick={() => setMark((v) => !v)} />
         <BarButton label="Zona segura de Meta" icon={ScanLine} pressed={opts.safeZone} onClick={() => set({ safeZone: !opts.safeZone })} />
         {media && <BarNote>{`${ratioLabel(media)} · ${media.width}×${media.height}`}</BarNote>}
+        <BarDivider />
+        <BarButton label="Copiar la imagen" icon={Copy} onClick={copyImage} disabled={!media || exporting} />
+        <BarAction label="Descargar la imagen" icon={Download} onClick={downloadImage} disabled={!media || exporting}>
+          Descargar
+        </BarAction>
       </ContextBar>
 
       <input
@@ -473,6 +546,7 @@ export function AdsShell() {
               safeZone={opts.safeZone}
               time={time}
               scale={scale}
+              mediaRef={mediaRef}
             />
           </div>
         </div>

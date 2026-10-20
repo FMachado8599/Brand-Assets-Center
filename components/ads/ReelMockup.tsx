@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import { CAPTION_BOTTOM, MEDIA_BOTTOM, MEDIA_H, MEDIA_TOP, META_SAFE, SCREEN, type AdMedia } from "@/lib/ads/reel";
 import type { AdColors } from "@/lib/ads/color";
 import { cn } from "@/lib/utils";
@@ -17,11 +17,11 @@ import {
   StatusIcons,
 } from "./ReelIcons";
 
-const BEZEL = 11;
+export const BEZEL = 11;
 export const PHONE = { w: SCREEN.w + BEZEL * 2, h: SCREEN.h + BEZEL * 2 };
 
 /** Las tipografías del sistema: en un iPhone es SF Pro, como en Instagram. */
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif';
+export const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif';
 
 let measurer: CanvasRenderingContext2D | null = null;
 
@@ -29,7 +29,7 @@ let measurer: CanvasRenderingContext2D | null = null;
  * La línea del texto como la corta Instagram: hasta la última palabra que entra al lado de "Publicidad" y
  * " ..." si queda algo afuera (o si el texto sigue en otra línea).
  */
-function captionLine(caption: string, measure: boolean) {
+export function captionLine(caption: string, measure: boolean) {
   const lines = caption.trim().split("\n");
   const first = lines[0].trim();
   const more = lines.length > 1;
@@ -53,20 +53,20 @@ function captionLine(caption: string, measure: boolean) {
 }
 
 /** Las caras de las burbujas (posición del centro y tono), como en la captura: la del medio va más arriba. */
-const BUBBLES = [
+export const BUBBLES = [
   { x: 37, y: 572, tone: "#7d8b99" },
   { x: 100, y: 558, tone: "#9c8b7a" },
   { x: 160, y: 573, tone: "#8a9483" },
 ];
 
 /** Los íconos del costado: centro vertical de cada uno. */
-const RAIL = [
-  { y: 507, Icon: HeartIcon, label: "Me gusta" },
-  { y: 554, Icon: CommentIcon, label: "Comentar" },
-  { y: 601, Icon: RepostIcon, label: "Compartir en tu perfil" },
-  { y: 649, Icon: ShareIcon, label: "Enviar" },
-  { y: 693, Icon: MoreIcon, label: "Más opciones" },
-];
+export const RAIL = [
+  { y: 507, Icon: HeartIcon, name: "heart", label: "Me gusta" },
+  { y: 554, Icon: CommentIcon, name: "comment", label: "Comentar" },
+  { y: 601, Icon: RepostIcon, name: "repost", label: "Compartir en tu perfil" },
+  { y: 649, Icon: ShareIcon, name: "share", label: "Enviar" },
+  { y: 693, Icon: MoreIcon, name: "more", label: "Más opciones" },
+] as const;
 
 export type ReelMockupProps = {
   media: AdMedia | null;
@@ -87,6 +87,8 @@ export type ReelMockupProps = {
   safeZone: boolean;
   time: string;
   scale: number;
+  /** El creativo que se ve (la imagen o el video, en el cuadro en que está), para dibujarlo al descargar. */
+  mediaRef?: Ref<HTMLImageElement & HTMLVideoElement>;
 };
 
 /** Lo que tapa al creativo: con "mark", queda marcado en rojo. */
@@ -101,7 +103,7 @@ function Covers({ mark, className, style, children }: { mark: boolean; className
   );
 }
 
-function Media({ media, fit }: Pick<ReelMockupProps, "media" | "fit">) {
+function Media({ media, fit, mediaRef }: Pick<ReelMockupProps, "media" | "fit" | "mediaRef">) {
   if (!media) {
     return (
       <div className="grid h-full w-full place-items-center bg-[#1b1b1f] px-10 text-center text-[15px] leading-snug text-white/45">
@@ -111,10 +113,10 @@ function Media({ media, fit }: Pick<ReelMockupProps, "media" | "fit">) {
   }
   const show = (className: string, hidden?: boolean) =>
     media.kind === "video" ? (
-      <video src={media.url} autoPlay muted loop playsInline aria-hidden={hidden} className={className} />
+      <video ref={hidden ? undefined : mediaRef} src={media.url} autoPlay muted loop playsInline aria-hidden={hidden} className={className} />
     ) : (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={media.url} alt="" aria-hidden={hidden} className={className} />
+      <img ref={hidden ? undefined : mediaRef} src={media.url} alt="" aria-hidden={hidden} className={className} />
     );
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -152,7 +154,7 @@ function SafeZone() {
  * Todo lo que Instagram pone encima del creativo está en su lugar, para ver qué tapa.
  */
 export function ReelMockup(props: ReelMockupProps) {
-  const { media, fit, account, avatar, caption, cta, colors, social, showUI, mark, safeZone, time, scale } = props;
+  const { media, fit, account, avatar, caption, cta, colors, social, showUI, mark, safeZone, time, scale, mediaRef } = props;
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const firstLine = captionLine(caption, mounted);
@@ -172,7 +174,7 @@ export function ReelMockup(props: ReelMockupProps) {
           <div className="absolute inset-x-0" style={{ top: MEDIA_BOTTOM, height: CAPTION_BOTTOM - MEDIA_BOTTOM, background: colors.captionBand }} />
 
           <div className="absolute inset-x-0" style={{ top: MEDIA_TOP, height: MEDIA_H }}>
-            <Media media={media} fit={fit} />
+            <Media media={media} fit={fit} mediaRef={mediaRef} />
             {showUI && (
               <div
                 className="pointer-events-none absolute inset-0"

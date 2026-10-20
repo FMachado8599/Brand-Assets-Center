@@ -436,6 +436,7 @@ Para ver un anuncio como sale en **Reels de Instagram** antes de publicarlo y sa
 - **Burbujas de seguidores**: no siempre salen (dependen de quién lo ve), pero cuando salen tapan; se pueden ocultar.
 - **La cuenta**: usuario, foto de perfil (se sube) o el logo de un cliente de la app. **Texto**: Instagram muestra la primera línea hasta donde entra, con " ...". **Botón**: los de Meta en español; su color sale del creativo (como hace Instagram: el tono del creativo, apagado) y se puede cambiar. El color de las franjas de arriba y del texto es aproximado: Instagram no lo saca del creativo de una forma que se pueda deducir, pero no tapan nada del creativo.
 - **Avisos**: si no es 9:16 (se puede ver entero con fondo o recortado: Meta hace una de las dos) y si mide menos de 1080 × 1920.
+- **Descargar** y **Copiar** (barra de arriba): el teléfono con el anuncio, tal como se ve (con la interfaz, las marcas y la zona segura que estén prendidas), en PNG a 3× como una captura de iPhone (1236 × 2598 px, esquinas transparentes). De un video sale el cuadro que se está viendo. No usa librerías: se vuelve a dibujar en un canvas con las mismas medidas (`components/ads/renderReel.ts`; los trazos de los íconos están en `ReelIcons.tsx` y los usan los dos). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes); si no, avisa que se use Descargar.
 - Nada se sube a ningún lado: el archivo se abre en el navegador. Lo que se recuerda (en la cuenta) es el usuario, el texto, el botón y las opciones.
 
 ---
