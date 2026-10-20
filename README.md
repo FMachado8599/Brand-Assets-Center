@@ -12,7 +12,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
-| **Ads** | `/ads` | Ver un anuncio como sale en Reels de Instagram, con todo lo que tapa la app y la zona segura de Meta |
+| **Ads** | `/ads` | Ver un anuncio como sale en Reels y en historias de Instagram (cinco tipos), con todo lo que tapa la app y la zona segura de Meta |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -427,18 +427,30 @@ En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOO
 
 ## Ads
 
-Para ver un anuncio como sale en **Reels de Instagram** antes de publicarlo y saber si algo del creativo queda tapado. Se suben (o se arrastran, o se pegan con Ctrl+V) una o varias imágenes o videos, y cada uno aparece en un iPhone con todo lo que la app pone encima: la hora y el notch, la flecha para atrás, los íconos del costado (me gusta, comentar, repostear, enviar, más), las burbujas de gente que sigue a la cuenta, el botón de la acción, la cuenta con su foto, la primera línea del texto con "Publicidad" y la barra de comentarios.
+Para ver un anuncio como sale en **Reels y en historias de Instagram** antes de publicarlo y saber si algo del creativo queda tapado. Se suben (o se arrastran, o se pegan con Ctrl+V) una o varias imágenes o videos, y cada uno aparece en un iPhone por cada tipo de anuncio, con todo lo que la app pone encima.
 
-- **Medidas**: salen de una captura real de un anuncio en un iPhone (923 × 2000 px, 390 × 844 pt) y están en `lib/ads/reel.ts` y `components/ads/ReelMockup.tsx`. El creativo va en 9:16 a lo ancho, entre una franja arriba y la franja del texto. Probado con la misma captura: cada cosa dibujada cae encima de la original.
-- **Marcar lo que tapa**: pinta de rojo cada cosa de la app que va encima del creativo.
-- **Zona segura de Meta**: la de la Guía de anuncios de Meta para 9:16 (Reels y Stories de Instagram y Facebook): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que muestra el "Safe Zone Guardrail" de Ads Manager.
+**Los tipos** (arriba de los teléfonos se eligen cuáles armar; se recuerda):
+
+| Tipo | Qué tapa | Captura de referencia |
+| --- | --- | --- |
+| **Reels** | En la pestaña Reels: la tarjeta con miniatura y título pegada al botón, me gusta / comentar / repostear / enviar con sus números, la cuenta con el anillo de historia, dos líneas de texto que terminan en «… Publicidad» y la barra de abajo de Instagram. | Jetour (738 × 1600 px) |
+| **Reels desde el feed** | Abierto desde el inicio: la flecha para atrás, los íconos del costado, las burbujas de seguidores, el botón, la cuenta, una línea de texto con «Publicidad» y la barra de comentarios. | Changan (923 × 2000 px) |
+| **Historia** | La barra de progreso, la cuenta, ⋯ y ✕ arriba; el sticker blanco del enlace con el botón; abajo, «Publicidad» con me gusta y responder. | Leapmotor |
+| **Historia con «Me interesa»** | Lo mismo más los botones «No me interesa» y «Me interesa» (anuncios de clientes potenciales). | Leapmotor |
+| **Historia con formulario** | El sticker y, debajo del creativo, «Desliza hacia arriba para ver el formulario». | Changan |
+
+- **Medidas**: todas salen de capturas reales en un iPhone de 390 × 844 pt (`lib/ads/placements.ts` y `components/ads/draw.ts`). En todos los tipos el creativo va en 9:16 a lo ancho; cambia dónde empieza (en historias, con las esquinas apenas redondeadas). Probado poniendo de creativo el pedazo de cada captura: lo dibujado cae encima de lo original. El sticker de las historias aparece un poco más arriba o más abajo según el anuncio: va donde estaba en dos de las tres capturas. En la historia con formulario la captura no mostraba el encabezado, pero se dibuja igual (en las otras sí está).
+- **Idioma**: Instagram en español o en inglés cambia los textos («Más información» o «Learn more», «Publicidad» o «Ad», «Me interesa» o «Interested»…), que no miden lo mismo. Los botones de Meta están en los dos idiomas (`lib/ads/text.ts`).
+- **Marcar lo que tapa**: pinta de rojo cada cosa de la app que va encima del creativo, en cada tipo.
+- **Zona segura de Meta**: la de la Guía de anuncios de Meta para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que muestra el "Safe Zone Guardrail" de Ads Manager.
 - **Interfaz de Instagram**: apagada, se ve el creativo solo, para comparar.
-- **Burbujas de seguidores**: no siempre salen (dependen de quién lo ve), pero cuando salen tapan; se pueden ocultar.
-- **La cuenta**: usuario, foto de perfil (se sube) o el logo de un cliente de la app. **Texto**: Instagram muestra la primera línea hasta donde entra, con " ...". **Botón**: los de Meta en español; su color sale del creativo (como hace Instagram: el tono del creativo, apagado) y se puede cambiar. El color de las franjas de arriba y del texto es aproximado: Instagram no lo saca del creativo de una forma que se pueda deducir, pero no tapan nada del creativo.
+- **Burbujas de seguidores** (Reels desde el feed): no siempre salen (dependen de quién lo ve), pero cuando salen tapan; se pueden ocultar.
+- **La cuenta**: usuario, foto de perfil (se sube) o el logo de un cliente de la app. **Texto**: el principio, como lo corta Instagram en cada tipo. **Título**: el de la tarjeta de la pestaña Reels. **Botón**: los de Meta; en Reels su color sale del creativo (el tono del creativo, apagado, como hace Instagram) y se puede cambiar; en historias va en el sticker. El color de las franjas de arriba y del texto de Reels desde el feed es aproximado: no tapan nada del creativo.
 - **Avisos**: si no es 9:16 (se puede ver entero con fondo o recortado: Meta hace una de las dos) y si mide menos de 1080 × 1920.
-- **Descargar** y **Copiar** (barra de arriba): el teléfono con el anuncio, tal como se ve (con la interfaz, las marcas y la zona segura que estén prendidas), en PNG a 3× como una captura de iPhone (1236 × 2598 px, esquinas transparentes). De un video sale el cuadro que se está viendo. No usa librerías: se vuelve a dibujar en un canvas con las mismas medidas (`components/ads/renderReel.ts`; los trazos de los íconos están en `ReelIcons.tsx` y los usan los dos). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes); si no, avisa que se use Descargar.
-- **Varios creativos**: la lista muestra todos (con un ⚠ los que tienen aviso). Un click elige cuál se ve en el teléfono; abajo del teléfono, o con `←` y `→`, se pasa de uno a otro. La cuenta, el texto, el botón y lo que se ve valen para todos; el color del botón y "entero o recortado" (si no es 9:16) son de cada uno. Cada fila copia, descarga o quita el suyo, y **Descargar todo** baja todos en un `.zip` (`… (Reels).png`, con el nombre de cada archivo); de los videos que no están a la vista sale el mismo cuadro del que se sacan sus colores.
-- Nada se sube a ningún lado: los archivos se abren en el navegador. Lo que se recuerda (en la cuenta) es el usuario, el texto, el botón y las opciones.
+- **Varios creativos**: la lista muestra todos (con un ⚠ los que tienen aviso). Un click elige cuál se ve; arriba de los teléfonos, o con `←` y `→`, se pasa de uno a otro. Todo vale para todos, menos el color del botón y "entero o recortado", que son de cada uno.
+- **Copiar y descargar**: debajo de cada teléfono, ese mockup (de un video sale el cuadro que se está viendo). En la lista, cada creativo baja todos sus tipos (uno en PNG o varios en un `.zip`). **Descargar todo** (barra de arriba) baja todo en un `.zip`, con una carpeta por creativo si hay varios. Las imágenes son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes); si no, avisa que se use Descargar.
+- **Cómo se dibuja**: cada tipo se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías). En pantalla el creativo va en un `<img>`/`<video>` debajo del canvas (así los videos se reproducen) y al descargar se dibuja adentro: lo que se ve y lo que se baja salen del mismo dibujo. Los íconos están en `components/ads/icons.ts`.
+- Nada se sube a ningún lado: los archivos se abren en el navegador. Lo que se recuerda (en la cuenta) es el usuario, los textos, el botón, el idioma, los tipos y las opciones.
 
 ---
 

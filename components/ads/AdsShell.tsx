@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { AlertTriangle, BoxSelect, ChevronLeft, ChevronRight, Copy, Download, Eye, EyeOff, FolderDown, ImagePlus, ScanLine, Upload, X } from "lucide-react";
+import { AlertTriangle, BoxSelect, Check, ChevronLeft, ChevronRight, Copy, Download, Eye, EyeOff, FolderDown, ImagePlus, ScanLine, Upload, X } from "lucide-react";
 import { ClientMark, logoBackground } from "@/components/clients/ClientMark";
 import { BarAction, BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,26 @@ import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { useClients } from "@/hooks/useClients";
 import { useStoredState } from "@/hooks/useStoredState";
-import { fold } from "@/lib/redaccion/text";
 import { DEFAULT_COLORS, sampleColors, type AdColors } from "@/lib/ads/color";
-import { CTAS, ratioGap, ratioLabel, type AdMedia } from "@/lib/ads/reel";
-import { cn } from "@/lib/utils";
+import { PLACEMENTS, placementInfo, type Placement } from "@/lib/ads/placements";
+import { ratioGap, ratioLabel, type AdMedia } from "@/lib/ads/reel";
+import { CTAS, ctaText, type Lang } from "@/lib/ads/text";
 import { initials } from "@/lib/clients/color";
-import { PHONE, ReelMockup } from "./ReelMockup";
-import { canvasToPng, mediaFrame, renderReelImage, type AvatarSource } from "./renderReel";
+import { fold } from "@/lib/redaccion/text";
+import { cn } from "@/lib/utils";
+import { PHONE, loadImage, mediaFrame, renderMockupPng, type AvatarSource, type MockupInput } from "./draw";
+import { MockupView } from "./MockupView";
 
 type AdOptions = {
   account: string;
   caption: string;
+  /** El título del anuncio: va en la tarjeta de la pestaña Reels. */
+  headline: string;
+  /** El botón, guardado por su texto en español. */
   cta: string;
+  lang: Lang;
+  /** Qué mockups se arman para cada creativo. */
+  placements: Placement[];
   clientId: string | null;
   social: boolean;
   safeZone: boolean;
@@ -32,7 +40,10 @@ type AdOptions = {
 const DEFAULT_OPTIONS: AdOptions = {
   account: "tu.marca",
   caption: "El texto del anuncio va acá.\nSegunda línea, que Instagram esconde detrás del ...",
+  headline: "Título del anuncio",
   cta: "Más información",
+  lang: "es",
+  placements: PLACEMENTS.map((p) => p.id),
   clientId: null,
   social: true,
   safeZone: false,
@@ -43,6 +54,8 @@ type AdItem = {
   id: string;
   media: AdMedia;
   colors: AdColors;
+  /** Un cuadro quieto (la imagen, o uno del video): la miniatura de Reels y lo que se descarga en lote. */
+  frame?: CanvasImageSource;
   /** El color del botón elegido a mano (si no, sale del creativo). */
   ctaColor: string | null;
   /** Si no es 9:16: entero con fondo o recortado. */
@@ -52,11 +65,12 @@ type AdItem = {
 const isOffRatio = (m: AdMedia) => ratioGap(m) > 0.02;
 const isLowRes = (m: AdMedia) => Math.min(m.width, (m.height * 9) / 16) < 1080;
 
-/** "campaña-otoño.jpg" → "campaña-otoño (Reels).png" */
-function pngName(m: AdMedia) {
-  const base = m.name.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]+/g, "-").trim() || "anuncio";
-  return `${base} (Reels).png`;
+/** "campaña-otoño.jpg" → "campaña-otoño" (sin caracteres que Windows no acepta). */
+function baseName(m: AdMedia) {
+  return m.name.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]+/g, "-").trim() || "anuncio";
 }
+
+const placementFile = (p: Placement) => placementInfo(p).label.replace(/[«»]/g, "");
 
 function saveFile(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -158,31 +172,39 @@ export function AdsShell() {
   const [items, setItems] = useState<AdItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarImg, setAvatarImg] = useState<HTMLImageElement | null>(null);
   const [showUI, setShowUI] = useState(true);
   const [mark, setMark] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [scale, setScale] = useState(0.7);
+  const [layout, setLayout] = useState({ scale: 0.7, cols: 1 });
+  const [exporting, setExporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
-  const phoneCol = useRef<HTMLDivElement>(null);
-  const mediaRef = useRef<HTMLImageElement & HTMLVideoElement>(null);
-  const [exporting, setExporting] = useState(false);
+  const gallery = useRef<HTMLDivElement>(null);
+  /** El <img>/<video> que se ve en cada teléfono, para descargar en el cuadro en que está. */
+  const shown = useRef(new Map<Placement, HTMLImageElement | HTMLVideoElement>());
   const time = useClock();
   const { clients } = useClients();
   const client = clients.find((c) => c.id === opts.clientId) ?? null;
 
-  /** El creativo que se ve en el teléfono. */
+  // Los tipos en el orden de la lista (y al menos uno).
+  const placements = PLACEMENTS.map((p) => p.id).filter((id) => opts.placements.includes(id));
+  const togglePlacement = (id: Placement) => {
+    const on = placements.includes(id);
+    if (on && placements.length === 1) return toast("Dejá al menos un tipo de mockup.");
+    set({ placements: on ? placements.filter((p) => p !== id) : [...placements, id] });
+  };
+
+  /** El creativo que se ve en los teléfonos. */
   const current = items.find((i) => i.id === selectedId) ?? items[0] ?? null;
   const index = current ? items.indexOf(current) : -1;
   const media = current?.media ?? null;
   const colors = current?.colors ?? DEFAULT_COLORS;
   const ctaColor = current?.ctaColor ?? null;
   const fit = current?.fit ?? "contain";
-  const patchCurrent = (patch: Partial<AdItem>) => {
-    if (current) setItems((prev) => prev.map((i) => (i.id === current.id ? { ...i, ...patch } : i)));
-  };
-  const setCtaColor = (color: string | null) => patchCurrent({ ctaColor: color });
-  const setFit = (value: "cover" | "contain") => patchCurrent({ fit: value });
+  const patchItem = (id: string, patch: Partial<AdItem>) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  const setCtaColor = (color: string | null) => current && patchItem(current.id, { ctaColor: color });
+  const setFit = (value: "cover" | "contain") => current && patchItem(current.id, { fit: value });
   const go = (step: number) => {
     if (items.length > 1) setSelectedId(items[(index + step + items.length) % items.length].id);
   };
@@ -204,6 +226,12 @@ export function AdsShell() {
     setItems((prev) => [...prev, ...added]);
     setSelectedId(added[0].id);
     if (added.length > 1) toast(`Se agregaron ${added.length} creativos`);
+    // El cuadro quieto llega después: hasta entonces la miniatura usa el que se ve.
+    for (const item of added) {
+      mediaFrame(item.media)
+        .then((frame) => setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, frame } : i))))
+        .catch(() => {});
+    }
   }, []);
 
   const removeItem = (id: string) => {
@@ -240,26 +268,28 @@ export function AdsShell() {
   });
 
   const multi = items.length > 1;
+  const count = placements.length;
 
-  // El teléfono entra entero en la pantalla y en su columna.
+  // Los teléfonos entran en su columna: uno grande (entero en la pantalla) o varios en grilla.
   useEffect(() => {
-    const el = phoneCol.current;
+    const el = gallery.current;
     if (!el) return;
-    const fit = () => {
-      const byWidth = el.clientWidth / PHONE.w;
-      // Entra entero al abrir la página, debajo del título.
-      const byHeight = (window.innerHeight - (multi ? 310 : 260)) / PHONE.h;
-      setScale(Math.max(0.42, Math.min(1, byWidth, byHeight)));
+    const measure = () => {
+      const gap = 24;
+      const cols = count === 1 ? 1 : Math.max(1, Math.min(count, Math.floor((el.clientWidth + gap) / (250 + gap))));
+      const cell = (el.clientWidth - gap * (cols - 1)) / cols;
+      const byHeight = count === 1 ? (window.innerHeight - (multi ? 330 : 280)) / PHONE.h : 1;
+      setLayout({ cols, scale: Math.max(0.36, Math.min(1, cell / PHONE.w, byHeight)) });
     };
-    fit();
-    const ro = new ResizeObserver(fit);
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    window.addEventListener("resize", fit);
+    window.addEventListener("resize", measure);
     return () => {
       ro.disconnect();
-      window.removeEventListener("resize", fit);
+      window.removeEventListener("resize", measure);
     };
-  }, [multi]);
+  }, [count, multi]);
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -284,7 +314,7 @@ export function AdsShell() {
     <span className="text-[13px] font-semibold uppercase">{(opts.account || "t").slice(0, 1)}</span>
   );
 
-  /** La misma foto de perfil, para dibujarla en la imagen. */
+  /** La misma foto de perfil, para dibujarla. */
   const avatarSource: AvatarSource = avatarUrl
     ? { url: avatarUrl }
     : client?.logo_url
@@ -292,38 +322,59 @@ export function AdsShell() {
       : client
         ? { letter: initials(client.name), background: client.color }
         : { letter: (opts.account || "t").slice(0, 1) };
+  const avatarKey = "url" in avatarSource ? avatarSource.url : "";
+
+  useEffect(() => {
+    let alive = true;
+    if (!avatarKey) {
+      setAvatarImg(null);
+      return;
+    }
+    loadImage(avatarKey).then((img) => alive && setAvatarImg(img));
+    return () => {
+      alive = false;
+    };
+  }, [avatarKey]);
 
   const offRatio = media ? isOffRatio(media) : false;
   const lowRes = media ? isLowRes(media) : false;
 
-  /** Un creativo como PNG, tal como se ve (con la interfaz, las marcas y la zona segura que estén). */
-  const buildImage = async (item: AdItem) => {
-    // El que está en el teléfono sale en el cuadro que se ve; los demás, de su archivo.
-    const shown = item.id === current?.id ? mediaRef.current : null;
-    const canvas = await renderReelImage({
-      media: item.media,
-      source: shown ?? (await mediaFrame(item.media)),
-      fit: isOffRatio(item.media) ? item.fit : "cover",
+  /** Todo lo de un mockup menos el creativo (eso lo pone la pantalla o la descarga). */
+  const inputFor = (item: AdItem | null, placement: Placement): Omit<MockupInput, "source"> => {
+    const c = item?.colors ?? DEFAULT_COLORS;
+    return {
+      placement,
+      media: item?.media ?? null,
+      thumb: item?.frame ?? null,
+      fit: item && isOffRatio(item.media) ? item.fit : "cover",
       account: opts.account,
       avatar: avatarSource,
+      avatarImg,
       caption: opts.caption,
-      cta: opts.cta,
-      colors: { ...item.colors, cta: item.ctaColor ?? item.colors.cta },
+      headline: opts.headline,
+      cta: ctaText(opts.cta, opts.lang),
+      lang: opts.lang,
+      colors: { ...c, cta: item?.ctaColor ?? c.cta },
       social: opts.social,
       showUI,
       mark,
       safeZone: opts.safeZone,
       time,
-    });
-    return canvasToPng(canvas);
+    };
+  };
+
+  /** Un mockup como PNG, tal como se ve (con la interfaz, las marcas y la zona segura que estén). */
+  const buildImage = async (item: AdItem, placement: Placement, source?: CanvasImageSource | null) => {
+    const frame = source ?? item.frame ?? (await mediaFrame(item.media));
+    return renderMockupPng({ ...inputFor(item, placement), thumb: item.frame ?? frame, source: frame });
   };
 
   const failed = (err: unknown) => toast(err instanceof Error ? err.message : "No se pudo armar la imagen.", "error");
 
-  const downloadOne = async (item: AdItem) => {
+  const run = async (job: () => Promise<void>) => {
     setExporting(true);
     try {
-      saveFile(await buildImage(item), pngName(item.media));
+      await job();
     } catch (err) {
       failed(err);
     } finally {
@@ -331,14 +382,22 @@ export function AdsShell() {
     }
   };
 
-  const copyOne = async (item: AdItem) => {
+  /** El teléfono que se ve: sale en el cuadro en que está el video. */
+  const downloadShown = (placement: Placement) =>
+    run(async () => {
+      if (!current) return;
+      saveFile(await buildImage(current, placement, shown.current.get(placement)), `${baseName(current.media)} - ${placementFile(placement)}.png`);
+    });
+
+  const copyShown = async (placement: Placement) => {
+    if (!current) return;
     if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
       return toast("Este navegador no deja copiar imágenes: usá Descargar.", "error");
     }
     setExporting(true);
     try {
       // La promesa va directo al portapapeles: Safari solo deja copiar si el pedido sale del mismo click.
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": buildImage(item) })]);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": buildImage(current, placement, shown.current.get(placement)) })]);
       toast("Imagen copiada: pegala donde quieras");
     } catch (err) {
       failed(err instanceof DOMException ? new Error("El navegador no dejó copiar la imagen: usá Descargar.") : err);
@@ -347,28 +406,46 @@ export function AdsShell() {
     }
   };
 
-  /** Todas, en un .zip (los navegadores frenan muchas descargas seguidas). */
-  const downloadAll = async () => {
-    setExporting(true);
-    try {
-      const { default: JSZip } = await import("jszip");
-      const zip = new JSZip();
-      const used = new Set<string>();
-      for (const [i, item] of items.entries()) {
-        let name = pngName(item.media);
-        if (used.has(name)) name = name.replace(/ \(Reels\)\.png$/, ` ${i + 1} (Reels).png`);
-        used.add(name);
-        zip.file(name, await buildImage(item));
-      }
-      const account = (opts.account || "anuncios").replace(/[^\w.-]+/g, "-");
-      saveFile(await zip.generateAsync({ type: "blob" }), `anuncios-reels-${account}.zip`);
-      toast(`${items.length} imágenes en un .zip`);
-    } catch (err) {
-      failed(err);
-    } finally {
-      setExporting(false);
-    }
+  /** Varios archivos en un .zip (los navegadores frenan muchas descargas seguidas). */
+  const zipOf = async (entries: { name: string; item: AdItem; placement: Placement }[], zipName: string) => {
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    for (const e of entries) zip.file(e.name, await buildImage(e.item, e.placement));
+    saveFile(await zip.generateAsync({ type: "blob" }), zipName);
+    toast(`${entries.length} imágenes en un .zip`);
   };
+
+  /** Los mockups de un creativo: una imagen o, si son varios, un .zip. */
+  const downloadItem = (item: AdItem) =>
+    run(async () => {
+      const base = baseName(item.media);
+      if (placements.length === 1) return saveFile(await buildImage(item, placements[0]), `${base} - ${placementFile(placements[0])}.png`);
+      await zipOf(
+        placements.map((placement) => ({ name: `${base} - ${placementFile(placement)}.png`, item, placement })),
+        `${base} - mockups.zip`
+      );
+    });
+
+  /** Todo: una carpeta por creativo (si hay más de uno) con un mockup por tipo. */
+  const downloadAll = () =>
+    run(async () => {
+      const used = new Set<string>();
+      const entries = items.flatMap((item, i) => {
+        let folder = baseName(item.media);
+        if (used.has(folder)) folder = `${folder} ${i + 1}`;
+        used.add(folder);
+        return placements.map((placement) => ({
+          name: multi ? `${folder}/${placementFile(placement)}.png` : `${folder} - ${placementFile(placement)}.png`,
+          item,
+          placement,
+        }));
+      });
+      if (entries.length === 1) return saveFile(await buildImage(entries[0].item, entries[0].placement), entries[0].name);
+      const account = (opts.account || "anuncios").replace(/[^\w.-]+/g, "-");
+      await zipOf(entries, `mockups-${account}.zip`);
+    });
+
+  const total = items.length * placements.length;
 
   return (
     <div
@@ -390,19 +467,14 @@ export function AdsShell() {
         <BarButton label="Zona segura de Meta" icon={ScanLine} pressed={opts.safeZone} onClick={() => set({ safeZone: !opts.safeZone })} />
         {media && <BarNote>{`${multi ? `${index + 1} de ${items.length} · ` : ""}${ratioLabel(media)} · ${media.width}×${media.height}`}</BarNote>}
         <BarDivider />
-        <BarButton label={multi ? "Copiar esta imagen" : "Copiar la imagen"} icon={Copy} onClick={() => current && copyOne(current)} disabled={!current || exporting} />
-        {multi ? (
-          <>
-            <BarButton label="Descargar esta imagen" icon={Download} onClick={() => current && downloadOne(current)} disabled={exporting} />
-            <BarAction label={`Descargar las ${items.length} imágenes en un .zip`} icon={FolderDown} onClick={downloadAll} disabled={exporting}>
-              Descargar todo
-            </BarAction>
-          </>
-        ) : (
-          <BarAction label="Descargar la imagen" icon={Download} onClick={() => current && downloadOne(current)} disabled={!current || exporting}>
-            Descargar
-          </BarAction>
-        )}
+        <BarAction
+          label={total > 1 ? `Descargar las ${total} imágenes en un .zip` : "Descargar la imagen"}
+          icon={total > 1 ? FolderDown : Download}
+          onClick={downloadAll}
+          disabled={!items.length || exporting}
+        >
+          {total > 1 ? "Descargar todo" : "Descargar"}
+        </BarAction>
       </ContextBar>
 
       <input
@@ -417,18 +489,18 @@ export function AdsShell() {
         }}
       />
 
-      <main className="mx-auto max-w-5xl px-4 pb-16 pt-[6.5rem] sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-[6.5rem] sm:px-6">
         <div className="mb-8 text-center">
           <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Ads</h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Subí uno o varios creativos y miralos como salen en un anuncio de Reels de Instagram, con todo lo que la app
-            pone encima: así ves si algo queda tapado antes de publicarlo.
+          <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
+            Subí uno o varios creativos y miralos como salen en los anuncios de Reels y de historias de Instagram, con todo lo
+            que la app pone encima: así ves si algo queda tapado antes de publicarlo.
           </p>
         </div>
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,22rem)_1fr]">
           <div className="order-2 space-y-4 lg:order-1">
-            {/* El creativo */}
+            {/* Los creativos */}
             <section className={cn("rounded-3xl border bg-card p-4 shadow-sm transition-colors", dragging && "border-primary bg-primary/10")}>
               {items.length > 0 ? (
                 <>
@@ -470,13 +542,14 @@ export function AdsShell() {
                               </span>
                             </span>
                           </button>
-                          <Hint label="Copiar la imagen">
-                            <Button variant="ghost" size="iconSm" aria-label={`Copiar la imagen de ${m.name}`} onClick={() => copyOne(item)} disabled={exporting}>
-                              <Copy />
-                            </Button>
-                          </Hint>
-                          <Hint label="Descargar la imagen">
-                            <Button variant="ghost" size="iconSm" aria-label={`Descargar la imagen de ${m.name}`} onClick={() => downloadOne(item)} disabled={exporting}>
+                          <Hint label={placements.length > 1 ? `Descargar sus ${placements.length} mockups` : "Descargar su mockup"}>
+                            <Button
+                              variant="ghost"
+                              size="iconSm"
+                              aria-label={`Descargar los mockups de ${m.name}`}
+                              onClick={() => downloadItem(item)}
+                              disabled={exporting}
+                            >
                               <Download />
                             </Button>
                           </Hint>
@@ -512,8 +585,8 @@ export function AdsShell() {
                       <p className="flex gap-1.5">
                         <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
                         <span>
-                          Es {ratioLabel(media)}, no 9:16. En Reels Meta lo acomoda a la pantalla: lo muestra entero con un fondo o lo
-                          recorta. Para estar seguro, armá una versión 9:16.
+                          Es {ratioLabel(media)}, no 9:16. Meta lo acomoda a la pantalla: lo muestra entero con un fondo o lo recorta.
+                          Para estar seguro, armá una versión 9:16.
                         </span>
                       </p>
                       <div className="flex gap-1 rounded-full bg-white/70 p-0.5" role="radiogroup" aria-label="Cómo mostrarlo">
@@ -552,7 +625,7 @@ export function AdsShell() {
               )}
             </section>
 
-            {/* La cuenta y el texto */}
+            {/* La cuenta y los textos */}
             <section className="space-y-3 rounded-3xl border bg-card p-4 shadow-sm">
               {clients.length > 0 && (
                 <Field label="Cliente">
@@ -603,7 +676,11 @@ export function AdsShell() {
                   rows={3}
                   className="w-full resize-y rounded-md border border-input bg-card px-3 py-2 text-sm outline-none ring-ring focus-visible:ring-2"
                 />
-                <span className="block text-[11px] text-muted-foreground">Instagram muestra solo el principio de la primera línea.</span>
+                <span className="block text-[11px] text-muted-foreground">En Reels se ve solo el principio: una línea desde el feed, dos en la pestaña Reels.</span>
+              </Field>
+
+              <Field label="Título (la tarjeta de la pestaña Reels)">
+                <Input value={opts.headline} onChange={(e) => set({ headline: e.target.value })} placeholder="Título del anuncio" className="h-9" />
               </Field>
 
               <div className="flex items-end gap-2">
@@ -615,8 +692,8 @@ export function AdsShell() {
                       </SelectTrigger>
                       <SelectContent>
                         {CTAS.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
+                          <SelectItem key={c.es} value={c.es}>
+                            {c[opts.lang]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -626,7 +703,7 @@ export function AdsShell() {
                 <label
                   className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-md ring-1 ring-black/10"
                   style={{ background: ctaColor ?? colors.cta }}
-                  title="Color del botón (sale del creativo)"
+                  title="Color del botón de Reels (sale del creativo)"
                 >
                   <span className="sr-only">Color del botón</span>
                   <input
@@ -642,6 +719,32 @@ export function AdsShell() {
                   Volver al color automático
                 </button>
               )}
+
+              <Field label="Instagram en">
+                <div className="flex gap-1 rounded-full bg-secondary p-0.5" role="radiogroup" aria-label="Idioma de Instagram">
+                  {(
+                    [
+                      ["es", "Español"],
+                      ["en", "Inglés"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={opts.lang === value}
+                      onClick={() => set({ lang: value })}
+                      className={cn(
+                        "h-7 flex-1 rounded-full text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
+                        opts.lang === value && "bg-card text-foreground shadow-sm"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <span className="block text-[11px] text-muted-foreground">Cambia los textos de la app, como «Más información» o «Learn more»: no miden lo mismo.</span>
+              </Field>
             </section>
 
             {/* Qué se ve */}
@@ -656,43 +759,95 @@ export function AdsShell() {
               />
               <Toggle
                 label="Burbujas de seguidores"
-                hint="Caras de gente que sigue a la cuenta; no siempre salen, pero tapan."
+                hint="En Reels desde el feed: caras de gente que sigue a la cuenta. No siempre salen, pero tapan."
                 checked={opts.social}
                 onChange={(social) => set({ social })}
               />
             </section>
           </div>
 
-          <div ref={phoneCol} className="order-1 flex flex-col items-center gap-3 lg:sticky lg:top-24 lg:order-2">
-            <ReelMockup
-              media={media}
-              fit={offRatio ? fit : "cover"}
-              account={opts.account}
-              avatar={avatar}
-              caption={opts.caption}
-              cta={opts.cta}
-              colors={{ ...colors, cta: ctaColor ?? colors.cta }}
-              social={opts.social}
-              showUI={showUI}
-              mark={mark}
-              safeZone={opts.safeZone}
-              time={time}
-              scale={scale}
-              mediaRef={mediaRef}
-            />
-            {multi && (
-              <div className="flex items-center gap-1 rounded-full border bg-card/80 p-1 text-xs font-medium shadow-sm">
-                <Button variant="ghost" size="iconSm" className="rounded-full" aria-label="Creativo anterior" onClick={() => go(-1)}>
-                  <ChevronLeft />
-                </Button>
-                <span className="min-w-[4.5rem] text-center tabular-nums" aria-live="polite">
-                  {index + 1} de {items.length}
-                </span>
-                <Button variant="ghost" size="iconSm" className="rounded-full" aria-label="Creativo siguiente" onClick={() => go(1)}>
-                  <ChevronRight />
-                </Button>
+          <div className="order-1 space-y-4 lg:order-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Qué mockups armar">
+                {PLACEMENTS.map((p) => {
+                  const on = placements.includes(p.id);
+                  return (
+                    <Hint key={p.id} label={p.hint}>
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => togglePlacement(p.id)}
+                        className={cn(
+                          "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium outline-none ring-ring transition-colors focus-visible:ring-2",
+                          on ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {on && <Check className="h-3.5 w-3.5" />}
+                        {p.label}
+                      </button>
+                    </Hint>
+                  );
+                })}
               </div>
-            )}
+              {multi && (
+                <div className="flex items-center gap-1 rounded-full border bg-card/80 p-1 text-xs font-medium shadow-sm">
+                  <Button variant="ghost" size="iconSm" className="rounded-full" aria-label="Creativo anterior" onClick={() => go(-1)}>
+                    <ChevronLeft />
+                  </Button>
+                  <span className="min-w-[4.5rem] text-center tabular-nums" aria-live="polite">
+                    {index + 1} de {items.length}
+                  </span>
+                  <Button variant="ghost" size="iconSm" className="rounded-full" aria-label="Creativo siguiente" onClick={() => go(1)}>
+                    <ChevronRight />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div
+              ref={gallery}
+              className={cn("grid justify-items-center gap-6", count === 1 && "lg:sticky lg:top-24")}
+              style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` }}
+            >
+              {placements.map((placement) => (
+                <figure key={placement} className="flex flex-col items-center gap-2">
+                  <MockupView
+                    key={`${current?.id ?? "vacío"}-${placement}`}
+                    {...inputFor(current, placement)}
+                    scale={layout.scale}
+                    onSource={(el) => {
+                      if (el) shown.current.set(placement, el);
+                      else shown.current.delete(placement);
+                    }}
+                  />
+                  <figcaption className="flex items-center gap-1">
+                    <span className="mr-1 text-xs font-medium">{placementInfo(placement).label}</span>
+                    <Hint label="Copiar la imagen">
+                      <Button
+                        variant="ghost"
+                        size="iconSm"
+                        aria-label={`Copiar el mockup ${placementInfo(placement).label}`}
+                        onClick={() => copyShown(placement)}
+                        disabled={!current || exporting}
+                      >
+                        <Copy />
+                      </Button>
+                    </Hint>
+                    <Hint label="Descargar la imagen">
+                      <Button
+                        variant="ghost"
+                        size="iconSm"
+                        aria-label={`Descargar el mockup ${placementInfo(placement).label}`}
+                        onClick={() => downloadShown(placement)}
+                        disabled={!current || exporting}
+                      >
+                        <Download />
+                      </Button>
+                    </Hint>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
         </div>
       </main>
