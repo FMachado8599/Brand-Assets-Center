@@ -6,7 +6,7 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
-import { EditorState, TextSelection } from "@tiptap/pm/state";
+import { EditorState, TextSelection, type Transaction } from "@tiptap/pm/state";
 import {
   Bold,
   CaseLower,
@@ -16,9 +16,11 @@ import {
   Italic,
   List,
   ListOrdered,
+  Loader2,
   Redo2,
   RemoveFormatting,
   Repeat,
+  Sparkles,
   Strikethrough,
   Type,
   Underline as UnderlineIcon,
@@ -32,11 +34,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { changeCase, cycleCase } from "@/lib/editor/changeCase";
 import { charFor, imageUrl, variantId, type EmojiEntry, type Tone } from "@/lib/emojis/types";
 import { around, findTrigger, RedaccionExtras, textSlice, type Trigger } from "@/lib/redaccion/editor";
 import { docToPlain, docToUnicode, docToWhatsApp, hasFormatting, type DocNode } from "@/lib/redaccion/export";
+import type { PedidoPalabras, RespuestaPalabras } from "@/lib/redaccion/ia.client";
+import { OCULTAR, Prediccion, prediccionKey } from "@/lib/redaccion/prediccion-ext";
 import { fold } from "@/lib/redaccion/text";
 import type { SlimEmoji } from "@/lib/redaccion/types";
 import { cn } from "@/lib/utils";
@@ -66,6 +71,10 @@ type Props = {
   /** Hashtags para sugerir: los del cliente (o de todos, si el texto no tiene) y los usados en otros textos. */
   hashtagPool: HashtagOption[];
   onEmojiUsed: (emoji: SlimEmoji | EmojiEntry) => void;
+  /** Texto predictivo mientras se escribe: lo que sigue después de `antes` (la línea hasta el cursor), o null. */
+  predecir?: (antes: string) => string | null;
+  /** Palabras que la IA sugiere para el cursor (hasta tres). Si falla, tira un Error con el motivo. */
+  sugerirPalabras?: (pedido: PedidoPalabras, signal: AbortSignal) => Promise<RespuestaPalabras>;
   placeholder?: string;
   className?: string;
 };
@@ -81,15 +90,70 @@ const searches = new Map<string, EmojiEntry[]>();
 
 const matchesEmoji = (e: SlimEmoji | EmojiEntry, q: string) => fold(e.n).includes(q) || fold(e.e ?? "").includes(q);
 
+/* ───────── palabras sugeridas por la IA ───────── */
+
+/**
+ * Las que se muestran: `base` es el texto antes de la palabra que se está escribiendo y `prefijo` sus letras
+ * (puede ser ""). En modo "completar" terminan esa palabra; en "seguir" la palabra ya está escrita y son
+ * las que pueden venir después (se insertan con un espacio delante).
+ */
+type Opciones = { base: string; prefijo: string; lista: string[]; modo: RespuestaPalabras["modo"] };
+
+/** Cuánto se espera sin tipear antes de pedirle palabras a la IA. */
+const ESPERA_IA = 500;
+const CLAVE_IA = "redaccion-ia-sugerencias";
+const AVISO_IA_MS = 30_000;
+
+/** Si el servidor dijo que la IA no está configurada, no se insiste solo (sí si se pide a mano). */
+let iaSinClave = false;
+
+/**
+ * Dónde está el cursor para sugerir palabras: al final de una línea o antes de un espacio, sin
+ * selección ni lista de emojis/hashtags abierta, y con algo escrito antes. `null` si no corresponde.
+ */
+function contextoIA(state: EditorState, minPalabras = 1) {
+  const { selection, doc } = state;
+  if (!selection.empty || !selection.$from.parent.isTextblock) return null;
+  const pos = selection.from;
+  const { next } = around(state, pos, pos);
+  if (next && !/\s/.test(next)) return null;
+  if (findTrigger(state)) return null;
+  const antes = doc.textBetween(0, pos, "\n", "\n");
+  const prefijo = /[\p{L}\p{N}'’_-]*$/u.exec(antes)![0];
+  const base = antes.slice(0, antes.length - prefijo.length);
+  if (/[#@]$/.test(base)) return null;
+  // Entre palabras (después de un espacio) o a mitad de una: pegada a un signo no.
+  if (!prefijo && !/\s$/.test(base)) return null;
+  if ((antes.match(/[\p{L}\p{N}]+/gu) ?? []).length < minPalabras) return null;
+  return { pos, antes, base, prefijo, despues: doc.textBetween(pos, doc.content.size, "\n", "\n").slice(0, 200) };
+}
+
+type ContextoIA = NonNullable<ReturnType<typeof contextoIA>>;
+
+/** De las palabras de la IA, las que completan lo que se lleva escrito de la actual. */
+function filtrar(lista: string[], prefijo: string) {
+  const p = fold(prefijo);
+  if (!p) return lista;
+  return lista.filter((o) => {
+    const k = fold(o);
+    return k.startsWith(p) && k !== p;
+  });
+}
+
 /**
  * Editor pensado para escribir rápido:
  *  - formato con los atajos de siempre (Ctrl+B, Ctrl+I, Ctrl+U, Shift+F3…) o la barra de arriba,
  *  - ":" + dos letras sugiere emojis (":fue" → 🔥) y "#" sugiere hashtags del cliente y recientes,
  *  - Ctrl+E y Ctrl+H abren esas listas donde está el cursor,
- *  - ↑↓ elige, Enter o Tab inserta, Esc cierra.
+ *  - ↑↓ elige, Enter o Tab inserta, Esc cierra,
+ *  - mientras se escribe, una sugerencia gris con lo que probablemente sigue (Tab o → la acepta, Esc la saca):
+ *    sale del vocabulario del cliente, sin IA, al instante,
+ *  - al pausar, la IA propone hasta tres palabras que encajan en el cursor, en burbujas abajo a la izquierda:
+ *    Alt+1/2/3 o un clic la inserta; si la palabra ya está terminada, proponen lo que sigue (sin apretar espacio).
+ *    Ctrl+Espacio las pide ya; el botón ✨ de la barra apaga o enciende tanto esto como el texto gris.
  */
 export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function WritingEditor(
-  { value, onChange, openKey, tone, emojiPool, hashtagPool, onEmojiUsed, placeholder, className },
+  { value, onChange, openKey, tone, emojiPool, hashtagPool, onEmojiUsed, predecir, sugerirPalabras, placeholder, className },
   ref
 ) {
   const [trigger, setTrigger] = useState<Trigger | null>(null);
@@ -102,8 +166,31 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const predecirRef = useRef(predecir);
+  predecirRef.current = predecir;
+  const sugerirRef = useRef(sugerirPalabras);
+  sugerirRef.current = sugerirPalabras;
   const keyRef = useRef<(e: KeyboardEvent) => boolean>(() => false);
   const openListRef = useRef<(char: ":" | "#") => void>(() => {});
+
+  /** Las palabras de la IA que se están mostrando (abajo a la izquierda). */
+  const [opciones, setOpciones] = useState<Opciones | null>(null);
+  const opcionesRef = useRef<Opciones | null>(null);
+  opcionesRef.current = opciones;
+  /** Esperando la respuesta de la IA. */
+  const [cargando, setCargando] = useState(false);
+  /** El botón ✨ de la barra: si se sugiere solo al escribir, el texto gris y las palabras de la IA (se recuerda en este navegador). */
+  const [iaActiva, setIaActiva] = useState(true);
+  const activaRef = useRef(false);
+  activaRef.current = iaActiva && !!sugerirPalabras;
+  /** El texto gris también se apaga con el ✨ (si el editor no tiene IA, no hay botón y queda siempre). */
+  const grisActivoRef = useRef(true);
+  grisActivoRef.current = iaActiva || !sugerirPalabras;
+  /** El pedido a la IA en curso, y la espera antes de hacerlo: cualquier cambio en el texto los cancela. */
+  const iaRef = useRef<AbortController | null>(null);
+  const timerIA = useRef<ReturnType<typeof setTimeout>>();
+  const ultimoAviso = useRef(0);
+  const actualizarIARef = useRef<(editor: Editor, tr: Transaction) => void>(() => {});
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -120,6 +207,7 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
       }),
       Underline,
       RedaccionExtras,
+      Prediccion.configure({ predecir: (antes) => (grisActivoRef.current ? predecirRef.current?.(antes) ?? null : null) }),
       Placeholder.configure({ placeholder: placeholder ?? "Escribí acá…" }),
     ],
     content: value,
@@ -132,15 +220,45 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
       },
       handleKeyDown: (_view, event) => keyRef.current(event),
     },
-    onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML(), docToPlain(editor.getJSON() as DocNode)),
-    onTransaction: ({ editor }) => setTrigger(editor.isFocused ? findTrigger(editor.state) : null),
+    onUpdate: ({ editor }) => {
+      onChangeRef.current(editor.getHTML(), docToPlain(editor.getJSON() as DocNode));
+    },
+    onTransaction: ({ editor, transaction }) => {
+      setTrigger(editor.isFocused ? findTrigger(editor.state) : null);
+      actualizarIARef.current(editor, transaction);
+    },
     onFocus: ({ editor }) => setTrigger(findTrigger(editor.state)),
-    onBlur: () => setTrigger(null),
+    onBlur: ({ editor }) => {
+      setTrigger(null);
+      cancelarIA();
+      setOpciones(null);
+      if (prediccionKey.getState(editor.state)) editor.view.dispatch(editor.state.tr.setMeta(prediccionKey, OCULTAR));
+    },
   });
+
+  /** Corta lo que haya de la IA: la espera por escribir, y el pedido que esté viajando. */
+  function cancelarIA() {
+    clearTimeout(timerIA.current);
+    iaRef.current?.abort();
+    iaRef.current = null;
+    setCargando(false);
+  }
+
+  useEffect(() => cancelarIA, []);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(CLAVE_IA) === "0") setIaActiva(false);
+    } catch {
+      /* sin almacenamiento: queda activada */
+    }
+  }, []);
 
   // Otra redacción: contenido nuevo, historial de deshacer nuevo y el cursor al final.
   useEffect(() => {
     if (!editor) return;
+    cancelarIA();
+    setOpciones(null);
     editor.commands.setContent(value, false);
     const { doc } = editor.state;
     editor.view.updateState(
@@ -341,12 +459,194 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
   };
   openListRef.current = openList;
 
+  /** La sugerencia gris que está lista para aceptar: solo si el cursor sigue donde se mostró. */
+  const fantasmaAceptable = () => {
+    if (!editor) return null;
+    const g = prediccionKey.getState(editor.state);
+    const { selection } = editor.state;
+    return g && selection.empty && selection.from === g.pos ? g : null;
+  };
+
+  const aceptarFantasma = (g: { text: string; pos: number }) => {
+    if (!editor) return;
+    const { state, view } = editor;
+    view.dispatch(state.tr.insertText(g.text, g.pos).setMeta(prediccionKey, OCULTAR).scrollIntoView());
+  };
+
+  /* ───────── palabras de la IA ───────── */
+
+  /** Cada cambio en el texto: se corta lo anterior y, si corresponde, se vuelve a pedir cuando se pare de tipear. */
+  const actualizarIA = (ed: Editor, tr: Transaction) => {
+    // Cargar otro texto o cambios que no tocan el documento ni el cursor no cuentan.
+    if (tr.getMeta("preventUpdate") || (!tr.docChanged && !tr.selectionSet)) return;
+    cancelarIA();
+    const ctx = activaRef.current && ed.isFocused ? contextoIA(ed.state, 1) : null;
+    // Mover el cursor solo borra las palabras: se piden de nuevo al escribir.
+    if (!tr.docChanged || !ctx) {
+      if (opcionesRef.current) setOpciones(null);
+      return;
+    }
+
+    const previas = opcionesRef.current;
+    if (previas?.modo === "completar") {
+      // Siguió escribiendo la misma palabra: las que ya hay se achican a las que todavía la completan.
+      // Si lo escrito ya es una de ellas, la palabra puede estar terminada: se vuelve a preguntar qué sigue.
+      const terminada = previas.lista.some((o) => fold(o) === fold(ctx.prefijo));
+      if (!terminada && previas.base === ctx.base && ctx.prefijo.length > previas.prefijo.length && fold(ctx.prefijo).startsWith(fold(previas.prefijo))) {
+        const lista = filtrar(previas.lista, ctx.prefijo);
+        if (lista.length) {
+          setOpciones({ ...previas, prefijo: ctx.prefijo, lista });
+          return;
+        }
+      }
+    } else if (previas && !ctx.prefijo && ctx.base === `${previas.base}${previas.prefijo} `) {
+      // Pasó de la palabra al espacio: lo que se proponía para lo que sigue sigue valiendo.
+      setOpciones({ ...previas, base: ctx.base, prefijo: "" });
+      return;
+    }
+    setOpciones(null);
+
+    // Con una sola letra es muy pronto (pero sí se achicó la lista de arriba); tampoco si ya se sabe que no hay IA.
+    const wait = ctx.prefijo.length >= 2 || ctx.prefijo.length === 0;
+    if (!wait || !sugerirRef.current || iaSinClave) return;
+    const completo = contextoIA(ed.state);
+    if (!completo) return;
+    timerIA.current = setTimeout(() => void pedirIA(ed, completo, false), ESPERA_IA);
+  };
+  actualizarIARef.current = actualizarIA;
+
+  const pedirIA = async (ed: Editor, ctx: ContextoIA, manual: boolean) => {
+    const sugerir = sugerirRef.current;
+    if (!sugerir) return;
+    cancelarIA();
+    const ctrl = new AbortController();
+    iaRef.current = ctrl;
+    setCargando(true);
+    try {
+      const { opciones: lista, modo } = await sugerir({ antes: ctx.antes, despues: ctx.despues, prefijo: ctx.prefijo }, ctrl.signal);
+      if (ctrl.signal.aborted || !ed.isFocused) return;
+      // Si mientras tanto el cursor ya está en otra palabra, la respuesta no sirve.
+      const ahora = contextoIA(ed.state, 1);
+      if (!ahora || ahora.base !== ctx.base || ahora.prefijo !== ctx.prefijo) return;
+      const visibles = modo === "completar" ? filtrar(lista, ahora.prefijo) : lista;
+      if (visibles.length) setOpciones({ base: ahora.base, prefijo: ahora.prefijo, lista: visibles, modo });
+      else if (manual) toast("La IA no encontró palabras para sugerir acá.", "error");
+    } catch (err) {
+      if (ctrl.signal.aborted) return;
+      if ((err as { status?: number }).status === 501) iaSinClave = true;
+      // Sola no insiste con el aviso (si falla, falla cada vez que se pausa); a pedido siempre contesta.
+      const ahora = Date.now();
+      if (manual || ahora - ultimoAviso.current > AVISO_IA_MS) {
+        ultimoAviso.current = ahora;
+        toast(err instanceof Error ? err.message : "La IA no pudo sugerir palabras.", "error");
+      }
+    } finally {
+      if (iaRef.current === ctrl) {
+        iaRef.current = null;
+        setCargando(false);
+      }
+    }
+  };
+
+  /**
+   * Completa con la palabra elegida las letras que se llevan escritas de la actual; si la palabra ya está
+   * terminada ("seguir"), la agrega después con su espacio.
+   */
+  const elegirOpcion = (index: number) => {
+    const previa = opcionesRef.current;
+    const palabra = previa?.lista[index];
+    if (!editor || !previa || !palabra) return false;
+    const ctx = contextoIA(editor.state, 1);
+    if (!ctx) return false;
+    const seguir = previa.modo === "seguir";
+    // Si ya se siguió escribiendo y la palabra no encaja, no se pisa nada.
+    if (seguir ? ctx.prefijo !== previa.prefijo : ctx.prefijo && !filtrar([palabra], ctx.prefijo).length) return false;
+
+    let texto = palabra;
+    const empiezaFrase = !ctx.prefijo && /(^|[.!?\n])\s*$/.test(ctx.base);
+    if (!seguir && ctx.prefijo.length >= 2 && ctx.prefijo === ctx.prefijo.toUpperCase() && /\p{L}/u.test(ctx.prefijo)) texto = palabra.toUpperCase();
+    else if ((!seguir && /^\p{Lu}/u.test(ctx.prefijo)) || empiezaFrase) texto = palabra.charAt(0).toUpperCase() + palabra.slice(1);
+
+    // Al final de la línea se deja el espacio para seguir; antes de uno que ya está, no.
+    const { next } = around(editor.state, ctx.pos, ctx.pos);
+    const { state, view } = editor;
+    const desde = seguir ? ctx.pos : ctx.pos - ctx.prefijo.length;
+    view.dispatch(
+      state.tr
+        .insertText(`${seguir && ctx.prefijo ? " " : ""}${texto}${next ? "" : " "}`, desde, ctx.pos)
+        .setMeta(prediccionKey, OCULTAR)
+        .scrollIntoView()
+    );
+    view.focus();
+    return true;
+  };
+
+  /** Ctrl+Espacio: pide las palabras ya, sin esperar y aunque el botón ✨ esté apagado. */
+  const pedirAhora = () => {
+    if (!editor || !sugerirRef.current) return;
+    if (!editor.state.selection.empty) editor.commands.setTextSelection(editor.state.selection.to);
+    const { state } = editor;
+    if (!state.doc.textContent.trim()) {
+      toast("Escribí algo primero: la IA sugiere palabras según lo que ya escribiste.", "error");
+      return;
+    }
+    const ctx = contextoIA(state, 1);
+    if (!ctx) {
+      toast("Poné el cursor al final de una palabra, o después de un espacio, para pedir palabras.", "error");
+      return;
+    }
+    setOpciones(null);
+    void pedirIA(editor, ctx, true);
+  };
+
+  const alternarIA = () => {
+    const nueva = !iaActiva;
+    setIaActiva(nueva);
+    try {
+      localStorage.setItem(CLAVE_IA, nueva ? "1" : "0");
+    } catch {
+      /* sin almacenamiento: vale hasta cerrar la página */
+    }
+    if (!nueva) {
+      cancelarIA();
+      setOpciones(null);
+      if (editor && prediccionKey.getState(editor.state)) editor.view.dispatch(editor.state.tr.setMeta(prediccionKey, OCULTAR));
+    }
+  };
+
   keyRef.current = (e) => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && opcionesRef.current?.lista.length) {
+      // Alt + 1, 2 o 3 (el teclado de arriba o el numérico): inserta esa palabra.
+      const n = /^(?:Digit|Numpad)([1-3])$/.exec(e.code);
+      if (n && elegirOpcion(Number(n[1]) - 1)) {
+        e.preventDefault();
+        return true;
+      }
+    }
     if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
       const key = e.key.toLowerCase();
       if (key === "e" || key === "h") {
         e.preventDefault();
         openList(key === "e" ? ":" : "#");
+        return true;
+      }
+      if ((e.key === " " || e.code === "Space") && sugerirRef.current) {
+        e.preventDefault();
+        pedirAhora();
+        return true;
+      }
+    }
+    const g = fantasmaAceptable();
+    if (g && editor) {
+      const plain = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+      const { $from } = editor.state.selection;
+      if (plain && (e.key === "Tab" || (e.key === "ArrowRight" && $from.parentOffset === $from.parent.content.size))) {
+        e.preventDefault();
+        aceptarFantasma(g);
+        return true;
+      }
+      if (e.key === "Escape") {
+        editor.view.dispatch(editor.state.tr.setMeta(prediccionKey, OCULTAR));
         return true;
       }
     }
@@ -382,8 +682,20 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
 
   return (
     <>
-      <Toolbar editor={editor} />
+      <Toolbar
+        editor={editor}
+        ia={sugerirPalabras ? { activa: iaActiva, cargando, onToggle: alternarIA } : undefined}
+      />
       <EditorContent editor={editor} className={className} />
+      {sugerirPalabras && (iaActiva || cargando || !!opciones) && (
+        <PalabrasIA
+          lista={opciones?.lista ?? []}
+          cargando={cargando}
+          onElegir={(index) => {
+            if (!elegirOpcion(index)) editor?.view.focus();
+          }}
+        />
+      )}
       {editor && open && trigger && (
         <SuggestList
           anchor={trigger.from}
@@ -495,12 +807,58 @@ function SuggestList({
 /** Los botones no se quedan con el foco: el cursor sigue en el texto. */
 const keepFocus = (e: React.MouseEvent) => e.preventDefault();
 
+/**
+ * Las palabras que propone la IA, abajo a la izquierda del texto, en burbujas negras: un clic o
+ * Alt+1/2/3 y se completan. La franja ocupa su lugar aunque esté vacía, para que nada salte al aparecer.
+ */
+function PalabrasIA({
+  lista,
+  cargando,
+  onElegir,
+}: {
+  lista: string[];
+  cargando: boolean;
+  onElegir: (index: number) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Palabras sugeridas por la IA"
+      aria-live="polite"
+      className="sticky bottom-14 z-10 flex min-h-[2.75rem] flex-wrap items-center gap-1.5 px-4 pb-2 pt-1 sm:px-6"
+    >
+      {lista.map((palabra, index) => (
+        <button
+          key={palabra}
+          type="button"
+          aria-keyshortcuts={`Alt+${index + 1}`}
+          onMouseDown={keepFocus}
+          onClick={() => onElegir(index)}
+          className="inline-flex items-center gap-2 rounded-full bg-foreground py-1.5 pl-3.5 pr-2 text-sm font-medium text-white shadow-sm transition-transform duration-150 animate-in fade-in-0 slide-in-from-bottom-1 hover:-translate-y-px active:scale-95"
+        >
+          {palabra}
+          <kbd className="rounded-full bg-white/15 px-1.5 py-0.5 font-ui text-[10px] font-medium leading-none text-white/70">
+            Alt {index + 1}
+          </kbd>
+        </button>
+      ))}
+      {cargando && !lista.length && (
+        <span role="status" className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.07] px-3 py-1.5 text-xs text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+          Pensando palabras…
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ToolButton({
   icon: Icon,
   label,
   shortcut,
   active,
   disabled,
+  spin,
   onClick,
 }: {
   icon: LucideIcon;
@@ -508,6 +866,7 @@ function ToolButton({
   shortcut?: string;
   active?: boolean;
   disabled?: boolean;
+  spin?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -524,7 +883,7 @@ function ToolButton({
           active && "bg-foreground text-background hover:bg-foreground/90 hover:text-background"
         )}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className={cn("h-4 w-4", spin && "animate-spin")} />
       </button>
     </Hint>
   );
@@ -533,7 +892,14 @@ function ToolButton({
 const Sep = () => <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />;
 
 /** La barra de formato, pegada arriba del texto mientras se scrollea. */
-function Toolbar({ editor }: { editor: Editor | null }) {
+function Toolbar({
+  editor,
+  ia,
+}: {
+  editor: Editor | null;
+  /** El botón ✨: enciende o apaga las sugerencias al escribir (el texto gris y las palabras de la IA). */
+  ia?: { activa: boolean; cargando: boolean; onToggle: () => void };
+}) {
   const off = !editor;
   const is = (name: string) => !!editor?.isActive(name);
   const run = (fn: (e: Editor) => void) => () => editor && fn(editor);
@@ -622,6 +988,20 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         onClick={run((e) => e.chain().focus().unsetAllMarks().clearNodes().run())}
       />
       <span className="ml-auto flex items-center gap-0.5 pl-2">
+        {ia && (
+          <>
+            <ToolButton
+              icon={ia.cargando ? Loader2 : Sparkles}
+              spin={ia.cargando}
+              label={ia.activa ? "Sugerencias al escribir: activadas" : "Sugerencias al escribir: apagadas"}
+              shortcut="texto gris y palabras de la IA · Ctrl Espacio pide palabras ya"
+              active={ia.activa}
+              disabled={off}
+              onClick={ia.onToggle}
+            />
+            <Sep />
+          </>
+        )}
         <ToolButton icon={Undo2} label="Deshacer" shortcut="Ctrl Z" disabled={off || !editor.can().undo()} onClick={run((e) => e.chain().focus().undo().run())} />
         <ToolButton icon={Redo2} label="Rehacer" shortcut="Ctrl Y" disabled={off || !editor.can().redo()} onClick={run((e) => e.chain().focus().redo().run())} />
       </span>

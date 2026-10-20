@@ -106,6 +106,21 @@
 .rd-editor:focus-visible { box-shadow: none; }
 .rd-hashtag { color: hsl(30 90% 36%); font-weight: 500; }
 .rd-mention { color: hsl(205 75% 38%); font-weight: 500; }
+/* Texto predictivo / continuación de la IA: gris después del cursor, con una etiqueta Tab. */
+.rd-ghost { color: hsl(var(--muted-foreground) / 0.6); pointer-events: none; user-select: none; }
+.rd-ghost-tab {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0 0.35em;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  vertical-align: 0.15em;
+  color: hsl(var(--muted-foreground));
+}
 @media (max-width: 640px) {
   .rd-editor { padding: 1rem 1rem 1.5rem; font-size: 16px; }
 }

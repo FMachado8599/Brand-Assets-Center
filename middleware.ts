@@ -57,6 +57,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Todo menos archivos estáticos, íconos e imágenes de emojis (públicas y muchas por página).
-  matcher: ["/((?!_next/static|_next/image|__nextjs|favicon.ico|icon.png|apple-icon.png|api/emojis/img).*)"],
+  // Todo menos archivos estáticos, íconos, librerías de /vendor e imágenes de emojis (públicas y muchas por página).
+  matcher: ["/((?!_next/static|_next/image|__nextjs|favicon.ico|icon.png|apple-icon.png|vendor/|api/emojis/img).*)"],
 };

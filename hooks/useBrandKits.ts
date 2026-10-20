@@ -4,14 +4,15 @@ import { useCallback } from "react";
 import { useClients } from "@/hooks/useClients";
 import { useStoredState } from "@/hooks/useStoredState";
 import { uniqueTags } from "@/lib/redaccion/text";
-import { GENERAL, type BrandKit, type BrandKits, type BrandLite, type SlimEmoji } from "@/lib/redaccion/types";
+import { GENERAL, type BrandKit, type BrandKits, type SlimEmoji } from "@/lib/redaccion/types";
+import type { Brand } from "@/lib/types";
 
 /**
  * Los clientes de Redacción: la lista de toda la app (se crean desde el
  * selector, desde Tarjetas o en Clientes). Para elegir uno alcanza con
  * nombre y color.
  */
-export function useBrands(): { brands: BrandLite[]; loading: boolean } {
+export function useBrands(): { brands: Brand[]; loading: boolean } {
   const { clients, loading } = useClients();
   return { brands: clients, loading };
 }

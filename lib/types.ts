@@ -24,6 +24,30 @@ export type Brand = {
   font_families?: string[];
   notes?: string;
 };
+/** Qué es un archivo del material de marca. */
+export type MaterialKind = "documento" | "presentacion" | "logo" | "asset";
+
+/**
+ * Un archivo de la ficha de un cliente (PDF, presentación, logo, asset). El archivo está en el bucket
+ * `material` y el texto que se le leyó (`text_content`) no viene en la lista: se pide aparte.
+ */
+export type BrandMaterial = {
+  id: string;
+  brand_id: string;
+  kind: MaterialKind;
+  name: string;
+  file_name: string;
+  file_path: string;
+  mime: string;
+  size_bytes: number;
+  /** Cómo usarlo (ej: "versión blanca, para fondos oscuros"); la IA también la lee. */
+  note: string;
+  /** Si la IA de Redacción lo tiene en cuenta. */
+  use_ai: boolean;
+  /** Cuántas letras de texto se le leyeron al archivo. */
+  text_chars: number;
+  created_at: string;
+};
 export type Category = { id: string; name: string; created_at: string };
 /** Modelo de un cliente. Ej: Changan → Lumin, Hunter, Eado. */
 export type Product = { id: string; name: string; brand_id: string; created_at: string };

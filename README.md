@@ -52,7 +52,7 @@ Abrí http://localhost:3000
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Tarjetas, cuentas y visitas | Sí, para Tarjetas y para iniciar sesión |
 | `FREECONVERT_API_KEY` | Conversor | Sí, para convertir |
-| `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
+| `OPENAI_API_KEY` | Emojis · Redacción | No: sin ella los emojis se buscan solo por palabras y en Redacción no andan las palabras sugeridas por la IA (el texto predictivo anda igual). `REDACCION_IA_MODEL` (por defecto `gpt-4o-mini`) y `OPENAI_BASE_URL` son opcionales |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
@@ -89,7 +89,7 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 **Armar una base de testing de cero:**
 
-1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql` y `migracion-sugerencias.sql`.
+1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql`, `migracion-sugerencias.sql` y `migracion-material.sql`.
 2. En *Authentication → Sign In / Providers → Google*, activar Google con el mismo cliente OAuth de producción. En Google Cloud, sumar `https://<proyecto>.supabase.co/auth/v1/callback` a los *Authorized redirect URIs* de ese cliente.
 3. En *Authentication → URL Configuration*, poner la URL de testing como *Site URL* y sumar `https://brand-assets-center-testing.vercel.app/**` y `http://localhost:3000/**` a las *Redirect URLs*.
 
@@ -254,6 +254,19 @@ Las dos burbujas al costado del texto (☺ y #) abren un panel. Arriba del panel
 - **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
 - **Hashtags**: los del cliente (uno o todos de un click: inserta solo los que faltan), los que ya escribiste en este texto (con un botón para guardarlos en el cliente) y los recientes de tus otras redacciones.
 
+### Texto predictivo e IA
+
+Son dos cosas separadas, y las dos aprenden del cliente del texto. No hace falta apretar espacio para que aparezcan: salen mientras escribís la palabra (y, si ya la terminaste, ofrecen lo que sigue).
+
+- **Texto predictivo** (sin IA, instantáneo, no sale del navegador): en gris aparece lo que seguiría, como en Google. Parte de un diccionario base en español y aprende de lo que ya se escribió para ese cliente (o, si el texto no tiene cliente, de las redacciones sin cliente), de los textos de su **material de marca** y de lo que tenés abierto: las palabras del cliente pesan más que las del diccionario. Completa la palabra que estás escribiendo y, cuando el cliente repite siempre la misma frase, también la palabra que sigue. `Tab` (o `→` al final del renglón) lo acepta y `Esc` lo descarta; si movés el cursor, se va solo. Aparece al tipear (no al borrar ni al pegar). Cuantas más redacciones y material tenga el cliente, mejor acierta.
+- **Palabras de la IA**: cuando dejás de escribir ~0,6 s, la IA propone hasta 3 palabras que podrían entrar en ese punto de la frase. Aparecen abajo a la izquierda del texto, en burbujas negras. Se eligen con un click o con `Alt + 1`, `Alt + 2` y `Alt + 3`, y la palabra reemplaza las letras que lleves escritas de la actual (respeta mayúsculas). No completa frases: solo ofrece palabras.
+
+El botón de destellos (✨) de la barra **apaga o enciende las dos a la vez** (queda guardado en el navegador y se lee en `aria-pressed`). Apagado, no se pide nada a la IA ni se muestra lo gris; `Ctrl + Espacio` igual pide las palabras ya, cuando las quieras.
+
+Para las dos conviene cargar en la ficha del cliente cómo habla (voseo, qué evitar, palabras de la marca) y su [material de marca](#material-de-marca).
+
+Las palabras de la IA van por `POST /api/redaccion/ia` (solo con sesión del estudio) y usan `OPENAI_API_KEY`. Cada pedido cuesta del orden de $0,0005 con `gpt-4o-mini`. A OpenAI le llega: el texto hasta el cursor (los últimos ~1500 caracteres), lo que hay después (hasta 200), las letras de la palabra en curso, el nombre y las notas del cliente, hasta 4 textos anteriores suyos y hasta 3 fragmentos de su material de marca (con la nota de cada archivo). Si falta la clave, avisa una vez y deja de pedir sola.
+
 ### Atajos
 
 | Atajo | Qué hace |
@@ -267,6 +280,9 @@ Las dos burbujas al costado del texto (☺ y #) abren un panel. Arriba del panel
 | `#` | Sugiere los hashtags del cliente del texto (si no tiene, los de todos) y los recientes |
 | `Ctrl + E` · `Ctrl + H` | Abren la lista de emojis o de hashtags donde está el cursor |
 | `↑ ↓` · `Enter` / `Tab` · `Esc` | Elegir, insertar, cerrar |
+| `Tab` · `→` · `Esc` (con lo gris a la vista) | Aceptar o descartar el texto predictivo |
+| `Alt + 1` · `Alt + 2` · `Alt + 3` | Insertar la palabra sugerida por la IA (burbujas de abajo) |
+| `Ctrl + Espacio` | Pedirle palabras a la IA ya, desde el cursor (también con ✨ apagado) |
 | `Ctrl + Enter` | Copiar todo el texto |
 
 Si un hashtag ya está escrito entero, `Enter` hace un salto de línea en vez de elegirlo. Las sugerencias de emojis usan `/api/emojis/search?modo=palabras` (sin la búsqueda por significado: tiene que responder letra por letra).
@@ -294,11 +310,25 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
   - **Productos**: se agregan y se quitan ahí.
   - **Tarjetas** y **Redacciones**: las suyas, con atajos para crear una nueva para el cliente. Las redacciones son las tuyas (las de los demás no se ven).
   - **Emojis y hashtags**: los que guardaste para el cliente desde los paneles de Redacción. Un click copia.
-  - **Eliminar cliente**: borra su ficha, su logo y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
+  - **Material de marca**: una sección compacta con los PDFs, presentaciones, logos y assets del cliente (ver abajo).
+  - **Eliminar cliente**: borra su ficha, su logo, su material y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
+
+### Material de marca
+
+En la ficha, la sección **Material de marca** (la estadística «archivos de marca» de arriba lleva hasta ahí) junta lo que ayuda a la IA de Redacción a escribir como el cliente. Todo se hace en el mismo lugar:
+
+- **Sumar**: con **Sumar** o arrastrando archivos encima de la sección. Acepta PDFs, presentaciones (`.pptx`), documentos (`.docx`, `.txt`, `.md`, `.csv`), logos y assets (imágenes, SVG, video, etc.), hasta 30 MB cada uno y 60 por cliente. El tipo se detecta solo y se puede cambiar. Se pueden soltar varios a la vez; cada uno muestra su avance y, si falla, por qué.
+- **Qué lee la IA**: de PDFs, presentaciones y documentos se extrae el texto **en tu navegador** al subirlos (no hace falta nada más). Las imágenes, los logos y los videos se guardan y se descargan, pero **no se analizan**: de ellos la IA solo ve el nombre y la nota que les pongas.
+- **Nota para la IA** (hasta 600 caracteres, por archivo): una línea que le explica a la IA qué es o cómo usarlo («manual de voz: hablamos de vos, sin solemnidad»). Es lo que más rinde, sobre todo para los logos y assets.
+- **Interruptor «La IA usa…»**: cada archivo con texto se puede dejar de usar sin borrarlo. El menú **⋯** abre su ficha para editar nombre, tipo y nota, descargarlo o eliminarlo (pide confirmación). Se ve un máximo de 5 filas y el resto con **Ver los N**; los filtros (Todo, Documentos, Presentaciones, Logos, Assets) ayudan cuando hay muchos. El ícono **?** de la sección explica en una frase qué hace la IA con todo esto.
+- **Cómo se usa**: en Redacción, con el cliente del texto, se parte el material en fragmentos y se buscan los 3 más relacionados con lo que estás escribiendo; esos van junto con las notas a la IA. Además, el texto de los documentos alimenta el texto predictivo gris (que no usa IA ni sale del navegador).
+- **Privacidad**: los archivos viven en el bucket privado `material` (solo con sesión del estudio, links firmados de 1 hora). Los fragmentos de texto elegidos (y las notas) sí viajan a OpenAI cuando la IA está encendida; lo demás no sale de Supabase.
 
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+Para el **Material de marca**, después corré `supabase/migracion-material.sql` (necesita que ya estén `migracion-acceso.sql` y `migracion-clientes.sql`): crea la tabla `brand_materials` y el bucket privado `material`, con acceso solo para el estudio. Se puede repetir sin problema. Sin ella, la sección avisa que falta y no deja subir nada; el resto de la ficha funciona igual.
 
 ---
 
