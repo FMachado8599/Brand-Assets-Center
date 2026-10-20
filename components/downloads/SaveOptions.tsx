@@ -5,6 +5,7 @@ import { AlertCircle, ExternalLink, FolderCheck, Loader2 } from "lucide-react";
 import { PanelTitle } from "@/components/shell/ContextBar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Hint } from "@/components/ui/tooltip";
 import {
   confirmFolder,
   DriveError,
@@ -14,39 +15,35 @@ import {
   preloadDrive,
   type DriveConfig,
 } from "@/lib/downloads/drive.client";
-import type { AudioMode, CoverMode, Destination, SaveSettings } from "@/lib/downloads/types";
+import type { CoverMode, SaveSettings } from "@/lib/downloads/types";
 import { cn } from "@/lib/utils";
+import { AUDIO_OPTIONS, COVER_OPTIONS, DESTINO_OPTIONS, ModeIcons, optionOf, type ModeOption } from "./modes";
 
 export const DEFAULT_SETTINGS: SaveSettings = { destino: "compu", audio: "con", portada: "video", carpeta: null };
 
-const PORTADA: { value: CoverMode; label: string }[] = [
-  { value: "video", label: "Video" },
-  { value: "ambos", label: "Con portada" },
-  { value: "portada", label: "Solo portada" },
-];
+/** "Personalizado" no se elige: aparece solo cuando alguna fila tiene lo suyo en "Qué bajar". */
+const CUSTOM = "personalizado";
 
-const AUDIO: { value: AudioMode; label: string }[] = [
-  { value: "con", label: "Con audio" },
-  { value: "sin", label: "Sin audio" },
-  { value: "solo", label: "Solo audio" },
-];
-
-const DESTINOS: { value: Destination; label: string }[] = [
-  { value: "compu", label: "Compu" },
-  { value: "ambos", label: "Compu y Drive" },
-  { value: "drive", label: "Solo Drive" },
-];
-
-/** Resumen de una línea: "En tu compu · Sin audio", "En Drive: Material · Con portada · Con audio". */
-export function describeSettings(s: SaveSettings) {
-  const where =
-    s.destino === "compu" ? "En tu compu" : `${s.destino === "ambos" ? "Compu y Drive" : "En Drive"}: ${s.carpeta?.name ?? "falta la carpeta"}`;
-  // Con solo la portada, el sonido no cuenta.
-  if (s.portada === "portada") return `${where} · Solo portada`;
-  const cover = s.portada === "ambos" ? " · Con portada" : "";
-  return `${where}${cover} · ${AUDIO.find((a) => a.value === s.audio)!.label}`;
+/** Con solo portadas, el sonido no cuenta. */
+export function audioCounts(s: SaveSettings, coverMixed: boolean) {
+  return coverMixed || s.portada !== "portada";
 }
 
+/** Resumen de una línea, para leer: "En tu compu · Video · Con audio", "Solo Drive: Material · Personalizado · Sin audio". */
+export function describeSettings(s: SaveSettings, coverMixed = false) {
+  const destino = optionOf(DESTINO_OPTIONS, s.destino).label;
+  const where = s.destino === "compu" ? destino : `${destino}: ${s.carpeta?.name ?? "falta la carpeta"}`;
+  const cover = coverMixed ? "Personalizado" : optionOf(COVER_OPTIONS, s.portada).label;
+  const audio = audioCounts(s, coverMixed) ? ` · ${optionOf(AUDIO_OPTIONS, s.audio).label}` : "";
+  return `${where} · ${cover}${audio}`;
+}
+
+type SegmentOption<T extends string> = ModeOption<T> | { value: T; label: string; icons?: undefined; hint?: string };
+
+/**
+ * Opciones de una sola elección, con íconos: el nombre aparece al pasar el mouse (o con el foco) y es lo
+ * que leen los lectores de pantalla. Una opción sin íconos se muestra con su nombre.
+ */
 function Segmented<T extends string>({
   label,
   value,
@@ -56,28 +53,47 @@ function Segmented<T extends string>({
 }: {
   label: string;
   value: T;
-  options: { value: T; label: string }[];
+  options: SegmentOption<T>[];
   onChange: (value: T) => void;
-  disabled?: (value: T) => boolean;
+  /** Un texto dice por qué no se puede (va en el tooltip); true la apaga sin explicar. */
+  disabled?: (value: T) => string | boolean | undefined;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-1 rounded-full bg-secondary p-0.5" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          disabled={disabled?.(o.value)}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "h-7 rounded-full px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-40",
-            value === o.value && "bg-card text-foreground shadow-sm"
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className="flex gap-1 rounded-full bg-secondary p-0.5" role="radiogroup" aria-label={label}>
+      {options.map((o) => {
+        const off = disabled?.(o.value);
+        const hint = typeof off === "string" ? `${o.label}: ${off}` : "hint" in o && o.hint ? o.hint : o.label;
+        return (
+          <Hint key={o.value} label={hint}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={value === o.value}
+              aria-label={o.icons ? o.label : undefined}
+              aria-disabled={off ? true : undefined}
+              onClick={() => !off && onChange(o.value)}
+              className={cn(
+                "flex h-7 min-w-0 flex-1 items-center justify-center rounded-full px-2 text-xs font-medium text-muted-foreground outline-none ring-ring transition-colors hover:text-foreground focus-visible:ring-2",
+                value === o.value && "bg-card text-foreground shadow-sm",
+                off && "cursor-default opacity-40 hover:text-muted-foreground",
+                !o.icons && "flex-none px-3"
+              )}
+            >
+              {o.icons ? <ModeIcons icons={o.icons} className="h-4 w-4" /> : o.label}
+            </button>
+          </Hint>
+        );
+      })}
+    </div>
+  );
+}
+
+/** El título de un grupo y, a la derecha, lo que está elegido (los botones son solo íconos). */
+function GroupTitle({ title, current, muted }: { title: string; current: string; muted?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <p className={cn("text-xs font-medium", muted && "text-muted-foreground")}>{title}</p>
+      <p className="truncate text-[11px] text-muted-foreground">{current}</p>
     </div>
   );
 }
@@ -85,11 +101,17 @@ function Segmented<T extends string>({
 export function SaveOptions({
   settings,
   onChange,
+  onCover,
+  coverMixed,
   drive,
   email,
 }: {
   settings: SaveSettings;
   onChange: (next: SaveSettings) => void;
+  /** Elegir qué bajar de los videos para todos: pisa lo que se haya elegido en cada fila. */
+  onCover: (portada: CoverMode) => void;
+  /** Alguna fila tiene otra cosa en "Qué bajar": se muestra "Personalizado". */
+  coverMixed: boolean;
   drive: DriveConfig | null;
   email?: string | null;
 }) {
@@ -133,32 +155,40 @@ export function SaveOptions({
       <PanelTitle title="Cómo se guarda" hint="Vale para todo lo que bajes. Se recuerda en tu cuenta." />
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium">De los videos</p>
-        <Segmented
+        <GroupTitle title="Qué bajar de los videos" current={coverMixed ? "Personalizado" : optionOf(COVER_OPTIONS, settings.portada).label} />
+        <Segmented<CoverMode | typeof CUSTOM>
           label="Qué bajar de los videos"
-          value={settings.portada}
-          options={PORTADA}
-          onChange={(portada) => onChange({ ...settings, portada })}
+          value={coverMixed ? CUSTOM : settings.portada}
+          options={[
+            ...COVER_OPTIONS,
+            { value: CUSTOM, label: "Personalizado", hint: "Personalizado: se pone solo cuando elegís en una fila" },
+          ]}
+          onChange={(portada) => portada !== CUSTOM && onCover(portada)}
+          disabled={(v) => v === CUSTOM && !coverMixed}
         />
-        {settings.portada !== "video" && (
-          <p className="text-[11px] text-muted-foreground">
-            {settings.portada === "ambos" ? "Cada video sale junto con su portada: " : "La portada es "}
-            la imagen que se ve antes de darle play, en su tamaño completo.
-            {settings.portada === "portada" && " Las fotos se bajan igual."}
-          </p>
-        )}
+        <p className="text-[11px] text-muted-foreground">
+          {coverMixed
+            ? `Cada link tiene lo suyo (se cambia al lado de su Descargar). Elegir acá lo cambia en todos; los links nuevos salen con «${optionOf(COVER_OPTIONS, settings.portada).label}».`
+            : settings.portada === "video"
+              ? "También se elige en cada link, al lado de Descargar."
+              : `${settings.portada === "ambos" ? "Cada video sale junto con su portada: " : "La portada es "}la imagen que se ve antes de darle play, en su tamaño completo.${settings.portada === "portada" ? " Las fotos se bajan igual." : ""}`}
+        </p>
       </div>
 
       <div className="space-y-1.5">
-        <p className={cn("text-xs font-medium", settings.portada === "portada" && "text-muted-foreground")}>Sonido de los videos</p>
+        <GroupTitle
+          title="Sonido de los videos"
+          current={audioCounts(settings, coverMixed) ? optionOf(AUDIO_OPTIONS, settings.audio).label : "No cuenta"}
+          muted={!audioCounts(settings, coverMixed)}
+        />
         <Segmented
           label="Sonido de los videos"
           value={settings.audio}
-          options={AUDIO}
+          options={AUDIO_OPTIONS}
           onChange={(audio) => onChange({ ...settings, audio })}
-          disabled={() => settings.portada === "portada"}
+          disabled={() => !audioCounts(settings, coverMixed) && "solo se bajan las portadas"}
         />
-        {settings.portada === "portada" ? (
+        {!audioCounts(settings, coverMixed) ? (
           <p className="text-[11px] text-muted-foreground">No cuenta: solo se bajan las portadas.</p>
         ) : (
           settings.audio === "solo" && <p className="text-[11px] text-muted-foreground">Sale como .m4a. Las fotos se bajan igual.</p>
@@ -166,13 +196,13 @@ export function SaveOptions({
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium">Dónde</p>
+        <GroupTitle title="Dónde" current={optionOf(DESTINO_OPTIONS, settings.destino).label} />
         <Segmented
           label="Dónde se guarda"
           value={settings.destino}
-          options={DESTINOS}
+          options={DESTINO_OPTIONS}
           onChange={(destino) => onChange({ ...settings, destino })}
-          disabled={(d) => d !== "compu" && !drive}
+          disabled={(d) => d !== "compu" && !drive && "Drive no está configurado"}
         />
       </div>
 

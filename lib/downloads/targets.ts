@@ -1,4 +1,4 @@
-import type { CoverMode, Destination, MediaCover, MediaFile, MediaInfo } from "./types";
+import type { AudioMode, CoverMode, Destination, MediaCover, MediaFile, MediaInfo } from "./types";
 
 /**
  * Una cosa para guardar: un archivo de un posteo, un video de YouTube en una calidad, o la portada de
@@ -28,14 +28,29 @@ export function planTargets(info: MediaInfo, portada: CoverMode, opts: { file?: 
   );
 }
 
-/** "Descargar", "Descargar 3", "Descargar portada", "Guardar video y portada en Drive"… */
-export function actionLabel(destino: Destination, targets: SaveTarget[]) {
-  const count = targets.length;
+/** Si en el posteo hay algún video (se puede elegir qué bajar de él) y si alguno trae portada. */
+export function coverChoice(info: MediaInfo) {
+  if (info.youtube) return { hasVideo: true, hasCover: !!info.youtube.cover };
+  const videos = info.files.filter((f) => f.kind === "video");
+  return { hasVideo: videos.length > 0, hasCover: videos.some((f) => f.cover) };
+}
+
+const WHERE: Record<Destination, string> = { compu: "a tu compu", ambos: "a tu compu y a Drive", drive: "a Drive" };
+
+/**
+ * Lo que hace el botón Descargar, entero, para el tooltip y los lectores de pantalla:
+ * "Descargar el video y su portada a tu compu", "Descargar 3 fotos y 2 videos a Drive"…
+ */
+export function saveHint(destino: Destination, audio: AudioMode, targets: SaveTarget[]) {
   const covers = targets.filter((t) => t.cover).length;
-  let what = count > 1 ? ` ${count}` : "";
-  if (count && covers === count) what = count > 1 ? ` ${count} portadas` : " portada";
-  else if (count === 2 && covers === 1 && destino !== "ambos") what = " video y portada";
-  if (destino === "drive") return `Guardar${what} en Drive`;
-  if (destino === "ambos") return `Descargar${what} y subir`;
-  return `Descargar${what}`;
+  const videos = targets.filter(isVideoTarget).length;
+  const photos = targets.length - covers - videos;
+  const [one, many] = audio === "solo" ? ["el audio", "audios"] : ["el video", "videos"];
+  const parts = [
+    photos && (photos === 1 ? "la foto" : `${photos} fotos`),
+    videos && (videos === 1 ? one : `${videos} ${many}`),
+    covers && (covers > 1 ? `${covers} portadas` : videos === 1 && targets.length === 2 ? "su portada" : "la portada"),
+  ].filter((p): p is string => !!p);
+  const what = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts.at(-1)}` : (parts[0] ?? "");
+  return `Descargar ${what} ${WHERE[destino]}`;
 }

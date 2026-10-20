@@ -1,14 +1,25 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, CloudUpload, Copy, Download, ExternalLink, Film, ImageIcon, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, CloudUpload, Copy, Download, ExternalLink, Film, ImageIcon, Layers, Loader2, Play, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { formatBytes } from "@/lib/converter/catalog";
 import type { Link } from "@/lib/downloads/links";
-import { actionLabel, planTargets } from "@/lib/downloads/targets";
-import type { MediaFile, MediaInfo, Platform, SaveSettings, YoutubeQuality } from "@/lib/downloads/types";
+import { coverChoice, planTargets, saveHint } from "@/lib/downloads/targets";
+import type { CoverMode, MediaFile, MediaInfo, SaveSettings, YoutubeQuality } from "@/lib/downloads/types";
+import { cn } from "@/lib/utils";
+import { COVER_OPTIONS, ModeIcons, optionOf } from "./modes";
+import { PLATFORM_NAMES, PlatformIcon } from "./PlatformIcon";
 
 /** Lo que está pasando con lo que se pidió guardar de esta fila. */
 export type Transfer = {
@@ -28,10 +39,10 @@ export type DownloadItem = {
   retryable?: boolean;
   /** YouTube: la calidad elegida (el `q` de YoutubeQuality). */
   quality?: number;
+  /** Qué bajar de los videos de esta fila, si se eligió acá; si no, vale lo de "Cómo se guarda". */
+  portada?: CoverMode;
   transfer?: Transfer;
 };
-
-const PLATFORMS: Record<Platform, string> = { instagram: "Instagram", pinterest: "Pinterest", youtube: "YouTube" };
 
 function clock(total: number) {
   const h = Math.floor(total / 3600);
@@ -56,26 +67,31 @@ function youtubeSize(info: MediaInfo, quality: YoutubeQuality | undefined, audio
 }
 
 /** Lo que hace el click en un archivo del carrusel, para su descripción. */
-function fileAction(file: MediaFile, i: number, settings: SaveSettings) {
+function fileAction(file: MediaFile, i: number, settings: SaveSettings, mode: CoverMode) {
   const verb = settings.destino === "drive" ? "Guardar en Drive" : "Descargar";
   if (file.kind !== "video") return `${verb} la foto ${i + 1}`;
-  if (settings.portada === "portada" && file.cover) return `${verb} la portada del video ${i + 1}`;
-  if (settings.portada === "ambos" && file.cover) return `${verb} el video ${i + 1} y su portada`;
+  if (mode === "portada" && file.cover) return `${verb} la portada del video ${i + 1}`;
+  if (mode === "ambos" && file.cover) return `${verb} el video ${i + 1} y su portada`;
   return `${verb} el video ${i + 1}`;
 }
 
 export function DownloadRow({
   item,
   settings,
+  mode,
   onSave,
+  onCover,
   onQuality,
   onRetry,
   onRemove,
 }: {
   item: DownloadItem;
   settings: SaveSettings;
+  /** Qué bajar de los videos de esta fila: lo suyo o, si no eligió, lo de todos. */
+  mode: CoverMode;
   /** Sin archivo: todo lo de la fila (el video de YouTube, o todos los del carrusel). */
   onSave: (file?: MediaFile) => void;
+  onCover: (mode: CoverMode) => void;
   onQuality: (q: number) => void;
   onRetry: () => void;
   onRemove: () => void;
@@ -86,12 +102,12 @@ export function DownloadRow({
   const quality = yt?.qualities.find((q) => q.q === item.quality) ?? yt?.qualities[0];
   const single = files.length === 1 ? files[0] : undefined;
   const busy = transfer?.state === "working";
-  const targets = info ? planTargets(info, settings.portada, { quality: item.quality }) : [];
+  const targets = info ? planTargets(info, mode, { quality: item.quality }) : [];
+  const choice = info ? coverChoice(info) : { hasVideo: false, hasCover: false };
   // Bajando solo portadas, el peso de los videos no dice nada.
   const onlyCovers = targets.length > 0 && targets.every((t) => t.cover);
   const totalSize = !onlyCovers && files.length && files.every((f) => f.size) ? files.reduce((n, f) => n + f.size!, 0) : undefined;
   const meta = [
-    PLATFORMS[item.link.platform],
     info?.platform !== "pinterest" && info?.author,
     files.length > 1 && countLabel(files),
     info?.duration && clock(info.duration),
@@ -101,6 +117,7 @@ export function DownloadRow({
   ].filter(Boolean);
   const canSave = targets.length > 0;
   const ActionIcon = settings.destino === "compu" ? Download : CloudUpload;
+  const hint = canSave ? saveHint(settings.destino, settings.audio, targets) : "No tiene portada: elegí bajar el video";
 
   const copyCaption = async () => {
     try {
@@ -160,7 +177,15 @@ export function DownloadRow({
                 {item.link.url}
               </p>
             )}
-            <p className="truncate text-xs text-muted-foreground">{meta.join(" · ")}</p>
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <Hint label={PLATFORM_NAMES[item.link.platform]}>
+                <span className="inline-flex shrink-0">
+                  <PlatformIcon platform={item.link.platform} className="h-3.5 w-3.5" />
+                  <span className="sr-only">{PLATFORM_NAMES[item.link.platform]}</span>
+                </span>
+              </Hint>
+              {meta.length > 0 && <span className="truncate">{meta.join(" · ")}</span>}
+            </p>
           </div>
         </div>
 
@@ -210,14 +235,29 @@ export function DownloadRow({
             </Select>
           )}
 
-          {info && !canSave && settings.portada === "portada" && (
-            <span className="text-xs text-muted-foreground">No tiene portada para bajar</span>
-          )}
+          {info && !canSave && <span className="text-xs text-muted-foreground">Sin portada</span>}
 
-          {canSave && !busy && transfer?.state !== "error" && (
-            <Button size="sm" onClick={() => onSave()}>
-              <ActionIcon /> {actionLabel(settings.destino, targets)}
-            </Button>
+          {info && (canSave || choice.hasVideo) && !busy && transfer?.state !== "error" && (
+            <div className="flex">
+              <Hint label={hint}>
+                {/* Apagado no recibe el mouse: el tooltip va en un span alrededor. */}
+                <span className="inline-flex">
+                  <Button
+                    size="sm"
+                    onClick={() => onSave()}
+                    disabled={!canSave}
+                    aria-label={canSave ? hint : "Descargar"}
+                    className={cn(choice.hasVideo && "rounded-r-none")}
+                  >
+                    <ActionIcon /> Descargar
+                  </Button>
+                </span>
+              </Hint>
+              {choice.hasVideo && (
+                // Sin portada, "video y portada" baja solo el video: el botón muestra lo que de verdad sale.
+                <CoverMenu value={!choice.hasCover && mode === "ambos" ? "video" : mode} hasCover={choice.hasCover} onChange={onCover} />
+              )}
+            </div>
           )}
 
           {item.status !== "loading" && !busy && (
@@ -235,9 +275,9 @@ export function DownloadRow({
               <button
                 type="button"
                 onClick={() => onSave(file)}
-                disabled={busy || planTargets(info, settings.portada, { file }).length === 0}
-                title={fileAction(file, i, settings)}
-                aria-label={fileAction(file, i, settings)}
+                disabled={busy || planTargets(info, mode, { file }).length === 0}
+                title={fileAction(file, i, settings, mode)}
+                aria-label={fileAction(file, i, settings, mode)}
                 className="group relative grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-secondary text-muted-foreground outline-none ring-ring focus-visible:ring-2 disabled:cursor-wait"
               >
                 {file.thumbnail ? (
@@ -265,6 +305,39 @@ export function DownloadRow({
         </ul>
       )}
     </li>
+  );
+}
+
+/** El botón pegado a Descargar: qué bajar de los videos de esta fila (el video, con su portada o solo la portada). */
+function CoverMenu({ value, hasCover, onChange }: { value: CoverMode; hasCover: boolean; onChange: (mode: CoverMode) => void }) {
+  const current = optionOf(COVER_OPTIONS, value);
+  return (
+    <DropdownMenu>
+      <Hint label={`Qué bajar: ${current.label}`}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            aria-label={`Qué bajar de este link: ${current.label}`}
+            className="gap-1 rounded-l-none border-l border-primary-foreground/25 px-2"
+          >
+            <ModeIcons icons={current.icons} />
+            <ChevronDown className="!size-3 opacity-70" />
+          </Button>
+        </DropdownMenuTrigger>
+      </Hint>
+      <DropdownMenuContent align="end" className="min-w-[13rem]">
+        <DropdownMenuLabel>Qué bajar de este link</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={value} onValueChange={(v) => v !== value && onChange(v as CoverMode)}>
+          {COVER_OPTIONS.map((o) => (
+            <DropdownMenuRadioItem key={o.value} value={o.value} disabled={o.value !== "video" && !hasCover}>
+              <ModeIcons icons={o.icons} className="h-4 w-4" />
+              {o.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        {!hasCover && <p className="px-2 pb-1.5 pt-0.5 text-[11px] text-muted-foreground">Este link no trae portada.</p>}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
