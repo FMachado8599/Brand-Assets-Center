@@ -362,6 +362,33 @@ export async function renderReelImage(p: ReelImageInput): Promise<HTMLCanvasElem
   return canvas;
 }
 
+/**
+ * Lo que se dibuja de un creativo que no está a la vista: la imagen o, de un video, el mismo cuadro del que
+ * salen sus colores (el primero suele ser negro).
+ */
+export function mediaFrame(media: AdMedia): Promise<CanvasImageSource> {
+  return new Promise((resolve, reject) => {
+    const fail = () => reject(new Error(`No se pudo abrir ${media.name}.`));
+    if (media.kind === "image") {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = fail;
+      img.src = media.url;
+      return;
+    }
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.onloadedmetadata = () => {
+      video.currentTime = Math.min(1, (video.duration || 0) / 3);
+    };
+    video.onseeked = () => resolve(video);
+    video.onerror = fail;
+    video.src = media.url;
+  });
+}
+
 export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("No se pudo armar la imagen."))), "image/png")

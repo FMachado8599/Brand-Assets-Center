@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { AlertTriangle, BoxSelect, Copy, Download, Eye, EyeOff, ImagePlus, ScanLine, Upload, X } from "lucide-react";
+import { AlertTriangle, BoxSelect, ChevronLeft, ChevronRight, Copy, Download, Eye, EyeOff, FolderDown, ImagePlus, ScanLine, Upload, X } from "lucide-react";
 import { ClientMark, logoBackground } from "@/components/clients/ClientMark";
 import { BarAction, BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toaster";
+import { Hint } from "@/components/ui/tooltip";
 import { useClients } from "@/hooks/useClients";
 import { useStoredState } from "@/hooks/useStoredState";
 import { fold } from "@/lib/redaccion/text";
@@ -17,7 +18,7 @@ import { CTAS, ratioGap, ratioLabel, type AdMedia } from "@/lib/ads/reel";
 import { cn } from "@/lib/utils";
 import { initials } from "@/lib/clients/color";
 import { PHONE, ReelMockup } from "./ReelMockup";
-import { canvasToPng, renderReelImage, type AvatarSource } from "./renderReel";
+import { canvasToPng, mediaFrame, renderReelImage, type AvatarSource } from "./renderReel";
 
 type AdOptions = {
   account: string;
@@ -36,6 +37,40 @@ const DEFAULT_OPTIONS: AdOptions = {
   social: true,
   safeZone: false,
 };
+
+/** Un creativo subido: el archivo, sus colores y lo que se ajusta de cada uno. */
+type AdItem = {
+  id: string;
+  media: AdMedia;
+  colors: AdColors;
+  /** El color del botón elegido a mano (si no, sale del creativo). */
+  ctaColor: string | null;
+  /** Si no es 9:16: entero con fondo o recortado. */
+  fit: "cover" | "contain";
+};
+
+const isOffRatio = (m: AdMedia) => ratioGap(m) > 0.02;
+const isLowRes = (m: AdMedia) => Math.min(m.width, (m.height * 9) / 16) < 1080;
+
+/** "campaña-otoño.jpg" → "campaña-otoño (Reels).png" */
+function pngName(m: AdMedia) {
+  const base = m.name.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]+/g, "-").trim() || "anuncio";
+  return `${base} (Reels).png`;
+}
+
+function saveFile(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function isTyping(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+}
 
 /** "Changan Uruguay" → "changanuruguay": un punto de partida para el usuario de Instagram. */
 function handleOf(name: string) {
@@ -120,11 +155,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export function AdsShell() {
   const [opts, setOpts] = useStoredState<AdOptions>("ads:opciones", DEFAULT_OPTIONS);
   const set = (patch: Partial<AdOptions>) => setOpts((o) => ({ ...o, ...patch }));
-  const [media, setMedia] = useState<AdMedia | null>(null);
-  const [colors, setColors] = useState<AdColors>(DEFAULT_COLORS);
-  const [ctaColor, setCtaColor] = useState<string | null>(null);
+  const [items, setItems] = useState<AdItem[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [fit, setFit] = useState<"cover" | "contain">("contain");
   const [showUI, setShowUI] = useState(true);
   const [mark, setMark] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -138,31 +171,75 @@ export function AdsShell() {
   const { clients } = useClients();
   const client = clients.find((c) => c.id === opts.clientId) ?? null;
 
-  const load = useCallback(async (file: File) => {
-    try {
-      const next = await readMedia(file);
-      setMedia((prev) => {
-        if (prev) URL.revokeObjectURL(prev.url);
-        return next.media;
-      });
-      setColors(next.colors);
-      setCtaColor(null);
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "No se pudo abrir el archivo.", "error");
+  /** El creativo que se ve en el teléfono. */
+  const current = items.find((i) => i.id === selectedId) ?? items[0] ?? null;
+  const index = current ? items.indexOf(current) : -1;
+  const media = current?.media ?? null;
+  const colors = current?.colors ?? DEFAULT_COLORS;
+  const ctaColor = current?.ctaColor ?? null;
+  const fit = current?.fit ?? "contain";
+  const patchCurrent = (patch: Partial<AdItem>) => {
+    if (current) setItems((prev) => prev.map((i) => (i.id === current.id ? { ...i, ...patch } : i)));
+  };
+  const setCtaColor = (color: string | null) => patchCurrent({ ctaColor: color });
+  const setFit = (value: "cover" | "contain") => patchCurrent({ fit: value });
+  const go = (step: number) => {
+    if (items.length > 1) setSelectedId(items[(index + step + items.length) % items.length].id);
+  };
+
+  /** Suma los archivos (de a uno, en orden) y muestra el primero de los nuevos. */
+  const addFiles = useCallback(async (files: File[]) => {
+    const usable = files.filter((f) => /^(image|video)\//.test(f.type));
+    if (!usable.length) return toast("Elegí imágenes o videos.", "error");
+    const added: AdItem[] = [];
+    for (const file of usable) {
+      try {
+        const { media, colors } = await readMedia(file);
+        added.push({ id: crypto.randomUUID(), media, colors, ctaColor: null, fit: "contain" });
+      } catch (err) {
+        toast(`${file.name}: ${err instanceof Error ? err.message : "no se pudo abrir."}`, "error");
+      }
     }
+    if (!added.length) return;
+    setItems((prev) => [...prev, ...added]);
+    setSelectedId(added[0].id);
+    if (added.length > 1) toast(`Se agregaron ${added.length} creativos`);
   }, []);
 
-  // Ctrl+V con una imagen copiada la carga, desde cualquier parte de la página.
+  const removeItem = (id: string) => {
+    const i = items.findIndex((x) => x.id === id);
+    if (i < 0) return;
+    URL.revokeObjectURL(items[i].media.url);
+    const rest = items.filter((x) => x.id !== id);
+    setItems(rest);
+    if (current?.id === id) setSelectedId(rest[Math.min(i, rest.length - 1)]?.id ?? null);
+  };
+
+  // Ctrl+V con imágenes copiadas las suma, desde cualquier parte de la página.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      const file = [...(e.clipboardData?.files ?? [])].find((f) => /^(image|video)\//.test(f.type));
-      if (!file) return;
+      const files = [...(e.clipboardData?.files ?? [])].filter((f) => /^(image|video)\//.test(f.type));
+      if (!files.length) return;
       e.preventDefault();
-      load(file);
+      addFiles(files);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [load]);
+  }, [addFiles]);
+
+  // ← y → pasan de un creativo a otro (si no se está escribiendo).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isTyping(e.target) || e.altKey || e.ctrlKey || e.metaKey || items.length < 2) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      go(e.key === "ArrowRight" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const multi = items.length > 1;
 
   // El teléfono entra entero en la pantalla y en su columna.
   useEffect(() => {
@@ -171,7 +248,7 @@ export function AdsShell() {
     const fit = () => {
       const byWidth = el.clientWidth / PHONE.w;
       // Entra entero al abrir la página, debajo del título.
-      const byHeight = (window.innerHeight - 260) / PHONE.h;
+      const byHeight = (window.innerHeight - (multi ? 310 : 260)) / PHONE.h;
       setScale(Math.max(0.42, Math.min(1, byWidth, byHeight)));
     };
     fit();
@@ -182,14 +259,12 @@ export function AdsShell() {
       ro.disconnect();
       window.removeEventListener("resize", fit);
     };
-  }, []);
+  }, [multi]);
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    const file = [...e.dataTransfer.files].find((f) => /^(image|video)\//.test(f.type));
-    if (file) load(file);
-    else toast("Soltá una imagen o un video.", "error");
+    addFiles([...e.dataTransfer.files]);
   };
 
   const pickAvatar = (file: File | undefined) => {
@@ -218,20 +293,22 @@ export function AdsShell() {
         ? { letter: initials(client.name), background: client.color }
         : { letter: (opts.account || "t").slice(0, 1) };
 
-  const offRatio = media ? ratioGap(media) > 0.02 : false;
+  const offRatio = media ? isOffRatio(media) : false;
+  const lowRes = media ? isLowRes(media) : false;
 
-  /** El teléfono con el anuncio como PNG, tal como se ve (con la interfaz, las marcas y la zona segura que estén). */
-  const buildImage = async () => {
-    if (!media || !mediaRef.current) throw new Error("Primero subí la imagen o el video del anuncio.");
+  /** Un creativo como PNG, tal como se ve (con la interfaz, las marcas y la zona segura que estén). */
+  const buildImage = async (item: AdItem) => {
+    // El que está en el teléfono sale en el cuadro que se ve; los demás, de su archivo.
+    const shown = item.id === current?.id ? mediaRef.current : null;
     const canvas = await renderReelImage({
-      media,
-      source: mediaRef.current,
-      fit: offRatio ? fit : "cover",
+      media: item.media,
+      source: shown ?? (await mediaFrame(item.media)),
+      fit: isOffRatio(item.media) ? item.fit : "cover",
       account: opts.account,
       avatar: avatarSource,
       caption: opts.caption,
       cta: opts.cta,
-      colors: { ...colors, cta: ctaColor ?? colors.cta },
+      colors: { ...item.colors, cta: item.ctaColor ?? item.colors.cta },
       social: opts.social,
       showUI,
       mark,
@@ -243,15 +320,10 @@ export function AdsShell() {
 
   const failed = (err: unknown) => toast(err instanceof Error ? err.message : "No se pudo armar la imagen.", "error");
 
-  const downloadImage = async () => {
+  const downloadOne = async (item: AdItem) => {
     setExporting(true);
     try {
-      const url = URL.createObjectURL(await buildImage());
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `anuncio-reels-${(opts.account || "anuncio").replace(/[^\w.-]+/g, "-")}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      saveFile(await buildImage(item), pngName(item.media));
     } catch (err) {
       failed(err);
     } finally {
@@ -259,14 +331,14 @@ export function AdsShell() {
     }
   };
 
-  const copyImage = async () => {
+  const copyOne = async (item: AdItem) => {
     if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
       return toast("Este navegador no deja copiar imágenes: usá Descargar.", "error");
     }
     setExporting(true);
     try {
       // La promesa va directo al portapapeles: Safari solo deja copiar si el pedido sale del mismo click.
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": buildImage() })]);
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": buildImage(item) })]);
       toast("Imagen copiada: pegala donde quieras");
     } catch (err) {
       failed(err instanceof DOMException ? new Error("El navegador no dejó copiar la imagen: usá Descargar.") : err);
@@ -274,7 +346,29 @@ export function AdsShell() {
       setExporting(false);
     }
   };
-  const lowRes = media ? Math.min(media.width, (media.height * 9) / 16) < 1080 : false;
+
+  /** Todas, en un .zip (los navegadores frenan muchas descargas seguidas). */
+  const downloadAll = async () => {
+    setExporting(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      const used = new Set<string>();
+      for (const [i, item] of items.entries()) {
+        let name = pngName(item.media);
+        if (used.has(name)) name = name.replace(/ \(Reels\)\.png$/, ` ${i + 1} (Reels).png`);
+        used.add(name);
+        zip.file(name, await buildImage(item));
+      }
+      const account = (opts.account || "anuncios").replace(/[^\w.-]+/g, "-");
+      saveFile(await zip.generateAsync({ type: "blob" }), `anuncios-reels-${account}.zip`);
+      toast(`${items.length} imágenes en un .zip`);
+    } catch (err) {
+      failed(err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div
@@ -289,27 +383,36 @@ export function AdsShell() {
       onDrop={onDrop}
     >
       <ContextBar>
-        <BarButton label="Subir imagen o video" icon={Upload} onClick={() => fileRef.current?.click()} />
+        <BarButton label="Subir imágenes o videos" icon={Upload} onClick={() => fileRef.current?.click()} />
         <BarDivider />
         <BarButton label={showUI ? "Ver sin la interfaz" : "Ver con la interfaz"} icon={showUI ? Eye : EyeOff} pressed={!showUI} onClick={() => setShowUI((v) => !v)} />
         <BarButton label="Marcar lo que tapa" icon={BoxSelect} pressed={mark} onClick={() => setMark((v) => !v)} />
         <BarButton label="Zona segura de Meta" icon={ScanLine} pressed={opts.safeZone} onClick={() => set({ safeZone: !opts.safeZone })} />
-        {media && <BarNote>{`${ratioLabel(media)} · ${media.width}×${media.height}`}</BarNote>}
+        {media && <BarNote>{`${multi ? `${index + 1} de ${items.length} · ` : ""}${ratioLabel(media)} · ${media.width}×${media.height}`}</BarNote>}
         <BarDivider />
-        <BarButton label="Copiar la imagen" icon={Copy} onClick={copyImage} disabled={!media || exporting} />
-        <BarAction label="Descargar la imagen" icon={Download} onClick={downloadImage} disabled={!media || exporting}>
-          Descargar
-        </BarAction>
+        <BarButton label={multi ? "Copiar esta imagen" : "Copiar la imagen"} icon={Copy} onClick={() => current && copyOne(current)} disabled={!current || exporting} />
+        {multi ? (
+          <>
+            <BarButton label="Descargar esta imagen" icon={Download} onClick={() => current && downloadOne(current)} disabled={exporting} />
+            <BarAction label={`Descargar las ${items.length} imágenes en un .zip`} icon={FolderDown} onClick={downloadAll} disabled={exporting}>
+              Descargar todo
+            </BarAction>
+          </>
+        ) : (
+          <BarAction label="Descargar la imagen" icon={Download} onClick={() => current && downloadOne(current)} disabled={!current || exporting}>
+            Descargar
+          </BarAction>
+        )}
       </ContextBar>
 
       <input
         ref={fileRef}
         type="file"
         accept="image/*,video/*"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) load(file);
+          addFiles([...(e.target.files ?? [])]);
           e.target.value = "";
         }}
       />
@@ -318,8 +421,8 @@ export function AdsShell() {
         <div className="mb-8 text-center">
           <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Ads</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Subí el creativo y miralo como sale en un anuncio de Reels de Instagram, con todo lo que la app pone encima:
-            así ves si algo queda tapado antes de publicarlo.
+            Subí uno o varios creativos y miralos como salen en un anuncio de Reels de Instagram, con todo lo que la app
+            pone encima: así ves si algo queda tapado antes de publicarlo.
           </p>
         </div>
 
@@ -327,40 +430,66 @@ export function AdsShell() {
           <div className="order-2 space-y-4 lg:order-1">
             {/* El creativo */}
             <section className={cn("rounded-3xl border bg-card p-4 shadow-sm transition-colors", dragging && "border-primary bg-primary/10")}>
-              {media ? (
-                <div className="flex items-center gap-3">
-                  <span className="grid h-16 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary">
-                    {media.kind === "video" ? (
-                      <video src={media.url} muted playsInline className="h-full w-full object-cover" />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={media.url} alt="" className="h-full w-full object-cover" />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium" title={media.name}>
-                      {media.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {media.kind === "video" ? "Video" : "Imagen"} · {ratioLabel(media)} · {media.width}×{media.height}
-                    </p>
+              {items.length > 0 ? (
+                <>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium">{items.length === 1 ? "1 creativo" : `${items.length} creativos`}</p>
+                    <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                      <ImagePlus /> Agregar
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-                    Cambiar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="iconSm"
-                    aria-label="Quitar el creativo"
-                    onClick={() => {
-                      URL.revokeObjectURL(media.url);
-                      setMedia(null);
-                      setColors(DEFAULT_COLORS);
-                    }}
-                  >
-                    <X />
-                  </Button>
-                </div>
+                  <ul className="-mx-1 max-h-[21rem] space-y-1 overflow-y-auto px-1 py-0.5">
+                    {items.map((item, i) => {
+                      const m = item.media;
+                      const selected = item.id === current?.id;
+                      const warn = isOffRatio(m) || isLowRes(m);
+                      return (
+                        <li key={item.id} className={cn("flex items-center gap-1 rounded-2xl p-1 transition-colors", selected ? "bg-secondary" : "hover:bg-secondary/60")}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(item.id)}
+                            aria-current={selected ? "true" : undefined}
+                            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1 text-left outline-none ring-ring focus-visible:ring-2"
+                          >
+                            <span className={cn("grid h-14 w-8 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary", selected && "ring-2 ring-foreground")}>
+                              {m.kind === "video" ? (
+                                <video src={m.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={m.url} alt="" className="h-full w-full object-cover" />
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium" title={m.name}>
+                                {multi && <span className="mr-1 tabular-nums text-muted-foreground">{i + 1}.</span>}
+                                {m.name}
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                {warn && <AlertTriangle className="h-3 w-3 shrink-0 text-amber-600" aria-label="Tiene un aviso" />}
+                                {m.kind === "video" ? "Video" : "Imagen"} · {ratioLabel(m)} · {m.width}×{m.height}
+                              </span>
+                            </span>
+                          </button>
+                          <Hint label="Copiar la imagen">
+                            <Button variant="ghost" size="iconSm" aria-label={`Copiar la imagen de ${m.name}`} onClick={() => copyOne(item)} disabled={exporting}>
+                              <Copy />
+                            </Button>
+                          </Hint>
+                          <Hint label="Descargar la imagen">
+                            <Button variant="ghost" size="iconSm" aria-label={`Descargar la imagen de ${m.name}`} onClick={() => downloadOne(item)} disabled={exporting}>
+                              <Download />
+                            </Button>
+                          </Hint>
+                          <Hint label="Quitar">
+                            <Button variant="ghost" size="iconSm" aria-label={`Quitar ${m.name}`} onClick={() => removeItem(item.id)}>
+                              <X />
+                            </Button>
+                          </Hint>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
               ) : (
                 <button
                   type="button"
@@ -368,13 +497,16 @@ export function AdsShell() {
                   className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-foreground/10 px-4 py-8 text-center outline-none ring-ring transition-colors hover:border-foreground/25 focus-visible:ring-2"
                 >
                   <ImagePlus className="h-6 w-6" />
-                  <span className="text-sm font-medium">Elegí la imagen o el video del anuncio</span>
-                  <span className="text-xs text-muted-foreground">También podés arrastrarlo o pegarlo con Ctrl+V. Ideal: 1080×1920 (9:16).</span>
+                  <span className="text-sm font-medium">Elegí las imágenes o los videos del anuncio</span>
+                  <span className="text-xs text-muted-foreground">
+                    Uno o varios. También podés arrastrarlos o pegarlos con Ctrl+V. Ideal: 1080×1920 (9:16).
+                  </span>
                 </button>
               )}
 
               {media && (offRatio || lowRes) && (
                 <div className="mt-3 space-y-2 rounded-2xl bg-amber-100/70 p-3 text-xs text-amber-950">
+                  {multi && <p className="font-semibold">{media.name}</p>}
                   {offRatio && (
                     <>
                       <p className="flex gap-1.5">
@@ -531,7 +663,7 @@ export function AdsShell() {
             </section>
           </div>
 
-          <div ref={phoneCol} className="order-1 flex justify-center lg:sticky lg:top-24 lg:order-2">
+          <div ref={phoneCol} className="order-1 flex flex-col items-center gap-3 lg:sticky lg:top-24 lg:order-2">
             <ReelMockup
               media={media}
               fit={offRatio ? fit : "cover"}
@@ -548,6 +680,19 @@ export function AdsShell() {
               scale={scale}
               mediaRef={mediaRef}
             />
+            {multi && (
+              <div className="flex items-center gap-1 rounded-full border bg-card/80 p-1 text-xs font-medium shadow-sm">
+                <Button variant="ghost" size="iconSm" className="rounded-full" aria-label="Creativo anterior" onClick={() => go(-1)}>
+                  <ChevronLeft />
+                </Button>
+                <span className="min-w-[4.5rem] text-center tabular-nums" aria-live="polite">
+                  {index + 1} de {items.length}
+                </span>
+                <Button variant="ghost" size="iconSm" className="rounded-full" aria-label="Creativo siguiente" onClick={() => go(1)}>
+                  <ChevronRight />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </main>

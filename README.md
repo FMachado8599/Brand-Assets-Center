@@ -427,7 +427,7 @@ En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOO
 
 ## Ads
 
-Para ver un anuncio como sale en **Reels de Instagram** antes de publicarlo y saber si algo del creativo queda tapado. Se sube (o se arrastra, o se pega con Ctrl+V) la imagen o el video, y aparece en un iPhone con todo lo que la app pone encima: la hora y el notch, la flecha para atrás, los íconos del costado (me gusta, comentar, repostear, enviar, más), las burbujas de gente que sigue a la cuenta, el botón de la acción, la cuenta con su foto, la primera línea del texto con "Publicidad" y la barra de comentarios.
+Para ver un anuncio como sale en **Reels de Instagram** antes de publicarlo y saber si algo del creativo queda tapado. Se suben (o se arrastran, o se pegan con Ctrl+V) una o varias imágenes o videos, y cada uno aparece en un iPhone con todo lo que la app pone encima: la hora y el notch, la flecha para atrás, los íconos del costado (me gusta, comentar, repostear, enviar, más), las burbujas de gente que sigue a la cuenta, el botón de la acción, la cuenta con su foto, la primera línea del texto con "Publicidad" y la barra de comentarios.
 
 - **Medidas**: salen de una captura real de un anuncio en un iPhone (923 × 2000 px, 390 × 844 pt) y están en `lib/ads/reel.ts` y `components/ads/ReelMockup.tsx`. El creativo va en 9:16 a lo ancho, entre una franja arriba y la franja del texto. Probado con la misma captura: cada cosa dibujada cae encima de la original.
 - **Marcar lo que tapa**: pinta de rojo cada cosa de la app que va encima del creativo.
@@ -437,7 +437,8 @@ Para ver un anuncio como sale en **Reels de Instagram** antes de publicarlo y sa
 - **La cuenta**: usuario, foto de perfil (se sube) o el logo de un cliente de la app. **Texto**: Instagram muestra la primera línea hasta donde entra, con " ...". **Botón**: los de Meta en español; su color sale del creativo (como hace Instagram: el tono del creativo, apagado) y se puede cambiar. El color de las franjas de arriba y del texto es aproximado: Instagram no lo saca del creativo de una forma que se pueda deducir, pero no tapan nada del creativo.
 - **Avisos**: si no es 9:16 (se puede ver entero con fondo o recortado: Meta hace una de las dos) y si mide menos de 1080 × 1920.
 - **Descargar** y **Copiar** (barra de arriba): el teléfono con el anuncio, tal como se ve (con la interfaz, las marcas y la zona segura que estén prendidas), en PNG a 3× como una captura de iPhone (1236 × 2598 px, esquinas transparentes). De un video sale el cuadro que se está viendo. No usa librerías: se vuelve a dibujar en un canvas con las mismas medidas (`components/ads/renderReel.ts`; los trazos de los íconos están en `ReelIcons.tsx` y los usan los dos). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes); si no, avisa que se use Descargar.
-- Nada se sube a ningún lado: el archivo se abre en el navegador. Lo que se recuerda (en la cuenta) es el usuario, el texto, el botón y las opciones.
+- **Varios creativos**: la lista muestra todos (con un ⚠ los que tienen aviso). Un click elige cuál se ve en el teléfono; abajo del teléfono, o con `←` y `→`, se pasa de uno a otro. La cuenta, el texto, el botón y lo que se ve valen para todos; el color del botón y "entero o recortado" (si no es 9:16) son de cada uno. Cada fila copia, descarga o quita el suyo, y **Descargar todo** baja todos en un `.zip` (`… (Reels).png`, con el nombre de cada archivo); de los videos que no están a la vista sale el mismo cuadro del que se sacan sus colores.
+- Nada se sube a ningún lado: los archivos se abren en el navegador. Lo que se recuerda (en la cuenta) es el usuario, el texto, el botón y las opciones.
 
 ---
 
