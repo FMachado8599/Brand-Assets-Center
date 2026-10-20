@@ -3,26 +3,22 @@
 import { processAudio } from "./audio.client";
 import { DriveError, uploadToDrive } from "./drive.client";
 import { downloadName } from "./links";
-import type { AudioMode, MediaFile, MediaInfo, SaveSettings, YoutubeSource } from "./types";
+import { isVideoTarget, type SaveTarget } from "./targets";
+import type { AudioMode, SaveSettings, YoutubeSource } from "./types";
 
 /**
- * Guardar algo de la lista: un archivo de un posteo, o un video de YouTube en una calidad.
+ * Guardar algo de la lista: un archivo de un posteo, un video de YouTube en una calidad, o una portada.
  *
- *  1. De dónde sale: Instagram y Pinterest pasan por /api/descargas/file (así salen con su nombre);
- *     YouTube se prepara en el servicio de la PC y se baja directo de ahí.
+ *  1. De dónde sale: Instagram, Pinterest y las portadas pasan por /api/descargas/file (así salen con su
+ *     nombre); los videos de YouTube se preparan en el servicio de la PC y se bajan directo de ahí.
  *  2. Si hay que sacar o separar el audio (y no es YouTube, que ya viene así), se procesa en el navegador.
  *  3. A la compu, a Drive o a las dos. Solo a la compu y sin procesar, lo baja el navegador directamente
  *     (no pasa por la memoria de la página y se ve en sus descargas).
  */
 
 export type Progress = { label: string; percent?: number };
-export type SaveTarget = { info: MediaInfo; file?: MediaFile; quality?: number };
 
-export function isVideoTarget({ info, file }: SaveTarget) {
-  return !!info.youtube || file?.kind === "video";
-}
-
-export function fileHref(file: MediaFile, name: string) {
+export function fileHref(file: { url: string }, name: string) {
   return `/api/descargas/file?${new URLSearchParams({ src: file.url, name })}`;
 }
 
@@ -32,15 +28,17 @@ export async function saveTarget(
   driveToken: string | undefined,
   onProgress: (p: Progress) => void
 ): Promise<{ name: string; driveUrl?: string }> {
-  const { info, file } = target;
+  const { info, file, cover } = target;
   const audio: AudioMode = isVideoTarget(target) ? settings.audio : "con";
-  const ext = audio === "solo" ? "m4a" : info.youtube ? "mp4" : file!.ext;
-  const name = downloadName(info, ext, { file, audio });
+  const ext = cover ? cover.ext : audio === "solo" ? "m4a" : info.youtube ? "mp4" : file!.ext;
+  const name = downloadName(info, ext, { file, audio, cover: !!cover });
 
-  const href = info.youtube
-    ? await prepareYoutube(info.youtube, audio, target.quality, name, onProgress)
-    : fileHref(file!, name);
-  const processing = !info.youtube && audio !== "con";
+  const href = cover
+    ? fileHref(cover, name)
+    : info.youtube
+      ? await prepareYoutube(info.youtube, audio, target.quality, name, onProgress)
+      : fileHref(file!, name);
+  const processing = !cover && !info.youtube && audio !== "con";
   const toComputer = settings.destino !== "drive";
   const toDrive = settings.destino !== "compu";
 

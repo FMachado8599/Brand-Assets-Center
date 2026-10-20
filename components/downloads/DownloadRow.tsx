@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { formatBytes } from "@/lib/converter/catalog";
 import type { Link } from "@/lib/downloads/links";
+import { actionLabel, planTargets } from "@/lib/downloads/targets";
 import type { MediaFile, MediaInfo, Platform, SaveSettings, YoutubeQuality } from "@/lib/downloads/types";
 
 /** Lo que está pasando con lo que se pidió guardar de esta fila. */
@@ -54,11 +55,13 @@ function youtubeSize(info: MediaInfo, quality: YoutubeQuality | undefined, audio
   return size ? `~${formatBytes(size)}` : null;
 }
 
-export function actionLabel(destino: SaveSettings["destino"], count = 1) {
-  const n = count > 1 ? ` ${count}` : "";
-  if (destino === "drive") return `Guardar${n} en Drive`;
-  if (destino === "ambos") return `Descargar${n} y subir`;
-  return `Descargar${n}`;
+/** Lo que hace el click en un archivo del carrusel, para su descripción. */
+function fileAction(file: MediaFile, i: number, settings: SaveSettings) {
+  const verb = settings.destino === "drive" ? "Guardar en Drive" : "Descargar";
+  if (file.kind !== "video") return `${verb} la foto ${i + 1}`;
+  if (settings.portada === "portada" && file.cover) return `${verb} la portada del video ${i + 1}`;
+  if (settings.portada === "ambos" && file.cover) return `${verb} el video ${i + 1} y su portada`;
+  return `${verb} el video ${i + 1}`;
 }
 
 export function DownloadRow({
@@ -83,7 +86,10 @@ export function DownloadRow({
   const quality = yt?.qualities.find((q) => q.q === item.quality) ?? yt?.qualities[0];
   const single = files.length === 1 ? files[0] : undefined;
   const busy = transfer?.state === "working";
-  const totalSize = files.length && files.every((f) => f.size) ? files.reduce((n, f) => n + f.size!, 0) : undefined;
+  const targets = info ? planTargets(info, settings.portada, { quality: item.quality }) : [];
+  // Bajando solo portadas, el peso de los videos no dice nada.
+  const onlyCovers = targets.length > 0 && targets.every((t) => t.cover);
+  const totalSize = !onlyCovers && files.length && files.every((f) => f.size) ? files.reduce((n, f) => n + f.size!, 0) : undefined;
   const meta = [
     PLATFORMS[item.link.platform],
     info?.platform !== "pinterest" && info?.author,
@@ -91,9 +97,9 @@ export function DownloadRow({
     info?.duration && clock(info.duration),
     single?.width && single.height && `${single.width}×${single.height}`,
     totalSize && formatBytes(totalSize),
-    info && yt && youtubeSize(info, quality, settings.audio),
+    info && yt && !onlyCovers && youtubeSize(info, quality, settings.audio),
   ].filter(Boolean);
-  const canSave = !!info && (files.length > 0 || !!yt);
+  const canSave = targets.length > 0;
   const ActionIcon = settings.destino === "compu" ? Download : CloudUpload;
 
   const copyCaption = async () => {
@@ -189,7 +195,7 @@ export function DownloadRow({
             </Hint>
           )}
 
-          {yt && settings.audio !== "solo" && yt.qualities.length > 1 && (
+          {yt && settings.audio !== "solo" && !onlyCovers && yt.qualities.length > 1 && (
             <Select value={String(quality?.q)} onValueChange={(v) => onQuality(Number(v))} disabled={busy}>
               <SelectTrigger className="h-8 w-[5.5rem] rounded-md text-xs" aria-label="Calidad">
                 <SelectValue />
@@ -204,9 +210,13 @@ export function DownloadRow({
             </Select>
           )}
 
+          {info && !canSave && settings.portada === "portada" && (
+            <span className="text-xs text-muted-foreground">No tiene portada para bajar</span>
+          )}
+
           {canSave && !busy && transfer?.state !== "error" && (
             <Button size="sm" onClick={() => onSave()}>
-              <ActionIcon /> {actionLabel(settings.destino, files.length)}
+              <ActionIcon /> {actionLabel(settings.destino, targets)}
             </Button>
           )}
 
@@ -225,8 +235,9 @@ export function DownloadRow({
               <button
                 type="button"
                 onClick={() => onSave(file)}
-                disabled={busy}
-                title={`${settings.destino === "drive" ? "Guardar en Drive" : "Descargar"} ${file.kind === "video" ? "el video" : "la foto"} ${i + 1}`}
+                disabled={busy || planTargets(info, settings.portada, { file }).length === 0}
+                title={fileAction(file, i, settings)}
+                aria-label={fileAction(file, i, settings)}
                 className="group relative grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-secondary text-muted-foreground outline-none ring-ring focus-visible:ring-2 disabled:cursor-wait"
               >
                 {file.thumbnail ? (

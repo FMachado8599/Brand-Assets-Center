@@ -32,23 +32,28 @@ export async function getPinterestInfo(link: Link): Promise<MediaInfo> {
   // Pinterest publica el pin como schema.org para los buscadores (VideoObject o SocialMediaPosting):
   // es lo más estable de la página.
   const nodes = ldNodes(await res.text());
-  const video = nodes.find((n) => n["@type"] === "VideoObject" && n.contentUrl);
-  if (video) return videoInfo(id, pageUrl, video);
-
   const post = nodes.find((n) => n["@type"] === "SocialMediaPosting" && n.image);
+  const video = nodes.find((n) => n["@type"] === "VideoObject" && n.contentUrl);
+  if (video) return videoInfo(id, pageUrl, video, post?.image);
   if (post) return imageInfo(id, pageUrl, post);
 
   // Pinterest responde 200 aunque el pin no exista: la página simplemente no trae el contenido.
   throw new DownloadError("No encontré nada para bajar en ese pin: puede estar borrado o ser privado.", 422);
 }
 
-async function videoInfo(id: string, pageUrl: string, video: LdNode): Promise<MediaInfo> {
+/**
+ * `pinImage` es la imagen del pin (la portada que se ve en el feed, en tamaño original). Si falta, sirve la
+ * miniatura del video, que es su primer cuadro con más compresión.
+ */
+async function videoInfo(id: string, pageUrl: string, video: LdNode, pinImage?: string): Promise<MediaInfo> {
   const src = video.contentUrl!;
   if (!isPinterestMedia(src)) throw new DownloadError("El video de ese pin tiene un formato que no reconozco.", 422);
 
   const width = parseInt(video.width ?? "", 10) || undefined;
   const height = parseInt(video.height ?? "", 10) || undefined;
-  const file: MediaFile = { kind: "video", url: src, ext: "mp4", width, height, size: await contentLength(src) };
+  const coverSrc = [pinImage, video.thumbnailUrl].find((u): u is string => !!u && isPinterestMedia(u));
+  const cover = coverSrc ? { url: coverSrc, ext: imageExt(coverSrc) } : undefined;
+  const file: MediaFile = { kind: "video", url: src, ext: "mp4", width, height, size: await contentLength(src), cover };
 
   return {
     platform: "pinterest",
@@ -66,7 +71,7 @@ async function imageInfo(id: string, pageUrl: string, post: LdNode): Promise<Med
   const src = post.image!;
   if (!isPinterestMedia(src)) throw new DownloadError("La imagen de ese pin tiene un formato que no reconozco.", 422);
 
-  const ext = src.match(/\.(\w+)$/)![1].toLowerCase().replace("jpeg", "jpg");
+  const ext = imageExt(src);
   return {
     platform: "pinterest",
     id,
@@ -107,6 +112,10 @@ function ldNodes(html: string): LdNode[] {
     }
   }
   return nodes;
+}
+
+function imageExt(src: string) {
+  return src.match(/\.(\w+)$/)![1].toLowerCase().replace("jpeg", "jpg");
 }
 
 function isoSeconds(iso: string | undefined) {

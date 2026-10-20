@@ -8,9 +8,10 @@ import { toast } from "@/components/ui/toaster";
 import { useStoredState } from "@/hooks/useStoredState";
 import { DriveError, getDriveToken, type DriveConfig } from "@/lib/downloads/drive.client";
 import { findLinks, NO_LINKS, scanLinks, type Link } from "@/lib/downloads/links";
-import { saveTarget, type SaveTarget } from "@/lib/downloads/save.client";
+import { saveTarget } from "@/lib/downloads/save.client";
+import { actionLabel, planTargets } from "@/lib/downloads/targets";
 import type { MediaFile, MediaInfo, SaveSettings } from "@/lib/downloads/types";
-import { actionLabel, DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
+import { DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
 import { LinkList } from "./LinkList";
 import { DEFAULT_SETTINGS, describeSettings, SaveOptions } from "./SaveOptions";
 
@@ -35,8 +36,8 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
   const ready = items.filter(
     (i): i is DownloadItem & { info: MediaInfo } => i.status === "ready" && !!i.info && (i.info.files.length > 0 || !!i.info.youtube)
   );
-  const readyCount = ready.reduce((n, i) => n + Math.max(1, i.info.files.length), 0);
-  const customized = settings.destino !== "compu" || settings.audio !== "con";
+  const readyTargets = ready.flatMap((i) => planTargets(i.info, settings.portada, { quality: i.quality }));
+  const customized = settings.destino !== "compu" || settings.audio !== "con" || settings.portada !== "video";
 
   const update = useCallback((url: string, patch: Partial<DownloadItem>) => {
     setItems((prev) => prev.map((i) => (i.link.url === url ? { ...i, ...patch } : i)));
@@ -127,10 +128,9 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
   const saveItem = async (item: DownloadItem & { info: MediaInfo }, token: string | undefined, file?: MediaFile) => {
     const url = item.link.url;
     const { info } = item;
-    const targets: SaveTarget[] = info.youtube
-      ? [{ info, quality: item.quality }]
-      : (file ? [file] : info.files).map((f) => ({ info, file: f }));
+    const targets = planTargets(info, settings.portada, { file, quality: item.quality });
     const progress = (transfer: Transfer) => update(url, { transfer });
+    if (!targets.length) return progress({ state: "error", label: "Este video no tiene portada para bajar." });
     progress({ state: "working", label: "Empezando" });
 
     let driveUrl: string | undefined;
@@ -176,7 +176,8 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
       return;
     }
     for (const item of ready) {
-      if (item.transfer?.state !== "working") await saveItem(item, token);
+      const empty = !planTargets(item.info, settings.portada, { quality: item.quality }).length;
+      if (item.transfer?.state !== "working" && !empty) await saveItem(item, token);
     }
   };
 
@@ -217,11 +218,11 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
         >
           <SaveOptions settings={settings} onChange={setSettings} drive={drive} email={email} />
         </BarPopover>
-        {ready.length > 1 && (
+        {ready.length > 1 && readyTargets.length > 0 && (
           <>
             <BarDivider />
             <BarAction label="Guardar todo" icon={ActionIcon} onClick={saveAll}>
-              {actionLabel(settings.destino, readyCount)}
+              {actionLabel(settings.destino, readyTargets)}
             </BarAction>
           </>
         )}
@@ -231,8 +232,8 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
         <div className="mb-6 text-center">
           <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Descargas</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Pegá links de YouTube, Instagram o Pinterest y bajá los videos y las fotos en la mejor calidad que tengan:
-            a tu compu, a una carpeta de Drive o a las dos.
+            Pegá links de YouTube, Instagram o Pinterest y bajá los videos, sus portadas y las fotos en la mejor
+            calidad que tengan: a tu compu, a una carpeta de Drive o a las dos.
           </p>
           <button
             type="button"

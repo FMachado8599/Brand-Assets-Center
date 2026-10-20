@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import { get } from "@vercel/blob";
-import { DownloadError } from "./http.server";
+import { BROWSER_HEADERS, DownloadError } from "./http.server";
 import type { Link } from "./links";
-import type { MediaInfo, YoutubeQuality } from "./types";
+import type { MediaCover, MediaInfo, YoutubeQuality } from "./types";
 
 /**
  * YouTube corta las descargas en buena calidad que salen de servidores en la nube: lo baja el servicio que
@@ -65,6 +65,7 @@ type WorkerInfo = {
 export async function getYoutubeInfo(link: Link): Promise<MediaInfo> {
   const { worker, secret } = await config();
   const id = link.id!;
+  const cover = bestCover(id);
 
   let res: Response;
   try {
@@ -92,8 +93,29 @@ export async function getYoutubeInfo(link: Link): Promise<MediaInfo> {
     thumbnail: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
     duration: data.duration,
     files: [],
-    youtube: { worker, token: sign(id, secret), qualities: data.qualities, audio: data.audio },
+    youtube: { worker, token: sign(id, secret), qualities: data.qualities, audio: data.audio, cover: await cover },
   };
+}
+
+/**
+ * La miniatura más grande que tenga: maxresdefault (1280×720) no existe en todos los videos (YouTube
+ * responde 404 con una imagen gris); sddefault y hqdefault sí, pero con franjas negras arriba y abajo.
+ */
+async function bestCover(id: string): Promise<MediaCover> {
+  const sizes = [
+    { name: "maxresdefault", width: 1280, height: 720 },
+    { name: "sddefault", width: 640, height: 480 },
+  ];
+  for (const s of sizes) {
+    const url = `https://i.ytimg.com/vi/${id}/${s.name}.jpg`;
+    try {
+      const res = await fetch(url, { method: "HEAD", headers: BROWSER_HEADERS, cache: "no-store", signal: AbortSignal.timeout(4000) });
+      if (res.ok) return { url, ext: "jpg", width: s.width, height: s.height };
+    } catch {
+      /* se prueba la siguiente */
+    }
+  }
+  return { url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, ext: "jpg", width: 480, height: 360 };
 }
 
 function sign(id: string, secret: string) {

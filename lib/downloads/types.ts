@@ -11,7 +11,11 @@ export type MediaFile = {
   size?: number;
   /** Miniatura propia de este archivo, para elegirlo dentro de un carrusel. */
   thumbnail?: string;
+  /** Videos: la imagen de portada en su tamaño completo (la que se ve en el feed antes de darle play). */
+  cover?: MediaCover;
 };
+
+export type MediaCover = { url: string; ext: string; width?: number; height?: number };
 
 /** Una calidad que ofrece un video de YouTube: `q` es el tope que se le pide al servicio, `res` lo que sale. */
 export type YoutubeQuality = {
@@ -32,6 +36,8 @@ export type YoutubeSource = {
   qualities: YoutubeQuality[];
   /** Peso estimado del audio solo, en bytes. */
   audio?: number;
+  /** La miniatura en la mejor calidad que tenga (sale directo de YouTube, sin pasar por la PC). */
+  cover?: MediaCover;
 };
 
 export type MediaInfo = {
@@ -53,6 +59,9 @@ export type MediaInfo = {
 /** Qué hacer con el sonido de los videos. */
 export type AudioMode = "con" | "sin" | "solo";
 
+/** Qué bajar de cada video: el video, el video con su portada, o solo la portada. Las fotos se bajan igual. */
+export type CoverMode = "video" | "ambos" | "portada";
+
 /** Dónde se guarda lo que se baja. */
 export type Destination = "compu" | "ambos" | "drive";
 
@@ -61,5 +70,6 @@ export type DriveFolder = { id: string; name: string; url: string };
 export type SaveSettings = {
   destino: Destination;
   audio: AudioMode;
+  portada: CoverMode;
   carpeta: DriveFolder | null;
 };

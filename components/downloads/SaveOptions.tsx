@@ -14,10 +14,16 @@ import {
   preloadDrive,
   type DriveConfig,
 } from "@/lib/downloads/drive.client";
-import type { AudioMode, Destination, SaveSettings } from "@/lib/downloads/types";
+import type { AudioMode, CoverMode, Destination, SaveSettings } from "@/lib/downloads/types";
 import { cn } from "@/lib/utils";
 
-export const DEFAULT_SETTINGS: SaveSettings = { destino: "compu", audio: "con", carpeta: null };
+export const DEFAULT_SETTINGS: SaveSettings = { destino: "compu", audio: "con", portada: "video", carpeta: null };
+
+const PORTADA: { value: CoverMode; label: string }[] = [
+  { value: "video", label: "Video" },
+  { value: "ambos", label: "Con portada" },
+  { value: "portada", label: "Solo portada" },
+];
 
 const AUDIO: { value: AudioMode; label: string }[] = [
   { value: "con", label: "Con audio" },
@@ -31,26 +37,31 @@ const DESTINOS: { value: Destination; label: string }[] = [
   { value: "drive", label: "Solo Drive" },
 ];
 
-/** Resumen de una línea: "En tu compu · Sin audio", "En Drive: Material · Con audio". */
+/** Resumen de una línea: "En tu compu · Sin audio", "En Drive: Material · Con portada · Con audio". */
 export function describeSettings(s: SaveSettings) {
   const where =
     s.destino === "compu" ? "En tu compu" : `${s.destino === "ambos" ? "Compu y Drive" : "En Drive"}: ${s.carpeta?.name ?? "falta la carpeta"}`;
-  return `${where} · ${AUDIO.find((a) => a.value === s.audio)!.label}`;
+  // Con solo la portada, el sonido no cuenta.
+  if (s.portada === "portada") return `${where} · Solo portada`;
+  const cover = s.portada === "ambos" ? " · Con portada" : "";
+  return `${where}${cover} · ${AUDIO.find((a) => a.value === s.audio)!.label}`;
 }
 
 function Segmented<T extends string>({
+  label,
   value,
   options,
   onChange,
   disabled,
 }: {
+  label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
   disabled?: (value: T) => boolean;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-1 rounded-full bg-secondary p-0.5" role="radiogroup">
+    <div className="grid grid-cols-3 gap-1 rounded-full bg-secondary p-0.5" role="radiogroup" aria-label={label}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -122,14 +133,42 @@ export function SaveOptions({
       <PanelTitle title="Cómo se guarda" hint="Vale para todo lo que bajes. Se recuerda en tu cuenta." />
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium">Sonido de los videos</p>
-        <Segmented value={settings.audio} options={AUDIO} onChange={(audio) => onChange({ ...settings, audio })} />
-        {settings.audio === "solo" && <p className="text-[11px] text-muted-foreground">Sale como .m4a. Las fotos se bajan igual.</p>}
+        <p className="text-xs font-medium">De los videos</p>
+        <Segmented
+          label="Qué bajar de los videos"
+          value={settings.portada}
+          options={PORTADA}
+          onChange={(portada) => onChange({ ...settings, portada })}
+        />
+        {settings.portada !== "video" && (
+          <p className="text-[11px] text-muted-foreground">
+            {settings.portada === "ambos" ? "Cada video sale junto con su portada: " : "La portada es "}
+            la imagen que se ve antes de darle play, en su tamaño completo.
+            {settings.portada === "portada" && " Las fotos se bajan igual."}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <p className={cn("text-xs font-medium", settings.portada === "portada" && "text-muted-foreground")}>Sonido de los videos</p>
+        <Segmented
+          label="Sonido de los videos"
+          value={settings.audio}
+          options={AUDIO}
+          onChange={(audio) => onChange({ ...settings, audio })}
+          disabled={() => settings.portada === "portada"}
+        />
+        {settings.portada === "portada" ? (
+          <p className="text-[11px] text-muted-foreground">No cuenta: solo se bajan las portadas.</p>
+        ) : (
+          settings.audio === "solo" && <p className="text-[11px] text-muted-foreground">Sale como .m4a. Las fotos se bajan igual.</p>
+        )}
       </div>
 
       <div className="space-y-1.5">
         <p className="text-xs font-medium">Dónde</p>
         <Segmented
+          label="Dónde se guarda"
           value={settings.destino}
           options={DESTINOS}
           onChange={(destino) => onChange({ ...settings, destino })}
