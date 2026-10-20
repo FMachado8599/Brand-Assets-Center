@@ -12,6 +12,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
+| **Ads** | `/ads` | Ver un anuncio como sale en Reels de Instagram, con todo lo que tapa la app y la zona segura de Meta |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -421,6 +422,21 @@ En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOO
 3. **Credenciales → el cliente OAuth → Orígenes autorizados de JavaScript**: agregar los mismos dominios (producción, preview y `http://localhost:3000`).
 4. **Pantalla de consentimiento → Acceso a los datos**: agregar el permiso `.../auth/drive.file` (no es sensible: no hace falta verificar la app).
 5. Cargar `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_PICKER_API_KEY` en Vercel (y en `.env.local`). Sin ellas, las opciones de Drive aparecen deshabilitadas.
+
+---
+
+## Ads
+
+Para ver un anuncio como sale en **Reels de Instagram** antes de publicarlo y saber si algo del creativo queda tapado. Se sube (o se arrastra, o se pega con Ctrl+V) la imagen o el video, y aparece en un iPhone con todo lo que la app pone encima: la hora y el notch, la flecha para atrás, los íconos del costado (me gusta, comentar, repostear, enviar, más), las burbujas de gente que sigue a la cuenta, el botón de la acción, la cuenta con su foto, la primera línea del texto con "Publicidad" y la barra de comentarios.
+
+- **Medidas**: salen de una captura real de un anuncio en un iPhone (923 × 2000 px, 390 × 844 pt) y están en `lib/ads/reel.ts` y `components/ads/ReelMockup.tsx`. El creativo va en 9:16 a lo ancho, entre una franja arriba y la franja del texto. Probado con la misma captura: cada cosa dibujada cae encima de la original.
+- **Marcar lo que tapa**: pinta de rojo cada cosa de la app que va encima del creativo.
+- **Zona segura de Meta**: la de la Guía de anuncios de Meta para 9:16 (Reels y Stories de Instagram y Facebook): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que muestra el "Safe Zone Guardrail" de Ads Manager.
+- **Interfaz de Instagram**: apagada, se ve el creativo solo, para comparar.
+- **Burbujas de seguidores**: no siempre salen (dependen de quién lo ve), pero cuando salen tapan; se pueden ocultar.
+- **La cuenta**: usuario, foto de perfil (se sube) o el logo de un cliente de la app. **Texto**: Instagram muestra la primera línea hasta donde entra, con " ...". **Botón**: los de Meta en español; su color sale del creativo (como hace Instagram: el tono del creativo, apagado) y se puede cambiar. El color de las franjas de arriba y del texto es aproximado: Instagram no lo saca del creativo de una forma que se pueda deducir, pero no tapan nada del creativo.
+- **Avisos**: si no es 9:16 (se puede ver entero con fondo o recortado: Meta hace una de las dos) y si mide menos de 1080 × 1920.
+- Nada se sube a ningún lado: el archivo se abre en el navegador. Lo que se recuerda (en la cuenta) es el usuario, el texto, el botón y las opciones.
 
 ---
 
