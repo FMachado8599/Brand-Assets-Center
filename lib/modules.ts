@@ -1,4 +1,4 @@
-import { ArrowDownToLine, Briefcase, Film, House, PenLine, RefreshCw, Smile, StickyNote, type LucideIcon } from "lucide-react";
+import { ArrowDownToLine, Briefcase, Film, House, PenLine, RefreshCw, Smile, SquareKanban, StickyNote, type LucideIcon } from "lucide-react";
 
 export type AppModule = {
   href: string;
@@ -18,6 +18,7 @@ export const MODULES: AppModule[] = [
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw },
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase },
+  { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine },
 ];
 
