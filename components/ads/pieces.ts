@@ -22,6 +22,8 @@ export type Piece = {
   fit: "cover" | "contain";
   /** El color del botón elegido a mano (si no, sale del primer archivo). */
   ctaColor: string | null;
+  /** En un carrusel: el slide que se ve en los mockups (las flechas lo cambian). */
+  slide: number;
 };
 
 export const MAX_CARDS = 10;
@@ -100,7 +102,7 @@ export function guessType(cards: AdCard[]): PieceType {
 }
 
 export function newPiece(type: PieceType, cards: AdCard[], placements = defaultPlacements(cards[0]?.media ?? null)): Piece {
-  return { id: crypto.randomUUID(), type, cards, placements, fit: "contain", ctaColor: null };
+  return { id: crypto.randomUUID(), type, cards, placements, fit: "contain", ctaColor: null, slide: 0 };
 }
 
 /** "campaña-otoño.jpg" → "campaña-otoño" (sin caracteres que Windows no acepta). */

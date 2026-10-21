@@ -14,10 +14,11 @@ import { initials } from "@/lib/clients/color";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { AddPieceDialog } from "./AddPieceDialog";
+import { SlidesDialog } from "./SlidesDialog";
 import { AdsSettings, DEFAULT_OPTIONS, type AdOptions } from "./AdsSettings";
 import { PHONE, loadImage, mediaFrame, renderMockupPng, type AvatarSource, type MockupInput } from "./draw";
 import { PieceRow, type MockupTarget } from "./PieceRow";
-import { baseName, guessType, isOffRatio, loadFrames, MAX_CARDS, newPiece, readCards, type Piece } from "./pieces";
+import { baseName, guessType, isOffRatio, loadFrames, MAX_CARDS, newPiece, readCards, type AdCard, type Piece } from "./pieces";
 
 function saveFile(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -65,6 +66,8 @@ export function AdsShell() {
   const set = (patch: Partial<AdOptions>) => setOpts((o) => ({ ...o, ...patch }));
   const [pieces, setPieces] = useState<Piece[]>([]);
   const [adding, setAdding] = useState(false);
+  /** El orden de los slides abierto: de qué pieza y con qué archivos nuevos. */
+  const [ordering, setOrdering] = useState<{ pieceId: string; pending: AdCard[] } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarImg, setAvatarImg] = useState<HTMLImageElement | null>(null);
@@ -109,12 +112,35 @@ export function AdsShell() {
     [addPiece]
   );
 
-  const addCards = async (piece: Piece, files: File[]) => {
-    const room = MAX_CARDS - piece.cards.length;
-    const cards = await readCards(files.slice(0, room), (m) => toast(m, "error"));
-    if (!cards.length) return;
-    setPieces((prev) => prev.map((p) => (p.id === piece.id ? { ...p, type: "carrusel", cards: [...p.cards, ...cards] } : p)));
-    loadFrames(cards, setFrame);
+  /** Abre el orden de los slides; si se suman archivos, quedan al final, marcados como nuevos. */
+  const openOrder = async (piece: Piece, files?: File[]) => {
+    let pending: AdCard[] = [];
+    if (files?.length) {
+      const room = MAX_CARDS - piece.cards.length;
+      if (room <= 0) return toast(`Un carrusel lleva hasta ${MAX_CARDS} slides.`);
+      pending = await readCards(files.slice(0, room), (m) => toast(m, "error"));
+      if (!pending.length) return;
+      if (files.length > room) toast(`Un carrusel lleva hasta ${MAX_CARDS} slides: se sumaron los primeros.`);
+    }
+    setOrdering({ pieceId: piece.id, pending });
+  };
+
+  const applyOrder = (order: AdCard[], dropped: AdCard[]) => {
+    const piece = pieces.find((p) => p.id === ordering?.pieceId);
+    dropped.forEach((c) => URL.revokeObjectURL(c.media.url));
+    setOrdering(null);
+    if (!piece || !order.length) return;
+    // Sigue viéndose el mismo slide (si quedó); si no, el más cercano.
+    const shownId = piece.cards[Math.min(piece.slide, piece.cards.length - 1)]?.id;
+    const at = order.findIndex((c) => c.id === shownId);
+    const slide = at >= 0 ? at : Math.min(piece.slide, order.length - 1);
+    patchPiece(piece.id, { cards: order, slide, type: order.length > 1 ? "carrusel" : piece.type });
+    loadFrames(order.filter((c) => !c.frame), setFrame);
+  };
+
+  const cancelOrder = (added: AdCard[]) => {
+    added.forEach((c) => URL.revokeObjectURL(c.media.url));
+    setOrdering(null);
   };
 
   /** Cambia un archivo por otro (mismo lugar en el carrusel). */
@@ -127,12 +153,6 @@ export function AdsShell() {
     loadFrames([card], setFrame);
   };
 
-  const removeCard = (piece: Piece, cardId: string) => {
-    const card = piece.cards.find((c) => c.id === cardId);
-    if (card) URL.revokeObjectURL(card.media.url);
-    patchPiece(piece.id, { cards: piece.cards.filter((c) => c.id !== cardId) });
-  };
-
   const removePiece = (piece: Piece) => {
     piece.cards.forEach((c) => URL.revokeObjectURL(c.media.url));
     setPieces((prev) => prev.filter((p) => p.id !== piece.id));
@@ -141,7 +161,7 @@ export function AdsShell() {
   // Ctrl+V con imágenes copiadas arma una pieza, desde cualquier parte de la página.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      if (adding) return;
+      if (adding || ordering) return;
       const files = [...(e.clipboardData?.files ?? [])].filter((f) => /^(image|video)\//.test(f.type));
       if (!files.length) return;
       e.preventDefault();
@@ -149,7 +169,7 @@ export function AdsShell() {
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [quickAdd, adding]);
+  }, [quickAdd, adding, ordering]);
 
   // Los teléfonos entran enteros a lo alto (y en el celular, casi a lo ancho).
   useEffect(() => {
@@ -162,7 +182,7 @@ export function AdsShell() {
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDragging(false);
-    if (!adding) quickAdd([...e.dataTransfer.files]);
+    if (!adding && !ordering) quickAdd([...e.dataTransfer.files]);
   };
 
   const pickAvatar = (file: File | undefined) => {
@@ -363,6 +383,13 @@ export function AdsShell() {
       </ContextBar>
 
       <AddPieceDialog open={adding} onOpenChange={setAdding} onAdd={addPiece} />
+      <SlidesDialog
+        open={!!ordering}
+        cards={pieces.find((p) => p.id === ordering?.pieceId)?.cards ?? []}
+        pending={ordering?.pending ?? []}
+        onCancel={cancelOrder}
+        onApply={applyOrder}
+      />
 
       <main className="mx-auto max-w-[96rem] px-4 pb-16 pt-[6.5rem] sm:px-6">
         <div className="mb-8 text-center">
@@ -397,9 +424,9 @@ export function AdsShell() {
                   inputFor={inputFor}
                   onPatch={(patch) => patchPiece(piece.id, patch)}
                   onRemove={() => removePiece(piece)}
-                  onAddCards={(files) => addCards(piece, files)}
+                  onOrder={(files) => openOrder(piece, files)}
                   onReplaceCard={(cardId, file) => replaceCard(piece, cardId, file)}
-                  onRemoveCard={(cardId) => removeCard(piece, cardId)}
+                  onSlide={(slide) => patchPiece(piece.id, { slide: Math.max(0, Math.min(piece.cards.length - 1, slide)) })}
                   onDownloadPiece={() => downloadPiece(piece)}
                   onCopy={copyOne}
                   onDownload={downloadOne}

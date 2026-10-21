@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
-import { AlertTriangle, ChevronDown, Copy, Download, ImagePlus, RefreshCw, Smartphone, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, ChevronDown, Copy, Download, ImagePlus, RefreshCw, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,7 +16,7 @@ import { Hint } from "@/components/ui/tooltip";
 import { adaptation, PIECE_TYPES, PLACEMENTS, placementInfo, type PieceType, type Placement } from "@/lib/ads/placements";
 import { ratioLabel } from "@/lib/ads/reel";
 import { cn } from "@/lib/utils";
-import type { MockupInput } from "./draw";
+import { PHONE, type MockupInput } from "./draw";
 import { MockupView } from "./MockupView";
 import { isLowRes, isOffRatio, MAX_CARDS, type AdCard, type Piece } from "./pieces";
 
@@ -45,9 +45,10 @@ const filesOf = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => /^(ima
 const hasFiles = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
 
 /**
- * Una pieza: arriba, en una línea, su tipo, su archivo y lo que se ajusta; abajo, los mockups en fila (en un
- * carrusel, uno por archivo en cada lugar). Soltar archivos en la fila los suma al carrusel (o reemplaza el
- * archivo de un post); soltar uno sobre un teléfono reemplaza ese archivo.
+ * Una pieza: arriba, en una línea, su tipo, su archivo y lo que se ajusta; abajo, un mockup por lugar, en fila.
+ * En un carrusel cada mockup muestra un slide y tiene flechas para pasar; a la izquierda hay un lugar para soltar
+ * más fotos, que abre el orden de los slides (también con "Ordenar slides"). Soltar un archivo sobre un teléfono
+ * reemplaza el que se ve.
  */
 export function PieceRow({
   piece,
@@ -57,9 +58,9 @@ export function PieceRow({
   inputFor,
   onPatch,
   onRemove,
-  onAddCards,
+  onOrder,
   onReplaceCard,
-  onRemoveCard,
+  onSlide,
   onDownloadPiece,
   onCopy,
   onDownload,
@@ -72,9 +73,10 @@ export function PieceRow({
   inputFor: (t: MockupTarget) => Omit<MockupInput, "source">;
   onPatch: (patch: Partial<Piece>) => void;
   onRemove: () => void;
-  onAddCards: (files: File[]) => void;
+  /** Abre el orden de los slides, con los archivos que se suman (si hay). */
+  onOrder: (files?: File[]) => void;
   onReplaceCard: (cardId: string, file: File) => void;
-  onRemoveCard: (cardId: string) => void;
+  onSlide: (index: number) => void;
   onDownloadPiece: () => void;
   onCopy: (t: MockupTarget) => void;
   onDownload: (t: MockupTarget) => void;
@@ -112,7 +114,7 @@ export function PieceRow({
     setDropOn(null);
     const files = filesOf(e);
     if (!files.length) return;
-    if (carousel || files.length > 1) onAddCards(files);
+    if (carousel || files.length > 1) onOrder(files);
     else onReplaceCard(piece.cards[0].id, files[0]);
   };
 
@@ -134,7 +136,7 @@ export function PieceRow({
     >
       {dropOn === "row" && (
         <span className="pointer-events-none absolute right-4 top-4 z-10 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow">
-          {carousel ? "Soltá para sumarlos al carrusel" : "Soltá para reemplazar el archivo (varios lo vuelven carrusel)"}
+          {carousel ? "Soltá para sumar slides" : "Soltá para reemplazar el archivo (varios lo vuelven carrusel)"}
         </span>
       )}
 
@@ -236,13 +238,11 @@ export function PieceRow({
           )}
 
           {carousel ? (
-            total < MAX_CARDS && (
-              <Hint label="Sumar archivos al carrusel (o arrastralos a la fila)">
-                <Button variant="ghost" size="iconSm" aria-label="Sumar archivos al carrusel" onClick={() => addRef.current?.click()}>
-                  <ImagePlus />
-                </Button>
-              </Hint>
-            )
+            <Hint label="Ordenar, sumar o sacar slides">
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-full px-3 text-xs" onClick={() => onOrder()}>
+                <ArrowLeftRight className="!size-3.5" /> Ordenar slides
+              </Button>
+            </Hint>
           ) : (
             <Hint label="Reemplazar el archivo (o soltá otro encima)">
               <Button variant="ghost" size="iconSm" aria-label="Reemplazar el archivo" onClick={() => replace(piece.cards[0].id)}>
@@ -280,7 +280,8 @@ export function PieceRow({
           multiple
           className="hidden"
           onChange={(e) => {
-            onAddCards([...(e.target.files ?? [])]);
+            const files = [...(e.target.files ?? [])];
+            if (files.length) onOrder(files);
             e.target.value = "";
           }}
         />
@@ -300,8 +301,37 @@ export function PieceRow({
 
       {/* Con lugar alrededor para la sombra de los teléfonos, adentro de la tarjeta. */}
       <div className="-mx-4 mt-2 flex snap-x scroll-px-4 gap-5 overflow-x-auto px-4 pb-8 pt-3">
+        {carousel && total < MAX_CARDS && (
+          <button
+            type="button"
+            onClick={() => addRef.current?.click()}
+            onDragOver={(e) => {
+              if (!hasFiles(e)) return;
+              e.preventDefault();
+              e.stopPropagation();
+              if (dropOn !== "add") setDropOn("add");
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDropOn(null);
+              const files = filesOf(e);
+              if (files.length) onOrder(files);
+            }}
+            style={{ width: Math.max(120, PHONE.w * scale * 0.55), height: PHONE.h * scale }}
+            className={cn(
+              "flex shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-[2rem] border-2 border-dashed px-3 text-center text-xs text-muted-foreground outline-none ring-ring transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2",
+              dropOn === "add" ? "border-primary bg-primary/10 text-foreground" : "border-foreground/15"
+            )}
+          >
+            <ImagePlus className="h-6 w-6" />
+            <span className="font-medium">Sumar slides</span>
+            <span>Soltá fotos acá o hacé click. Después las ordenás.</span>
+          </button>
+        )}
         {placements.flatMap((placement) =>
-          piece.cards.map((card, cardIndex) => {
+          (carousel ? [piece.cards[Math.min(piece.slide, total - 1)]] : piece.cards).map((card) => {
+            const cardIndex = piece.cards.indexOf(card);
             const key = `${piece.id}:${card.id}:${placement}`;
             const target = { piece, card, cardIndex, placement };
             const note = adaptation(placement, card.media);
@@ -325,7 +355,17 @@ export function PieceRow({
                 }}
               >
                 <div className="relative">
-                  <MockupView {...inputFor(target)} scale={scale} onSource={(el) => onSource(key, el)} />
+                  <MockupView
+                    key={card.id}
+                    {...inputFor(target)}
+                    scale={scale}
+                    onSource={(el) => onSource(key, el)}
+                    nav={
+                      total > 1
+                        ? { index: cardIndex, total, onPrev: () => onSlide(cardIndex - 1), onNext: () => onSlide(cardIndex + 1) }
+                        : undefined
+                    }
+                  />
                   {dropOn === key && (
                     <span className="pointer-events-none absolute inset-0 grid place-items-center rounded-[2rem] bg-primary/25 ring-4 ring-primary">
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">Soltá para reemplazarlo</span>
@@ -348,18 +388,11 @@ export function PieceRow({
                     </Button>
                   </Hint>
                   {total > 1 && (
-                    <>
-                      <Hint label="Reemplazar este archivo">
-                        <Button variant="ghost" size="iconSm" aria-label={`Reemplazar el archivo ${cardIndex + 1}`} onClick={() => replace(card.id)}>
-                          <RefreshCw />
-                        </Button>
-                      </Hint>
-                      <Hint label="Sacar este archivo del carrusel">
-                        <Button variant="ghost" size="iconSm" aria-label={`Sacar el archivo ${cardIndex + 1} del carrusel`} onClick={() => onRemoveCard(card.id)}>
-                          <X />
-                        </Button>
-                      </Hint>
-                    </>
+                    <Hint label="Reemplazar este slide (o soltá otro encima)">
+                      <Button variant="ghost" size="iconSm" aria-label={`Reemplazar el slide ${cardIndex + 1}`} onClick={() => replace(card.id)}>
+                        <RefreshCw />
+                      </Button>
+                    </Hint>
                   )}
                 </figcaption>
               </figure>

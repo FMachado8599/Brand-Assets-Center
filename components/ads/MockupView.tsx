@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { frameOf, placementInfo } from "@/lib/ads/placements";
 import { SCREEN } from "@/lib/ads/reel";
 import { cn } from "@/lib/utils";
@@ -10,13 +11,15 @@ export type MockupViewProps = Omit<MockupInput, "source"> & {
   scale: number;
   /** El <img>/<video> que se ve, para descargar este mockup en el cuadro en que está. */
   onSource?: (el: HTMLImageElement | HTMLVideoElement | null) => void;
+  /** En un carrusel: las flechas para pasar de slide (en pantalla; no salen en la imagen que se descarga). */
+  nav?: { index: number; total: number; onPrev: () => void; onNext: () => void };
 };
 
 /**
  * Un teléfono con el anuncio: el creativo va en un <img>/<video> (así los videos se reproducen) y encima un
  * canvas con todo lo de Instagram, dibujado con lo mismo que la imagen que se descarga.
  */
-export function MockupView({ scale, onSource, ...input }: MockupViewProps) {
+export function MockupView({ scale, onSource, nav, ...input }: MockupViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const f = frameOf(input.placement, input.media);
   const { media, fit } = input;
@@ -77,6 +80,31 @@ export function MockupView({ scale, onSource, ...input }: MockupViewProps) {
         )}
       </div>
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" role="img" aria-label={`Mockup: ${placementInfo(input.placement).label}`} />
+      {/* Encima del canvas, a media altura del creativo. */}
+      {nav && nav.total > 1 && (
+        <div
+          className="pointer-events-none absolute flex items-center justify-between px-2"
+          style={{ left: BEZEL * scale, width: SCREEN.w * scale, top: (BEZEL + f.top + f.height / 2) * scale - 16 }}
+        >
+          {(
+            [
+              ["Slide anterior", ChevronLeft, nav.onPrev, nav.index === 0],
+              ["Slide siguiente", ChevronRight, nav.onNext, nav.index === nav.total - 1],
+            ] as const
+          ).map(([label, Icon, onClick, off]) => (
+            <button
+              key={label}
+              type="button"
+              aria-label={`${label} (${nav.index + 1} de ${nav.total})`}
+              onClick={onClick}
+              disabled={off}
+              className="pointer-events-auto grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink shadow-md outline-none ring-ring transition hover:bg-white focus-visible:ring-2 disabled:invisible"
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
