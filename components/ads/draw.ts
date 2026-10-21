@@ -44,6 +44,8 @@ export type MockupInput = {
   mark: boolean;
   safeZone: boolean;
   time: string;
+  /** En un carrusel: qué tarjeta es y cuántas hay. */
+  card?: { index: number; total: number };
 };
 
 const font = (weight: number, size: number) => `${weight} ${size}px ${FONT}`;
@@ -398,6 +400,58 @@ function reelsFeed(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
 
 /* ───────────── Reels en la pestaña Reels (captura de Jetour, 738 × 1600 px) ───────────── */
 
+/** La barra de abajo de Instagram (inicio, Reels, mensajes, buscar, perfil), con la pestaña en la que se está. */
+function tabBar(ctx: CanvasRenderingContext2D, active: "home" | "reels") {
+  const y = 792.3;
+  ctx.fillStyle = "#0b1014";
+  ctx.fillRect(0, 770, SCREEN.w, SCREEN.h - 770);
+  ctx.fillStyle = "#1c2024";
+  ctx.fillRect(0, 770, SCREEN.w, 0.6);
+  if (active === "home") {
+    ctx.save();
+    ctx.translate(38.9 - 11, y - 11);
+    ctx.scale(22 / 24, 22 / 24);
+    ctx.fillStyle = "#fff";
+    ctx.fill(new Path2D(STROKES.home.d[0]));
+    ctx.restore();
+    icon(ctx, "reelsTab", 116.8, y, 22);
+  } else {
+    icon(ctx, "home", 38.9, y, 22);
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(116.8 - 10, y - 10, 20, 20, 5.5);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(114.6, y - 4.9);
+    ctx.lineTo(121.4, y);
+    ctx.lineTo(114.6, y + 4.9);
+    ctx.closePath();
+    ctx.fillStyle = "#0b1014";
+    ctx.fill();
+    ctx.restore();
+  }
+  icon(ctx, "share", 195, y, 22);
+  icon(ctx, "search", 272.7, y, 22);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(350.4, y, 10.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#5b6470";
+  ctx.fill();
+  ctx.clip();
+  ctx.translate(350.4 - 9, y - 7);
+  ctx.scale(18 / 24, 18 / 24);
+  ctx.fillStyle = "rgba(255,255,255,.8)";
+  PERSON_D.forEach((d) => ctx.fill(new Path2D(d)));
+  ctx.restore();
+  for (const [x, dy] of [[206, 7.7], [361, 8.3]]) {
+    ctx.beginPath();
+    ctx.arc(x, y + dy, 3.1, 0, Math.PI * 2);
+    ctx.fillStyle = "#ff3040";
+    ctx.fill();
+  }
+}
+
 const IG_RING = ["#feda75", "#fa7e1e", "#d62976", "#962fbf", "#4f5bd5"];
 
 /** Las dos líneas del texto: la primera hasta donde entra y la segunda con " ..." y «Publicidad» en negrita. */
@@ -432,44 +486,7 @@ function reelsTab(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   if (p.showUI) shade(ctx, f, [[0, "rgba(0,0,0,.12)"], [0.12, "rgba(0,0,0,0)"], [0.55, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,.45)"]]);
   if (p.safeZone) safeZone(ctx, f);
 
-  // La barra de abajo de Instagram.
-  ctx.fillStyle = "#0b1014";
-  ctx.fillRect(0, 770, SCREEN.w, SCREEN.h - 770);
-  ctx.fillStyle = "#1c2024";
-  ctx.fillRect(0, 770, SCREEN.w, 0.6);
-  icon(ctx, "home", 38.9, 792.3, 22);
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(116.8 - 10, 792.3 - 10, 20, 20, 5.5);
-  ctx.fillStyle = "#fff";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(114.6, 787.4);
-  ctx.lineTo(121.4, 792.3);
-  ctx.lineTo(114.6, 797.2);
-  ctx.closePath();
-  ctx.fillStyle = "#0b1014";
-  ctx.fill();
-  ctx.restore();
-  icon(ctx, "share", 195, 792.3, 22);
-  icon(ctx, "search", 272.7, 792.3, 22);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(350.4, 792.3, 10.5, 0, Math.PI * 2);
-  ctx.fillStyle = "#5b6470";
-  ctx.fill();
-  ctx.clip();
-  ctx.translate(350.4 - 9, 792.3 - 7);
-  ctx.scale(18 / 24, 18 / 24);
-  ctx.fillStyle = "rgba(255,255,255,.8)";
-  PERSON_D.forEach((d) => ctx.fill(new Path2D(d)));
-  ctx.restore();
-  for (const [x, y] of [[206, 800], [361, 800.6]]) {
-    ctx.beginPath();
-    ctx.arc(x, y, 3.1, 0, Math.PI * 2);
-    ctx.fillStyle = "#ff3040";
-    ctx.fill();
-  }
+  tabBar(ctx, "reels");
 
   statusBar(ctx, p.time);
   if (!p.showUI) return;
@@ -592,15 +609,24 @@ function story(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   storyFrame(ctx, p, f);
   if (!p.showUI) return;
 
-  // Arriba: la barra de progreso, la cuenta, "⋯" y la cruz.
-  ctx.fillStyle = "rgba(255,255,255,.38)";
-  ctx.beginPath();
-  ctx.roundRect(7.4, 60.4, 375.2, 1.8, 1);
-  ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.roundRect(7.4, 60.4, 46, 1.8, 1);
-  ctx.fill();
+  // Arriba: la barra de progreso (una por tarjeta si es un carrusel), la cuenta, "⋯" y la cruz.
+  const total = p.card?.total ?? 1;
+  const current = p.card?.index ?? 0;
+  const gap = 4;
+  const seg = (375.2 - gap * (total - 1)) / total;
+  for (let i = 0; i < total; i++) {
+    const x = 7.4 + i * (seg + gap);
+    ctx.fillStyle = "rgba(255,255,255,.38)";
+    ctx.beginPath();
+    ctx.roundRect(x, 60.4, seg, 1.8, 1);
+    ctx.fill();
+    const done = i < current ? seg : i === current ? Math.min(seg, 46) : 0;
+    if (!done) continue;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.roundRect(x, 60.4, done, 1.8, 1);
+    ctx.fill();
+  }
   drawAvatar(ctx, p, 25.4, 84.3, 13.75);
   ctx.font = font(600, 10.5);
   const name = ellipsize(ctx, p.account || "tu.marca", 250);
@@ -643,9 +669,137 @@ function story(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   }
 }
 
+/* ───────────── Feed (inicio) ───────────── */
+
+const WORDMARK_FONT = '"Snell Roundhand", "Segoe Script", "Brush Script MT", cursive';
+
+/** El texto del feed: la cuenta en negrita y lo que entra en dos líneas; si queda algo, " ... más" en gris. */
+function feedCaption(ctx: CanvasRenderingContext2D, p: MockupInput, y: number, more: string) {
+  const max = SCREEN.w - 28;
+  const account = p.account || "tu.marca";
+  ctx.font = font(600, 13.5);
+  const accountWidth = ctx.measureText(`${account} `).width;
+  ctx.font = font(400, 13.5);
+  const moreWidth = ctx.measureText(` ... ${more}`).width;
+  const words = p.caption.trim().split(/\s+/).filter(Boolean);
+  const lines: string[] = [""];
+  let i = 0;
+  for (; i < words.length; i++) {
+    const line = lines.length - 1;
+    const room = max - (line === 0 ? accountWidth : 0) - (line === 1 ? moreWidth : 0);
+    const next = lines[line] ? `${lines[line]} ${words[i]}` : words[i];
+    if (ctx.measureText(next).width <= room) {
+      lines[line] = next;
+      continue;
+    }
+    if (line === 1) break;
+    lines.push(words[i]);
+  }
+  const cut = i < words.length;
+  text(ctx, account, 14, y, 600, 13.5);
+  text(ctx, lines[0], 14 + accountWidth, y, 400, 13.5);
+  if (lines[1] !== undefined) {
+    text(ctx, lines[1], 14, y + 18, 400, 13.5);
+    if (cut) {
+      ctx.font = font(400, 13.5);
+      const w = ctx.measureText(lines[1]).width;
+      text(ctx, " ...", 14 + w, y + 18, 400, 13.5);
+      text(ctx, more, 14 + w + ctx.measureText(" ... ").width, y + 18, 400, 13.5, "left", "#a8a8a8");
+    }
+  }
+}
+
+function feed(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
+  const t = UI_TEXT[p.lang];
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
+
+  // Arriba: Instagram, me gusta y mensajes.
+  ctx.font = `400 27px ${WORDMARK_FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#fff";
+  ctx.fillText("Instagram", 15, 70);
+  icon(ctx, "heart", 329, 69, 26);
+  icon(ctx, "share", 366, 69, 25);
+
+  // La cuenta, con «Publicidad» abajo.
+  drawAvatar(ctx, p, 30, 118, 16);
+  ctx.font = font(600, 13.5);
+  text(ctx, ellipsize(ctx, p.account || "tu.marca", 280), 54, 110, 600, 13.5);
+  text(ctx, t.sponsored, 54, 127, 400, 12);
+  dots(ctx, 368, 118, 4.6, 1.5);
+
+  drawMedia(ctx, p, f);
+  const bottom = f.top + f.height;
+
+  // En un carrusel: "2/5" arriba a la derecha.
+  const total = p.card?.total ?? 1;
+  const current = p.card?.index ?? 0;
+  let badge: [number, number, number, number] | null = null;
+  if (p.showUI && total > 1) {
+    const label = `${current + 1}/${total}`;
+    ctx.font = font(500, 12);
+    const w = ctx.measureText(label).width + 18;
+    badge = [SCREEN.w - 14 - w, f.top + 14, w, 24];
+    ctx.beginPath();
+    ctx.roundRect(...badge, 12);
+    ctx.fillStyle = "rgba(18,18,18,.72)";
+    ctx.fill();
+    text(ctx, label, SCREEN.w - 14 - w / 2, f.top + 26, 500, 12, "center");
+  }
+
+  // La barra del botón, debajo del creativo.
+  ctx.fillStyle = p.colors.cta;
+  ctx.fillRect(0, bottom, SCREEN.w, 44);
+  ctx.font = font(600, 14);
+  text(ctx, ellipsize(ctx, p.cta, SCREEN.w - 70), 14, bottom + 22, 600, 14);
+  icon(ctx, "chevron", SCREEN.w - 20, bottom + 22, 17);
+
+  // Me gusta, comentar, enviar, guardar; en un carrusel, los puntitos al medio.
+  const ay = bottom + 44 + 24;
+  icon(ctx, "heart", 27, ay, 27);
+  icon(ctx, "comment", 66, ay, 25);
+  icon(ctx, "share", 104, ay, 25);
+  icon(ctx, "bookmark", SCREEN.w - 25, ay, 25);
+  if (total > 1) {
+    const shown = Math.min(total, 10);
+    const step = 7;
+    const start = SCREEN.w / 2 - ((shown - 1) * step) / 2;
+    for (let i = 0; i < shown; i++) {
+      ctx.beginPath();
+      ctx.arc(start + i * step, ay, i === current ? 3 : 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = i === current ? "#0095f6" : "#5e5e5e";
+      ctx.fill();
+    }
+  }
+  text(ctx, t.likes, 14, ay + 32, 600, 13.5);
+  feedCaption(ctx, p, ay + 52, t.more);
+
+  if (p.safeZone) safeZoneNote(ctx, f);
+  tabBar(ctx, "home");
+  statusBar(ctx, p.time);
+
+  if (p.mark && badge) markBox(ctx, ...badge);
+}
+
+/** En el feed no hay zona segura de Meta: nada va encima del creativo (salvo el "1/5" de los carruseles). */
+function safeZoneNote(ctx: CanvasRenderingContext2D, f: Frame) {
+  ctx.save();
+  ctx.font = font(600, 11);
+  const label = "En el feed no tapa nada: la zona segura es para 9:16";
+  const w = ctx.measureText(label).width + 12;
+  ctx.fillStyle = "#fde047";
+  ctx.beginPath();
+  ctx.roundRect(14, f.top + 14, w, 18, 4);
+  ctx.fill();
+  text(ctx, label, 20, f.top + 23, 600, 11, "left", "#000");
+  ctx.restore();
+}
+
 /** Dibuja un mockup entero (teléfono, pantalla y todo lo de Instagram) en puntos: quien llama pone la escala. */
 export function drawMockup(ctx: CanvasRenderingContext2D, p: MockupInput) {
-  const f = frameOf(p.placement);
+  const f = frameOf(p.placement, p.media);
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(0, 0, PHONE.w, PHONE.h, 58);
@@ -667,6 +821,8 @@ export function drawMockup(ctx: CanvasRenderingContext2D, p: MockupInput) {
     reelsFeed(ctx, p, f);
   } else if (p.placement === "reels") {
     reelsTab(ctx, p, f);
+  } else if (p.placement === "feed") {
+    feed(ctx, p, f);
   } else {
     story(ctx, p, f);
   }

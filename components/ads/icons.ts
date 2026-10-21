@@ -29,6 +29,10 @@ export const STROKES = {
   /** La barra de abajo de la pestaña Reels. */
   home: { width: 1.9, d: ["M3.5 10.2 12 3.5l8.5 6.7V20a1 1 0 0 1-1 1h-4.8v-6.2H9.3V21H4.5a1 1 0 0 1-1-1Z"] },
   search: { width: 1.9, d: ["M10.8 18.1a7.3 7.3 0 1 0 0-14.6 7.3 7.3 0 0 0 0 14.6Z", "m16.2 16.2 4.8 4.8"] },
+  /** Guardar (el marcador de la derecha en el feed). */
+  bookmark: { width: 1.9, d: ["M6 3.5h12v17l-6-5.4-6 5.4Z"] },
+  /** La pestaña Reels sin elegir: un cuadrado redondeado con el triángulo. */
+  reelsTab: { width: 1.9, d: ["M7 3.5h10a3.5 3.5 0 0 1 3.5 3.5v10a3.5 3.5 0 0 1-3.5 3.5H7A3.5 3.5 0 0 1 3.5 17V7A3.5 3.5 0 0 1 7 3.5Z", "M10 9v6l5-3Z"] },
 } as const;
 
 export type StrokeName = keyof typeof STROKES;

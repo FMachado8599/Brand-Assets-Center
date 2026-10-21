@@ -18,7 +18,7 @@ export type MockupViewProps = Omit<MockupInput, "source"> & {
  */
 export function MockupView({ scale, onSource, ...input }: MockupViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const f = frameOf(input.placement);
+  const f = frameOf(input.placement, input.media);
   const { media, fit } = input;
 
   // Se redibuja en cada cambio (es un dibujo chico).

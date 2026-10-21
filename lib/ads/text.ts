@@ -1,9 +1,24 @@
 /** Instagram en español o en inglés: cambia el largo de los textos que tapan (ej: «Más información» y «Learn more»). */
 export type Lang = "es" | "en";
 
-export const UI_TEXT: Record<Lang, { ad: string; comment: string; notInterested: string; interested: string; swipe: string }> = {
+type UiText = {
+  ad: string;
+  /** Debajo del nombre de la cuenta, en el feed. */
+  sponsored: string;
+  likes: string;
+  more: string;
+  comment: string;
+  notInterested: string;
+  interested: string;
+  swipe: string;
+};
+
+export const UI_TEXT: Record<Lang, UiText> = {
   es: {
     ad: "Publicidad",
+    sponsored: "Publicidad",
+    likes: "245 Me gusta",
+    more: "más",
     comment: "Agrega un comentario...",
     notInterested: "No me interesa",
     interested: "Me interesa",
@@ -11,6 +26,9 @@ export const UI_TEXT: Record<Lang, { ad: string; comment: string; notInterested:
   },
   en: {
     ad: "Ad",
+    sponsored: "Sponsored",
+    likes: "245 likes",
+    more: "more",
     comment: "Add a comment...",
     notInterested: "Not interested",
     interested: "Interested",
