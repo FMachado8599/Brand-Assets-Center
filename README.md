@@ -438,7 +438,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 
 También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sola (varios archivos → carrusel; 9:16 → reel si es video o historia si es imagen; si no, post) y el tipo se cambia arriba de sus mockups.
 
-**Cada fila** tiene: el número y el tipo de pieza (se puede cambiar), el archivo y su proporción (con ⚠ si algo no está bien), los mockups para prender o apagar (con un punto naranja los que Meta adapta), "Con fondo / Recortado" si hace falta, el color del botón (sale del creativo; se puede cambiar), sumar archivos (carrusel), descargar todos sus mockups y quitarla.
+**Cada fila** tiene, en una línea: el número y el tipo de pieza (se puede cambiar), el archivo y su proporción (con ⚠ si algo no está bien), el selector de **mockups** (un menú con casillas, agrupado en feed, Reels e historias; los que Meta adapta lo dicen), "Con fondo / Recortado" si hace falta, **reemplazar** el archivo (en un carrusel, cada teléfono tiene el suyo) o **sumar archivos** al carrusel, el color del botón (sale del creativo; se puede cambiar), descargar todos sus mockups y quitarla. **Arrastrar archivos** sobre la fila los suma al carrusel (en un post, uno lo reemplaza y varios lo vuelven carrusel); soltar uno **sobre un teléfono** reemplaza ese archivo.
 
 **Los mockups** (todos salen de capturas reales en un iPhone de 390 × 844 pt):
 

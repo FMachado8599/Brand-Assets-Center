@@ -117,6 +117,16 @@ export function AdsShell() {
     loadFrames(cards, setFrame);
   };
 
+  /** Cambia un archivo por otro (mismo lugar en el carrusel). */
+  const replaceCard = async (piece: Piece, cardId: string, file: File) => {
+    const [card] = await readCards([file], (m) => toast(m, "error"));
+    if (!card) return;
+    const old = piece.cards.find((c) => c.id === cardId);
+    if (old) URL.revokeObjectURL(old.media.url);
+    setPieces((prev) => prev.map((p) => (p.id === piece.id ? { ...p, cards: p.cards.map((c) => (c.id === cardId ? card : c)) } : p)));
+    loadFrames([card], setFrame);
+  };
+
   const removeCard = (piece: Piece, cardId: string) => {
     const card = piece.cards.find((c) => c.id === cardId);
     if (card) URL.revokeObjectURL(card.media.url);
@@ -309,6 +319,8 @@ export function AdsShell() {
         if (e.currentTarget === e.target) setDragging(false);
       }}
       onDrop={onDrop}
+      // Soltar sobre una fila no llega acá (la fila lo usa): igual se deja de marcar la página.
+      onDropCapture={() => setDragging(false)}
     >
       <ContextBar>
         <BarAction label="Agregar pieza" icon={Plus} onClick={() => setAdding(true)}>
@@ -386,6 +398,7 @@ export function AdsShell() {
                   onPatch={(patch) => patchPiece(piece.id, patch)}
                   onRemove={() => removePiece(piece)}
                   onAddCards={(files) => addCards(piece, files)}
+                  onReplaceCard={(cardId, file) => replaceCard(piece, cardId, file)}
                   onRemoveCard={(cardId) => removeCard(piece, cardId)}
                   onDownloadPiece={() => downloadPiece(piece)}
                   onCopy={copyOne}

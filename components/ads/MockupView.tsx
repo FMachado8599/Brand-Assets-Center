@@ -57,7 +57,7 @@ export function MockupView({ scale, onSource, ...input }: MockupViewProps) {
 
   return (
     <div
-      className="relative shrink-0 shadow-[0_30px_80px_-20px_rgba(0,0,0,.45)]"
+      className="relative shrink-0 shadow-[0_16px_28px_-14px_rgba(0,0,0,.45)]"
       style={{ width: PHONE.w * scale, height: PHONE.h * scale, borderRadius: 58 * scale }}
     >
       <div
