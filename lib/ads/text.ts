@@ -11,6 +11,8 @@ type UiText = {
   notInterested: string;
   interested: string;
   swipe: string;
+  /** Los números de los íconos de Reels (me gusta, comentarios, compartidos, enviados): anchos, para ver lo más que ocupan. */
+  counts: [string, string, string, string];
 };
 
 export const UI_TEXT: Record<Lang, UiText> = {
@@ -23,6 +25,7 @@ export const UI_TEXT: Record<Lang, UiText> = {
     notInterested: "No me interesa",
     interested: "Me interesa",
     swipe: "Desliza hacia arriba para ver el formulario",
+    counts: ["12,4 mil", "1.284", "356", "2.091"],
   },
   en: {
     ad: "Ad",
@@ -33,6 +36,7 @@ export const UI_TEXT: Record<Lang, UiText> = {
     notInterested: "Not interested",
     interested: "Interested",
     swipe: "Swipe up to view form",
+    counts: ["12.4K", "1,284", "356", "2,091"],
   },
 };
 

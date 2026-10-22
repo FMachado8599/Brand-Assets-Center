@@ -436,7 +436,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 **Cómo se usa**
 
 1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
-2. Se sube el archivo (en un carrusel, de 2 a 10, en orden).
+2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (o con las flechas), y se saca o se suma alguno.
 3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
 4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Debajo de cada teléfono, copiar o descargar ese mockup.
 
@@ -451,8 +451,8 @@ También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sol
 | Mockup | Qué tapa o muestra | Captura de referencia |
 | --- | --- | --- |
 | **Feed** | El inicio: la barra de Instagram, la cuenta con «Publicidad», el creativo (4:5 como mucho de alto), la barra del botón debajo, me gusta / comentar / enviar / guardar, «Me gusta», dos líneas de texto y la barra de abajo. En un carrusel, el «2/5» arriba a la derecha (lo único que va encima del creativo) y los puntitos. | Sin calibrar todavía: medidas típicas de Instagram |
-| **Reels** | En la pestaña Reels: la tarjeta con miniatura y título pegada al botón, los íconos del costado con sus números, la cuenta con el anillo de historia, dos líneas de texto que terminan en «… Publicidad» y la barra de abajo. | Jetour (738 × 1600 px) |
-| **Reels desde el feed** | La flecha para atrás, los íconos del costado, las burbujas de seguidores, el botón, la cuenta, una línea de texto con «Publicidad» y la barra de comentarios. | Changan (923 × 2000 px) |
+| **Reels** | En la pestaña Reels: la tarjeta con miniatura y título pegada al botón, los íconos del costado, todos con su número abajo (me gusta, comentarios, compartidos y enviados: así se ve lo más que ocupan), la cuenta con el anillo de historia, dos líneas de texto que terminan en «… Publicidad» y la barra de abajo. | Jetour (738 × 1600 px) |
+| **Reels desde el feed** | La flecha para atrás, los íconos del costado (también con su número abajo), las burbujas de seguidores, el botón, la cuenta, una línea de texto con «Publicidad» y la barra de comentarios. | Changan (923 × 2000 px) |
 | **Historia** | La barra de progreso (una por archivo si es un carrusel), la cuenta, ⋯ y ✕; el sticker blanco del enlace; abajo, «Publicidad» con me gusta y responder. | Leapmotor |
 | **Historia con «Me interesa»** | Lo mismo más «No me interesa» y «Me interesa» (anuncios de clientes potenciales). | Leapmotor |
 | **Historia con formulario** | El sticker y, debajo del creativo, «Desliza hacia arriba para ver el formulario». | Changan |
@@ -464,15 +464,16 @@ También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sol
 
 Los mockups adaptados lo dicen debajo del teléfono.
 
-**La barra de arriba**: Agregar pieza; **ver sin la interfaz**, **marcar lo que tapa** (en rojo), **zona segura de Meta** y **burbujas de seguidores**; el **engranaje** con la configuración; y **descargar todo**.
+**La barra de arriba**: Agregar pieza; **ver sin la interfaz**, **marcar lo que tapa** (en rojo), **zona segura**, **marcar el texto fuera de la zona segura** y **burbujas de seguidores**; el **engranaje** con la configuración; y **descargar todo**.
 
-- **Zona segura de Meta**: la de la Guía de anuncios para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que el "Safe Zone Guardrail" de Ads Manager. En el feed no aplica: no hay nada encima del creativo.
+- **Zona segura**: la de la Guía de anuncios para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que el "Safe Zone Guardrail" de Ads Manager. En el feed no aplica: no hay nada encima del creativo. En los dos de Reels se le suma la **columna de íconos** del costado, medida con todos sus números (por eso la zona segura tiene un escalón abajo a la derecha).
+- **Texto fuera de la zona segura** (prendido de entrada): la app busca texto en cada creativo, sin IA y sin que el archivo salga del navegador. Las letras dejan muchos bordes seguidos y parejos en una misma línea, y las fotos casi nunca. Si al menos un 15 % de un texto cae en lo que no es seguro (o queda recortado fuera de la pantalla), se marca en rojo en el mockup y debajo del teléfono dice cuántos; la fila lo avisa con ⚠. De un video se miran varios cuadros (uno cada ~2 s, de 3 a 8), porque el texto puede aparecer en cualquier momento. Es una estimación: si marca algo que no es texto, o está bien así, **Ignorar** lo apaga para ese archivo. La idea es la del «Validador de márgenes - Meta Reels»; acá se cruza con la zona de cada mockup.
 - **Burbujas de seguidores** (Reels desde el feed): no siempre salen (dependen de quién lo ve), pero cuando salen tapan.
 - **Configuración** (engranaje; vale para todas las piezas y se recuerda en la cuenta): el cliente (pone su logo de foto de perfil y, si tiene su Instagram en la ficha, ese usuario), el usuario y la foto, el texto (se ve solo el principio, como lo corta Instagram en cada mockup), el título (tarjeta de Reels), el botón (los de Meta) y el idioma de Instagram (español o inglés: cambian «Más información» / «Learn more», «Publicidad» / «Ad»… y no miden lo mismo).
 
 **Descargas**: cada teléfono copia o descarga su mockup; cada fila baja todos los suyos (un `.zip` si son varios); **descargar todo** arma un `.zip` con una carpeta por pieza (`01 Post - nombre/Feed.png`, `02 Carrusel - nombre/Feed - 2 de 5.png`…). Son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes); de un video sale el cuadro que se está viendo (o, en lote, uno de adentro). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes).
 
-**Cómo está hecho**: los tipos de pieza, los mockups, qué se marca por defecto y dónde va el creativo están en `lib/ads/placements.ts`; los textos en los dos idiomas en `lib/ads/text.ts`. Cada mockup se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías): en pantalla el creativo va en un `<img>`/`<video>` debajo (así los videos se reproducen) y al descargar se dibuja adentro. Las piezas y la lectura de archivos están en `components/ads/pieces.ts`; el diálogo en `AddPieceDialog.tsx`, cada fila en `PieceRow.tsx` y la configuración en `AdsSettings.tsx`. Nada se sube a ningún lado: los archivos se abren en el navegador.
+**Cómo está hecho**: los tipos de pieza, los mockups, qué se marca por defecto y dónde va el creativo están en `lib/ads/placements.ts`; los textos en los dos idiomas en `lib/ads/text.ts`; la zona segura (con la columna de íconos) y qué texto cae afuera, en `lib/ads/safe.ts`; la búsqueda de texto, en `lib/ads/textScan.ts`. Cada mockup se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías): en pantalla el creativo va en un `<img>`/`<video>` debajo (así los videos se reproducen) y al descargar se dibuja adentro. Las piezas y la lectura de archivos están en `components/ads/pieces.ts`; el diálogo en `AddPieceDialog.tsx`, cada fila en `PieceRow.tsx` y la configuración en `AdsSettings.tsx`. Nada se sube a ningún lado: los archivos se abren en el navegador.
 
 ---
 

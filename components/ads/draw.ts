@@ -1,6 +1,7 @@
 import type { AdColors } from "@/lib/ads/color";
 import { frameOf, type Frame, type Placement } from "@/lib/ads/placements";
-import { META_SAFE, SCREEN, type AdMedia } from "@/lib/ads/reel";
+import { SCREEN, type AdMedia } from "@/lib/ads/reel";
+import { RAIL, railBox, textCollisions, zonesOf, type Rect, type TextBox } from "@/lib/ads/safe";
 import { UI_TEXT, type Lang } from "@/lib/ads/text";
 import { inkOn } from "@/lib/clients/color";
 import { FOLLOW_D, PERSON_D, STROKES, type StrokeName } from "./icons";
@@ -46,6 +47,10 @@ export type MockupInput = {
   time: string;
   /** En un carrusel: qué tarjeta es y cuántas hay. */
   card?: { index: number; total: number };
+  /** Los textos encontrados en el creativo (null: todavía no se buscaron, o el aviso se ignoró). */
+  texts: TextBox[] | null;
+  /** Marcar en rojo los textos que caen donde no es seguro. */
+  textCheck: boolean;
 };
 
 const font = (weight: number, size: number) => `${weight} ${size}px ${FONT}`;
@@ -170,20 +175,14 @@ function shade(ctx: CanvasRenderingContext2D, f: Frame, stops: [number, string][
   ctx.restore();
 }
 
-function safeZone(ctx: CanvasRenderingContext2D, f: Frame) {
-  const top = f.height * META_SAFE.top;
-  const bottom = f.height * META_SAFE.bottom;
-  const side = SCREEN.w * META_SAFE.side;
+/** Lo que no es seguro, rayado en amarillo: las bandas de Meta y, en Reels, la columna de íconos (ver lib/ads/safe). */
+function safeZone(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
+  const zones = zonesOf(p.placement, p.media);
+  if (!zones) return;
   const y0 = f.top;
-  const zones: [number, number, number, number][] = [
-    [0, y0, SCREEN.w, top],
-    [0, y0 + f.height - bottom, SCREEN.w, bottom],
-    [0, y0 + top, side, f.height - top - bottom],
-    [SCREEN.w - side, y0 + top, side, f.height - top - bottom],
-  ];
   ctx.save();
   ctx.beginPath();
-  zones.forEach(([x, y, w, h]) => ctx.rect(x, y, w, h));
+  zones.unsafe.forEach((r) => ctx.rect(r.x, r.y, r.w, r.h));
   ctx.clip();
   ctx.fillStyle = "rgba(250,204,21,.14)";
   ctx.fillRect(0, y0, SCREEN.w, f.height);
@@ -202,16 +201,47 @@ function safeZone(ctx: CanvasRenderingContext2D, f: Frame) {
   ctx.setLineDash([6, 4]);
   ctx.lineWidth = 2;
   ctx.strokeStyle = "#fde047";
-  ctx.strokeRect(side + 1, y0 + top + 1, SCREEN.w - side * 2 - 2, f.height - top - bottom - 2);
+  ctx.beginPath();
+  zones.outline.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+  ctx.stroke();
   ctx.setLineDash([]);
   ctx.font = font(600, 11);
-  const label = "Zona segura de Meta";
+  const label = railBox(p.placement) ? "Zona segura: Meta + íconos de Reels" : "Zona segura de Meta";
   const w = ctx.measureText(label).width + 12;
+  const [x0, top] = zones.outline[0];
   ctx.fillStyle = "#fde047";
   ctx.beginPath();
-  ctx.roundRect(side + 6, y0 + top + 6, w, 18, 4);
+  ctx.roundRect(x0 + 6, top + 6, w, 18, 4);
   ctx.fill();
-  text(ctx, label, side + 12, y0 + top + 15, 600, 11, "left", "#000");
+  text(ctx, label, x0 + 12, top + 15, 600, 11, "left", "#000");
+  ctx.restore();
+}
+
+/** Los íconos del costado de Reels, cada uno con su número abajo (el ⋯ no tiene). Medidas en RAIL. */
+function rail(ctx: CanvasRenderingContext2D, p: MockupInput, placement: "reels" | "reels-feed") {
+  const r = RAIL[placement];
+  const counts = UI_TEXT[p.lang].counts;
+  (["heart", "comment", "repost", "share"] as const).forEach((name, i) => {
+    icon(ctx, name, r.x, r.items[i], r.sizes[i]);
+    text(ctx, counts[i], r.x, r.items[i] + r.countDy, 600, r.font, "center");
+  });
+  if (placement === "reels") dots(ctx, r.x, r.more, 5.6, 1.6);
+  else icon(ctx, "more", r.x, r.more, r.moreSize);
+}
+
+/** Un texto del creativo que cae donde no es seguro (ver textCollisions). */
+function textHit(ctx: CanvasRenderingContext2D, r: Rect) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 4);
+  ctx.fillStyle = "rgba(239,68,68,.25)";
+  ctx.fill();
+  ctx.shadowColor = "rgba(239,68,68,.8)";
+  ctx.shadowBlur = 8;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#ef4444";
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -311,12 +341,12 @@ function reelsFeed(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   if (p.showUI) {
     shade(ctx, f, [[0, "rgba(0,0,0,.18)"], [0.14, "rgba(0,0,0,0)"], [0.58, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,.32)"]]);
   }
-  if (p.safeZone) safeZone(ctx, f);
+  if (p.safeZone) safeZone(ctx, p, f);
   statusBar(ctx, p.time);
   if (!p.showUI) return;
 
   icon(ctx, "back", 37, 83, 26);
-  for (const [name, y] of [["heart", 507], ["comment", 554], ["repost", 601], ["share", 649], ["more", 693]] as const) icon(ctx, name, 359, y, 30);
+  rail(ctx, p, "reels-feed");
 
   if (p.social) {
     for (const b of BUBBLES) {
@@ -391,7 +421,8 @@ function reelsFeed(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
 
   if (p.mark) {
     markBox(ctx, 24, 70, 26, 26);
-    markBox(ctx, 342, 489, 34, 222);
+    const r = railBox("reels-feed")!;
+    markBox(ctx, r.x, r.y, r.w, r.h);
     if (p.social) markBox(ctx, 14, 535, 198, 69);
     markBox(ctx, 16, 612, 307, 46);
     markBox(ctx, 16, 677, Math.min(320, 35.5 + 8.5 + nameWidth), 36);
@@ -484,21 +515,14 @@ function reelsTab(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
   drawMedia(ctx, p, f);
   if (p.showUI) shade(ctx, f, [[0, "rgba(0,0,0,.12)"], [0.12, "rgba(0,0,0,0)"], [0.55, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,.45)"]]);
-  if (p.safeZone) safeZone(ctx, f);
+  if (p.safeZone) safeZone(ctx, p, f);
 
   tabBar(ctx, "reels");
 
   statusBar(ctx, p.time);
   if (!p.showUI) return;
 
-  // Al costado: me gusta y enviar llevan cuántos hubo.
-  icon(ctx, "heart", 361.8, 538.3, 28.5);
-  text(ctx, "245", 361.8, 564.2, 600, 9.5, "center");
-  icon(ctx, "comment", 362, 601.4, 26);
-  icon(ctx, "repost", 362, 643.8, 28.5);
-  icon(ctx, "share", 362, 687.1, 27);
-  text(ctx, "18", 362, 712.5, 600, 9.5, "center");
-  dots(ctx, 362, 745.8, 5.6, 1.6);
+  rail(ctx, p, "reels");
 
   // La tarjeta: miniatura y título, y el botón pegado abajo.
   ctx.beginPath();
@@ -559,7 +583,8 @@ function reelsTab(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   text(ctx, t.ad, adX, adY, 600, 11.3);
 
   if (p.mark) {
-    markBox(ctx, 346, 522, 32, 196);
+    const r = railBox("reels")!;
+    markBox(ctx, r.x, r.y, r.w, r.h);
     markBox(ctx, 14.8, 538, 314, 114.7);
     markBox(ctx, 14, 669.5, Math.min(300, 47.8 + nameWidth + 6), 40.5);
     if (first) markBox(ctx, 14.8, 719, firstWidth + 2, Math.min(13, f.top + f.height - 719));
@@ -573,7 +598,7 @@ function storyFrame(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
   drawMedia(ctx, p, f);
   if (p.showUI) shade(ctx, f, [[0, "rgba(0,0,0,.3)"], [0.16, "rgba(0,0,0,0)"], [0.8, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,.18)"]]);
-  if (p.safeZone) safeZone(ctx, f);
+  if (p.safeZone) safeZone(ctx, p, f);
   statusBar(ctx, p.time);
 }
 
@@ -826,6 +851,7 @@ export function drawMockup(ctx: CanvasRenderingContext2D, p: MockupInput) {
   } else {
     story(ctx, p, f);
   }
+  if (p.textCheck && p.texts?.length) textCollisions(p.placement, p.media, p.fit, p.texts).forEach((r) => textHit(ctx, r));
   ctx.restore();
 }
 

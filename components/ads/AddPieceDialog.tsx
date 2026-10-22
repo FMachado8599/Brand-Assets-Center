@@ -9,6 +9,7 @@ import { adaptation, defaultPlacements, PIECE_TYPES, PLACEMENTS, type PieceType,
 import { ratioLabel } from "@/lib/ads/reel";
 import { cn } from "@/lib/utils";
 import { MAX_CARDS, newPiece, readCards, type AdCard, type Piece } from "./pieces";
+import { moveItem, SlideGrid } from "./SlideGrid";
 
 const ICONS: Record<PieceType, LucideIcon> = {
   post: ImageIcon,
@@ -63,6 +64,11 @@ export function AddPieceDialog({
     if (!multiple) setStep(2);
   };
 
+  const removeCard = (c: AdCard) => {
+    URL.revokeObjectURL(c.media.url);
+    setCards((prev) => prev.filter((x) => x.id !== c.id));
+  };
+
   const close = (keep: boolean) => {
     if (!keep) cards.forEach((c) => URL.revokeObjectURL(c.media.url));
     onOpenChange(false);
@@ -95,7 +101,9 @@ export function AddPieceDialog({
             {
               [
                 "Como en Planificación: cada pieza se sube por separado y se ve en los mockups que elijas.",
-                multiple ? `De 2 a ${MAX_CARDS}, en el orden del carrusel. Ideal: 1080×1350 (4:5) o 1080×1080 (1:1).` : "Una imagen o un video. Ideal: 1080×1920 (9:16) para reels e historias, 1080×1350 (4:5) para el feed.",
+                multiple
+                  ? `De 2 a ${MAX_CARDS}. Arrastralos (o usá las flechas) para ordenarlos como van en el carrusel. Ideal: 1080×1350 (4:5) o 1080×1080 (1:1).`
+                   : "Una imagen o un video. Ideal: 1080×1920 (9:16) para reels e historias, 1080×1350 (4:5) para el feed.",
                 "Vienen marcados los de su proporción. Los demás muestran cómo la adapta Meta si el anuncio sale también ahí (ubicaciones Advantage+).",
               ][step]
             }
@@ -132,7 +140,30 @@ export function AddPieceDialog({
 
         {step === 1 && (
           <div className="space-y-3">
-            {cards.length > 0 && (
+            {cards.length > 0 && multiple && (
+              <SlideGrid cards={cards} onMove={(from, to) => setCards((prev) => moveItem(prev, from, to))} onRemove={removeCard} className="-m-2 max-h-[24rem]">
+                {cards.length < MAX_CARDS && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        addFiles([...e.dataTransfer.files]);
+                      }}
+                      disabled={reading}
+                      className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-foreground/15 px-1 text-center text-xs text-muted-foreground outline-none ring-ring transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 disabled:cursor-wait"
+                    >
+                      {reading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                      Sumar más
+                      <span className="text-[10px]">o soltalos acá</span>
+                    </button>
+                  </li>
+                )}
+              </SlideGrid>
+            )}
+            {cards.length > 0 && !multiple && (
               <ul className="flex flex-wrap gap-2">
                 {cards.map((c, i) => (
                   <li key={c.id} className="relative">
@@ -148,10 +179,7 @@ export function AddPieceDialog({
                     <button
                       type="button"
                       aria-label={`Quitar ${c.media.name}`}
-                      onClick={() => {
-                        URL.revokeObjectURL(c.media.url);
-                        setCards((prev) => prev.filter((x) => x.id !== c.id));
-                      }}
+                      onClick={() => removeCard(c)}
                       className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-foreground text-background"
                     >
                       <X className="h-3 w-3" />
@@ -160,7 +188,7 @@ export function AddPieceDialog({
                 ))}
               </ul>
             )}
-            {(multiple ? cards.length < MAX_CARDS : !cards.length) && (
+            {!cards.length && (
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}

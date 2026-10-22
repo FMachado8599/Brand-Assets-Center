@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { ArrowLeft, ArrowRight, Check, ImagePlus, Loader2, X } from "lucide-react";
+import { Check, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { MAX_CARDS, readCards, type AdCard } from "./pieces";
+import { moveItem, SlideGrid } from "./SlideGrid";
 
 const isFileDrag = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
 
@@ -33,7 +34,6 @@ export function SlidesDialog({
   const [added, setAdded] = useState<AdCard[]>([]);
   const [reading, setReading] = useState(false);
   const [fileOver, setFileOver] = useState(false);
-  const dragging = useRef<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Se arma una sola vez al abrir: lo que cambie afuera mientras está abierto no pisa lo que se está ordenando.
@@ -48,15 +48,7 @@ export function SlidesDialog({
 
   const isNew = (c: AdCard) => added.some((a) => a.id === c.id);
 
-  const move = (from: number, to: number) => {
-    if (to < 0 || to >= order.length || from === to) return;
-    setOrder((prev) => {
-      const next = [...prev];
-      const [card] = next.splice(from, 1);
-      next.splice(to, 0, card);
-      return next;
-    });
-  };
+  const move = (from: number, to: number) => setOrder((prev) => moveItem(prev, from, to));
 
   const addFiles = async (files: File[]) => {
     const room = MAX_CARDS - order.length;
@@ -102,71 +94,13 @@ export function SlidesDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ol className="grid grid-cols-3 gap-3 overflow-y-auto overflow-x-hidden p-2 sm:grid-cols-5" aria-label="Slides del carrusel">
-          {order.map((c, i) => (
-            <li
-              key={c.id}
-              draggable
-              onDragStart={(e) => {
-                dragging.current = i;
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", c.id);
-              }}
-              onDragOver={(e) => {
-                if (isFileDrag(e) || dragging.current === null) return;
-                e.preventDefault();
-                if (dragging.current !== i) {
-                  move(dragging.current, i);
-                  dragging.current = i;
-                }
-              }}
-              onDragEnd={() => (dragging.current = null)}
-              className="group relative cursor-grab active:cursor-grabbing"
-            >
-              <span className={cn("relative block aspect-[4/5] overflow-hidden rounded-xl bg-secondary ring-2", isNew(c) ? "ring-primary" : "ring-transparent")}>
-                {c.media.kind === "video" ? (
-                  <video src={c.media.url} muted playsInline preload="metadata" className="pointer-events-none h-full w-full object-cover" />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={c.media.url} alt="" draggable={false} className="h-full w-full object-cover" />
-                )}
-                {isNew(c) && <span className="absolute bottom-1.5 left-1.5 rounded-md bg-primary px-1.5 text-[10px] font-semibold leading-5 text-primary-foreground">Nuevo</span>}
-              </span>
-              <span className="absolute left-1.5 top-1.5 rounded-md bg-ink/80 px-1.5 text-[11px] font-semibold tabular-nums leading-5 text-cream">{i + 1}</span>
-              <button
-                type="button"
-                aria-label={`Sacar el slide ${i + 1}`}
-                onClick={() => setOrder((prev) => prev.filter((x) => x.id !== c.id))}
-                disabled={order.length === 1}
-                className="absolute -right-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-foreground text-background shadow disabled:hidden"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-              <span className="mt-1 flex items-center justify-between gap-1">
-                <button
-                  type="button"
-                  aria-label={`Mover el slide ${i + 1} a la izquierda`}
-                  onClick={() => move(i, i - 1)}
-                  disabled={i === 0}
-                  className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </button>
-                <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={c.media.name}>
-                  {c.media.name}
-                </span>
-                <button
-                  type="button"
-                  aria-label={`Mover el slide ${i + 1} a la derecha`}
-                  onClick={() => move(i, i + 1)}
-                  disabled={i === order.length - 1}
-                  className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
-                >
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </span>
-            </li>
-          ))}
+        <SlideGrid
+          cards={order}
+          onMove={move}
+          onRemove={(c) => setOrder((prev) => prev.filter((x) => x.id !== c.id))}
+          isNew={isNew}
+          canRemove={order.length > 1}
+        >
           {order.length < MAX_CARDS && (
             <li>
               <button
@@ -180,7 +114,7 @@ export function SlidesDialog({
               </button>
             </li>
           )}
-        </ol>
+        </SlideGrid>
         <input
           ref={fileRef}
           type="file"

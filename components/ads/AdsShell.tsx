@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { BoxSelect, Download, Eye, EyeOff, FolderDown, ImagePlus, Plus, ScanLine, Settings, Users } from "lucide-react";
+import { BoxSelect, Download, Eye, EyeOff, FolderDown, ImagePlus, Plus, ScanLine, ScanText, Settings, Users } from "lucide-react";
 import { ClientMark, logoBackground } from "@/components/clients/ClientMark";
 import { BarAction, BarButton, BarDivider, BarPopover, ContextBar } from "@/components/shell/ContextBar";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ import { SlidesDialog } from "./SlidesDialog";
 import { AdsSettings, DEFAULT_OPTIONS, type AdOptions } from "./AdsSettings";
 import { PHONE, loadImage, mediaFrame, renderMockupPng, type AvatarSource, type MockupInput } from "./draw";
 import { PieceRow, type MockupTarget } from "./PieceRow";
-import { baseName, guessType, isOffRatio, loadFrames, MAX_CARDS, newPiece, readCards, type AdCard, type Piece } from "./pieces";
+import { baseName, guessType, isOffRatio, loadFrames, MAX_CARDS, newPiece, readCards, scanCards, type AdCard, type Piece } from "./pieces";
+import type { TextBox } from "@/lib/ads/safe";
 
 function saveFile(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -90,14 +91,21 @@ export function AdsShell() {
     []
   );
 
+  const setTexts = useCallback(
+    (cardId: string, texts: TextBox[]) =>
+      setPieces((prev) => prev.map((p) => ({ ...p, cards: p.cards.map((c) => (c.id === cardId ? { ...c, texts } : c)) }))),
+    []
+  );
+
   const addPiece = useCallback(
     (piece: Piece) => {
       setPieces((prev) => [...prev, piece]);
       loadFrames(piece.cards, setFrame);
+      scanCards(piece.cards, setTexts);
       // Que se vea la pieza nueva.
       setTimeout(() => document.getElementById(`pieza-${piece.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     },
-    [setFrame]
+    [setFrame, setTexts]
   );
 
   /** Arrastrar o pegar archivos arma la pieza sola (el tipo se cambia arriba de sus mockups). */
@@ -136,6 +144,7 @@ export function AdsShell() {
     const slide = at >= 0 ? at : Math.min(piece.slide, order.length - 1);
     patchPiece(piece.id, { cards: order, slide, type: order.length > 1 ? "carrusel" : piece.type });
     loadFrames(order.filter((c) => !c.frame), setFrame);
+    scanCards(order.filter((c) => !c.texts), setTexts);
   };
 
   const cancelOrder = (added: AdCard[]) => {
@@ -151,6 +160,7 @@ export function AdsShell() {
     if (old) URL.revokeObjectURL(old.media.url);
     setPieces((prev) => prev.map((p) => (p.id === piece.id ? { ...p, cards: p.cards.map((c) => (c.id === cardId ? card : c)) } : p)));
     loadFrames([card], setFrame);
+    scanCards([card], setTexts);
   };
 
   const removePiece = (piece: Piece) => {
@@ -250,6 +260,8 @@ export function AdsShell() {
       safeZone: opts.safeZone,
       time,
       card: piece.cards.length > 1 ? { index: cardIndex, total: piece.cards.length } : undefined,
+      texts: piece.textIgnored.includes(card.id) ? null : (card.texts ?? null),
+      textCheck: opts.textCheck,
     };
   };
 
@@ -352,7 +364,13 @@ export function AdsShell() {
         <BarDivider />
         <BarButton label={showUI ? "Ver sin la interfaz" : "Ver con la interfaz"} icon={showUI ? Eye : EyeOff} pressed={!showUI} onClick={() => setShowUI((v) => !v)} />
         <BarButton label="Marcar lo que tapa" icon={BoxSelect} pressed={mark} onClick={() => setMark((v) => !v)} />
-        <BarButton label="Zona segura de Meta" icon={ScanLine} pressed={opts.safeZone} onClick={() => set({ safeZone: !opts.safeZone })} />
+        <BarButton label="Zona segura (Meta + íconos de Reels)" icon={ScanLine} pressed={opts.safeZone} onClick={() => set({ safeZone: !opts.safeZone })} />
+        <BarButton
+          label={opts.textCheck ? "Dejar de marcar el texto fuera de la zona segura" : "Marcar el texto fuera de la zona segura"}
+          icon={ScanText}
+          pressed={opts.textCheck}
+          onClick={() => set({ textCheck: !opts.textCheck })}
+        />
         <BarButton
           label={opts.social ? "Ocultar las burbujas de seguidores" : "Mostrar las burbujas de seguidores"}
           icon={Users}

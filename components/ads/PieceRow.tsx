@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
-import { AlertTriangle, ArrowLeftRight, ChevronDown, Copy, Download, ImagePlus, RefreshCw, Smartphone, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Check, ChevronDown, Copy, Download, ImagePlus, Loader2, RefreshCw, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Hint } from "@/components/ui/tooltip";
 import { adaptation, PIECE_TYPES, PLACEMENTS, placementInfo, type PieceType, type Placement } from "@/lib/ads/placements";
 import { ratioLabel } from "@/lib/ads/reel";
+import { textCollisions } from "@/lib/ads/safe";
 import { cn } from "@/lib/utils";
 import { PHONE, type MockupInput } from "./draw";
 import { MockupView } from "./MockupView";
@@ -39,6 +40,19 @@ function warnings(piece: Piece) {
     if (isLowRes(m)) out.push(`${who}mide ${m.width}×${m.height}: se puede ver borroso. Meta pide 1080 de ancho.`);
   }
   return out;
+}
+
+type TextStatus = "off" | "scanning" | "ok" | "ignored" | number;
+
+/**
+ * El aviso de texto de un mockup: apagado (o en el feed, donde nada tapa), buscando, bien, ignorado o
+ * cuántos textos caen donde no es seguro.
+ */
+function textStatus(piece: Piece, card: AdCard, input: Omit<MockupInput, "source">): TextStatus {
+  if (!input.textCheck || placementInfo(input.placement).kind === "feed") return "off";
+  if (piece.textIgnored.includes(card.id)) return "ignored";
+  if (!card.texts) return "scanning";
+  return textCollisions(input.placement, card.media, input.fit, card.texts).length || "ok";
 }
 
 const filesOf = (e: DragEvent) => [...e.dataTransfer.files].filter((f) => /^(image|video)\//.test(f.type));
@@ -90,7 +104,15 @@ export function PieceRow({
   const first = piece.cards[0].media;
   const total = piece.cards.length;
   const carousel = piece.type === "carrusel" || total > 1;
-  const warns = warnings(piece);
+  const textWarns = piece.cards.flatMap((card, i) => {
+    const where = PLACEMENTS.map((p) => p.id).filter((placement) => piece.placements.includes(placement) && typeof textStatus(piece, card, inputFor({ piece, card, cardIndex: i, placement })) === "number");
+    if (!where.length) return [];
+    const who = piece.cards.length > 1 ? `El ${i + 1} tiene` : "Tiene";
+    return [`${who} texto fuera de la zona segura en ${where.map((p) => placementInfo(p).label).join(", ")}.`];
+  });
+  const warns = [...textWarns, ...warnings(piece)];
+  const ignoreText = (cardId: string, on: boolean) =>
+    onPatch({ textIgnored: on ? [...piece.textIgnored, cardId] : piece.textIgnored.filter((id) => id !== cardId) });
   const placements = PLACEMENTS.map((p) => p.id).filter((id) => piece.placements.includes(id));
   const adapted = piece.cards.some((c) => isOffRatio(c.media)) && placements.some((p) => placementInfo(p).kind !== "feed");
   const color = piece.ctaColor ?? piece.cards[0].colors.cta;
@@ -336,6 +358,8 @@ export function PieceRow({
             const target = { piece, card, cardIndex, placement };
             const note = adaptation(placement, card.media);
             const name = `${placementInfo(placement).label}${total > 1 ? ` · ${cardIndex + 1}/${total}` : ""}`;
+            const input = inputFor(target);
+            const status = textStatus(piece, card, input);
             return (
               <figure
                 key={key}
@@ -357,7 +381,7 @@ export function PieceRow({
                 <div className="relative">
                   <MockupView
                     key={card.id}
-                    {...inputFor(target)}
+                    {...input}
                     scale={scale}
                     onSource={(el) => onSource(key, el)}
                     nav={
@@ -376,6 +400,45 @@ export function PieceRow({
                   <span className="mr-1 min-w-0 text-xs font-medium">
                     {name}
                     {note && <span className="block text-[10px] font-normal text-amber-700">{note}</span>}
+                    {status !== "off" && (
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-[10px] font-normal",
+                          typeof status === "number" ? "text-red-600" : status === "ok" ? "text-emerald-700" : "text-muted-foreground"
+                        )}
+                        aria-live="polite"
+                      >
+                        {status === "scanning" && (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" /> Buscando texto…
+                          </>
+                        )}
+                        {status === "ok" && (
+                          <>
+                            <Check className="h-3 w-3" /> Sin texto fuera de la zona segura
+                          </>
+                        )}
+                        {typeof status === "number" && (
+                          <>
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
+                            {status === 1 ? "Un texto" : `${status} textos`} fuera de la zona segura ·
+                            <Hint label="Es una búsqueda automática: si no es texto, o está bien así, ignoralo">
+                              <button type="button" onClick={() => ignoreText(card.id, true)} className="font-medium underline underline-offset-2 hover:text-red-800">
+                                Ignorar
+                              </button>
+                            </Hint>
+                          </>
+                        )}
+                        {status === "ignored" && (
+                          <>
+                            Aviso de texto ignorado ·
+                            <button type="button" onClick={() => ignoreText(card.id, false)} className="font-medium underline underline-offset-2 hover:text-foreground">
+                              Volver a avisar
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    )}
                   </span>
                   <Hint label="Copiar la imagen">
                     <Button variant="ghost" size="iconSm" aria-label={`Copiar el mockup ${name}`} onClick={() => onCopy(target)} disabled={exporting}>

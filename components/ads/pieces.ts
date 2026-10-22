@@ -1,6 +1,8 @@
 import { sampleColors, type AdColors } from "@/lib/ads/color";
 import { defaultPlacements, type PieceType, type Placement } from "@/lib/ads/placements";
 import { ratioGap, type AdMedia } from "@/lib/ads/reel";
+import type { TextBox } from "@/lib/ads/safe";
+import { scanMedia } from "@/lib/ads/textScan";
 import { mediaFrame } from "./draw";
 
 /** Un archivo de una pieza (un carrusel tiene varios). */
@@ -10,6 +12,8 @@ export type AdCard = {
   colors: AdColors;
   /** Un cuadro quieto (la imagen, o uno del video): la miniatura de Reels y lo que se descarga en lote. */
   frame?: CanvasImageSource;
+  /** Los textos que tiene (de un video, los de varios cuadros); sin esto, todavía se están buscando. */
+  texts?: TextBox[];
 };
 
 /** Una pieza: lo que se sube (post, carrusel, reel o historia) y en qué mockups se ve. */
@@ -24,6 +28,8 @@ export type Piece = {
   ctaColor: string | null;
   /** En un carrusel: el slide que se ve en los mockups (las flechas lo cambian). */
   slide: number;
+  /** Los archivos cuyo aviso de texto se ignoró (porque no era texto o porque está bien así). */
+  textIgnored: string[];
 };
 
 export const MAX_CARDS = 10;
@@ -93,6 +99,11 @@ export function loadFrames(cards: AdCard[], onFrame: (cardId: string, frame: Can
   }
 }
 
+/** Busca el texto de cada archivo (de a uno: los videos se recorren cuadro por cuadro). */
+export async function scanCards(cards: AdCard[], onTexts: (cardId: string, texts: TextBox[]) => void) {
+  for (const card of cards) onTexts(card.id, await scanMedia(card.media));
+}
+
 /** Qué pieza parece, por los archivos: varios → carrusel; 9:16 → reel (video) o historia; si no, post. */
 export function guessType(cards: AdCard[]): PieceType {
   if (cards.length > 1) return "carrusel";
@@ -102,7 +113,7 @@ export function guessType(cards: AdCard[]): PieceType {
 }
 
 export function newPiece(type: PieceType, cards: AdCard[], placements = defaultPlacements(cards[0]?.media ?? null)): Piece {
-  return { id: crypto.randomUUID(), type, cards, placements, fit: "contain", ctaColor: null, slide: 0 };
+  return { id: crypto.randomUUID(), type, cards, placements, fit: "contain", ctaColor: null, slide: 0, textIgnored: [] };
 }
 
 /** "campaña-otoño.jpg" → "campaña-otoño" (sin caracteres que Windows no acepta). */
