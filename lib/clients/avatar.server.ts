@@ -5,8 +5,9 @@ import { socialName, socialUrl, type BrandSocial, type SocialNetwork } from "./s
 /**
  * La foto de perfil de una cuenta, sin iniciar sesión en ninguna red. Cada una la da distinto:
  *
- * - Instagram: la página "embed" del perfil (la misma vía que usa Descargas para los posteos). Sin
- *   sesión la da a 100 px, y la URL viene firmada: no se puede pedir más grande.
+ * - Instagram: la página "embed" del perfil (la misma vía que usa Descargas para los posteos) o, si la
+ *   cuenta no deja insertarse, la vista previa de la página del perfil. Sin sesión la da a 100 px, y la
+ *   URL viene firmada: no se puede pedir más grande.
  * - Facebook: la Graph API la da sin token para las páginas, al tamaño que se pida (720 px).
  * - YouTube: la página del canal la publica para las vistas previas de links (900 px).
  * - X y LinkedIn: la publican para las vistas previas de links, pero solo se la muestran a sus propios
@@ -37,6 +38,7 @@ const CDN: Record<SocialNetwork, RegExp> = {
 };
 
 const PREVIEW_BOT: Partial<Record<SocialNetwork, string>> = {
+  instagram: "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
   x: "Twitterbot/1.0",
   linkedin: "LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)",
 };
@@ -66,12 +68,23 @@ export async function profilePicture(account: BrandSocial): Promise<{ bytes: Arr
 }
 
 const FINDERS: Record<SocialNetwork, (account: BrandSocial) => Promise<string | null>> = {
-  async instagram({ handle }) {
-    const html = await navigate(`https://www.instagram.com/${handle}/embed/`, "instagram");
-    const raw = html.match(/"contextJSON":("(?:[^"\\]|\\.)*"|null)/)?.[1];
-    if (!raw || raw === "null") return null;
-    const ctx = JSON.parse(JSON.parse(raw)) as { context?: { profile_pic_url?: string } } | null;
-    return ctx?.context?.profile_pic_url ?? null;
+  async instagram(account) {
+    let embedError: unknown = null;
+    try {
+      const html = await navigate(`https://www.instagram.com/${account.handle}/embed/`, "instagram");
+      const raw = html.match(/"contextJSON":("(?:[^"\\]|\\.)*"|null)/)?.[1];
+      const ctx = raw && raw !== "null" ? (JSON.parse(JSON.parse(raw)) as { context?: { profile_pic_url?: string } } | null) : null;
+      if (ctx?.context?.profile_pic_url) return ctx.context.profile_pic_url;
+    } catch (err) {
+      embedError = err;
+    }
+    // Las cuentas que apagaron "permitir insertar" (ej: changan.uy) devuelven el embed vacío. La página del
+    // perfil igual publica la foto para las vistas previas de links; una cuenta que no existe no trae og:image.
+    const html = await page(socialUrl(account), "instagram");
+    const src = html && ogImage(html);
+    if (src) return src;
+    if (embedError) throw embedError;
+    return null;
   },
 
   async facebook({ handle }) {
