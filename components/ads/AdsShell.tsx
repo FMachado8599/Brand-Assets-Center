@@ -206,7 +206,10 @@ export function AdsShell() {
   const avatarSource: AvatarSource = avatarUrl
     ? { url: avatarUrl }
     : client?.logo_url
-      ? { url: client.logo_url, background: logoBackground(client), pad: 0.18 }
+      ? // Una foto de perfil ya es la foto de perfil: va entera, sin fondo ni aire.
+        client.logo_from
+        ? { url: client.logo_url }
+        : { url: client.logo_url, background: logoBackground(client), pad: 0.18 }
       : client
         ? { letter: initials(client.name), background: client.color }
         : { letter: (opts.account || "t").slice(0, 1) };
@@ -365,7 +368,9 @@ export function AdsShell() {
             onAvatar={pickAvatar}
             onClient={(id) => {
               const c = clients.find((x) => x.id === id) ?? null;
-              set({ clientId: c?.id ?? null, ...(c ? { account: handleOf(c.name) } : {}) });
+              // Si tiene su Instagram en la ficha, esa es la cuenta; si no, una armada con el nombre.
+              const instagram = c?.socials?.find((s) => s.network === "instagram")?.handle;
+              set({ clientId: c?.id ?? null, ...(c ? { account: instagram ?? handleOf(c.name) } : {}) });
             }}
           />
         </BarPopover>

@@ -153,7 +153,7 @@ function ClientCard({ client, stats }: { client: Brand; stats: [number, string, 
       href={`/clientes/${client.id}`}
       className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-black/[0.06] bg-card shadow-[0_1px_2px_hsl(40_30%_20%/0.04)] transition-[transform,box-shadow] duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_hsl(40_45%_20%/0.45)]"
     >
-      <ClientMark brand={client} className="aspect-[16/10] w-full text-[clamp(2.5rem,6vw,3.5rem)]" pad="p-[12%]" />
+      <ClientMark brand={client} className="aspect-[16/10] w-full text-[clamp(2.5rem,6vw,3.5rem)]" pad="p-[12%]" photoPad="p-[8%]" />
       <div aria-hidden className="flex h-1.5">
         {palette.map((hex, i) => (
           <span key={`${hex}-${i}`} className="flex-1" style={{ background: hex }} />

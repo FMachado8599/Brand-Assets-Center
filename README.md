@@ -289,7 +289,9 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
 - **La lista** (`/clientes`): cada cliente con su logo (o sus iniciales), su paleta y cuánto tiene a su nombre.
 - **La ficha** (`/clientes/<id>`), donde se edita todo y se guarda solo:
   - **Logo**: se suelta o se elige (SVG, PNG, JPG, WEBP o GIF, hasta 5 MB). Se elige sobre qué fondo se ve (claro, oscuro o su color: un logo blanco no se ve sobre papel), y se descarga o se cambia desde ahí.
+  - **Foto de perfil como logo**: debajo del logo aparece cada una de sus redes con su foto de perfil; marcar una (como un checkbox) la sube como logo, y desmarcarla lo quita. Una foto de perfil se muestra redonda en toda la app, como en la red. Cada red la da de un tamaño: Facebook 720 px, YouTube 900, X 400, LinkedIn 200, Instagram y TikTok solo 100 (sin iniciar sesión no la dan más grande: se avisa que se puede ver borrosa).
   - **Nombre, color y notas**: el color es el que lo identifica en las listas. Las notas son libres (tono, contactos, links).
+  - **Redes**: Instagram, TikTok, Facebook, YouTube, X y LinkedIn. Se pega el link al perfil (la red sale sola del link) o se escribe el usuario y se elige la red. Cada una abre su perfil. En Ads, elegir el cliente pone su usuario de Instagram.
   - **Colores**: la paleta, con nombre para cada color. Un click copia el HEX (o el RGB). Si hay logo, sugiere sus colores para sumarlos de un click. La estrella marca el color del cliente.
   - **Tipografías**: se eligen entre las subidas, se suben ahí mismo (quedan en la biblioteca de Tarjetas) o se anota una que todavía no está. Cada peso se copia con su nombre completo, como lo nombran Illustrator e InDesign.
   - **Productos**: se agregan y se quitan ahí.
@@ -300,6 +302,8 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+Para las **redes**, después corré `supabase/migracion-redes.sql`: suma a `brands` las cuentas (`socials`) y de cuál salió el logo (`logo_from`). Se puede repetir. Sin ella, la ficha avisa en Redes y todo lo demás (incluido subir un logo a mano) anda igual. La foto de perfil la busca `GET /api/clientes/foto?red=…&cuenta=…` (solo con sesión del estudio): lee la página pública de cada red y devuelve la imagen, solo si viene del CDN de esa red.
 
 ---
 
@@ -464,7 +468,7 @@ Los mockups adaptados lo dicen debajo del teléfono.
 
 - **Zona segura de Meta**: la de la Guía de anuncios para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que el "Safe Zone Guardrail" de Ads Manager. En el feed no aplica: no hay nada encima del creativo.
 - **Burbujas de seguidores** (Reels desde el feed): no siempre salen (dependen de quién lo ve), pero cuando salen tapan.
-- **Configuración** (engranaje; vale para todas las piezas y se recuerda en la cuenta): el cliente (pone su logo de foto de perfil), el usuario y la foto, el texto (se ve solo el principio, como lo corta Instagram en cada mockup), el título (tarjeta de Reels), el botón (los de Meta) y el idioma de Instagram (español o inglés: cambian «Más información» / «Learn more», «Publicidad» / «Ad»… y no miden lo mismo).
+- **Configuración** (engranaje; vale para todas las piezas y se recuerda en la cuenta): el cliente (pone su logo de foto de perfil y, si tiene su Instagram en la ficha, ese usuario), el usuario y la foto, el texto (se ve solo el principio, como lo corta Instagram en cada mockup), el título (tarjeta de Reels), el botón (los de Meta) y el idioma de Instagram (español o inglés: cambian «Más información» / «Learn more», «Publicidad» / «Ad»… y no miden lo mismo).
 
 **Descargas**: cada teléfono copia o descarga su mockup; cada fila baja todos los suyos (un `.zip` si son varios); **descargar todo** arma un `.zip` con una carpeta por pieza (`01 Post - nombre/Feed.png`, `02 Carrusel - nombre/Feed - 2 de 5.png`…). Son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes); de un video sale el cuadro que se está viendo (o, en lote, uno de adentro). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes).
 
