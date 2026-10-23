@@ -102,7 +102,7 @@ export function AddPieceDialog({
               [
                 "Como en Planificación: cada pieza se sube por separado y se ve en los mockups que elijas.",
                 multiple
-                  ? `De 2 a ${MAX_CARDS}. Arrastralos (o usá las flechas) para ordenarlos como van en el carrusel. Ideal: 1080×1350 (4:5) o 1080×1080 (1:1).`
+                  ? `De 2 a ${MAX_CARDS}. Arrastralos para ordenarlos como van en el carrusel. Ideal: 1080×1350 (4:5) o 1080×1080 (1:1).`
                    : "Una imagen o un video. Ideal: 1080×1920 (9:16) para reels e historias, 1080×1350 (4:5) para el feed.",
                 "Vienen marcados los de su proporción. Los demás muestran cómo la adapta Meta si el anuncio sale también ahí (ubicaciones Advantage+).",
               ][step]
@@ -110,142 +110,145 @@ export function AddPieceDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {step === 0 && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {PIECE_TYPES.map((p) => {
-              const Icon = ICONS[p.id];
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setType(p.id);
-                    setCards([]);
-                    setStep(1);
-                  }}
-                  className="flex items-start gap-3 rounded-2xl border bg-card p-3 text-left outline-none ring-ring transition-colors hover:border-foreground/40 hover:bg-secondary/50 focus-visible:ring-2"
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-secondary">
-                    <Icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold">{p.label}</span>
-                    <span className="block text-xs text-muted-foreground">{p.hint}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-3">
-            {cards.length > 0 && multiple && (
-              <SlideGrid cards={cards} onMove={(from, to) => setCards((prev) => moveItem(prev, from, to))} onRemove={removeCard} className="-m-2 max-h-[24rem]">
-                {cards.length < MAX_CARDS && (
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => fileRef.current?.click()}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        addFiles([...e.dataTransfer.files]);
-                      }}
-                      disabled={reading}
-                      className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-foreground/15 px-1 text-center text-xs text-muted-foreground outline-none ring-ring transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 disabled:cursor-wait"
-                    >
-                      {reading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                      Sumar más
-                      <span className="text-[10px]">o soltalos acá</span>
-                    </button>
-                  </li>
-                )}
-              </SlideGrid>
-            )}
-            {cards.length > 0 && !multiple && (
-              <ul className="flex flex-wrap gap-2">
-                {cards.map((c, i) => (
-                  <li key={c.id} className="relative">
-                    <span className="block h-20 w-16 overflow-hidden rounded-lg bg-secondary">
-                      {c.media.kind === "video" ? (
-                        <video src={c.media.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.media.url} alt="" className="h-full w-full object-cover" />
-                      )}
+        {/* El cuerpo de cada paso scrollea solo: el encabezado y los botones quedan siempre a la vista. */}
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 py-0.5">
+          {step === 0 && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PIECE_TYPES.map((p) => {
+                const Icon = ICONS[p.id];
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setType(p.id);
+                      setCards([]);
+                      setStep(1);
+                    }}
+                    className="flex items-start gap-3 rounded-2xl border bg-card p-3 text-left outline-none ring-ring transition-colors hover:border-foreground/40 hover:bg-secondary/50 focus-visible:ring-2"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-secondary">
+                      <Icon className="h-[18px] w-[18px]" />
                     </span>
-                    <span className="absolute left-1 top-1 rounded bg-ink/75 px-1 text-[10px] font-semibold tabular-nums text-cream">{i + 1}</span>
-                    <button
-                      type="button"
-                      aria-label={`Quitar ${c.media.name}`}
-                      onClick={() => removeCard(c)}
-                      className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-foreground text-background"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!cards.length && (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  addFiles([...e.dataTransfer.files]);
-                }}
-                disabled={reading}
-                className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-foreground/10 px-4 py-8 text-center outline-none ring-ring transition-colors hover:border-foreground/25 focus-visible:ring-2 disabled:cursor-wait"
-              >
-                {reading ? <Loader2 className="h-6 w-6 animate-spin" /> : <ImagePlus className="h-6 w-6" />}
-                <span className="text-sm font-medium">{multiple ? (cards.length ? "Sumar más archivos" : "Elegí los archivos del carrusel") : "Elegí la imagen o el video"}</span>
-                <span className="text-xs text-muted-foreground">O arrastralos acá.</span>
-              </button>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,video/*"
-              multiple={multiple}
-              className="hidden"
-              onChange={(e) => {
-                addFiles([...(e.target.files ?? [])]);
-                e.target.value = "";
-              }}
-            />
-          </div>
-        )}
-
-        {step === 2 && first && (
-          <ul className="grid gap-1.5" role="group" aria-label="Mockups">
-            {PLACEMENTS.map((p) => {
-              const on = placements.includes(p.id);
-              const note = adaptation(p.id, first);
-              return (
-                <li key={p.id}>
-                  <label className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-2.5 transition-colors", on ? "border-foreground/40 bg-secondary/60" : "hover:bg-secondary/40")}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={() => setPlacements((prev) => (on ? prev.filter((x) => x !== p.id) : [...prev, p.id]))}
-                      className="mt-0.5 h-4 w-4 accent-foreground"
-                    />
-                    <span className="min-w-0">
-                      <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium">
-                        {p.label}
-                        {note && <span className="text-[11px] font-normal text-amber-700">{note}</span>}
-                      </span>
+                    <span>
+                      <span className="block text-sm font-semibold">{p.label}</span>
                       <span className="block text-xs text-muted-foreground">{p.hint}</span>
                     </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="space-y-3">
+              {cards.length > 0 && multiple && (
+                <SlideGrid cards={cards} onMove={(from, to) => setCards((prev) => moveItem(prev, from, to))} onRemove={removeCard}>
+                  {cards.length < MAX_CARDS && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          addFiles([...e.dataTransfer.files]);
+                        }}
+                        disabled={reading}
+                        className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-foreground/15 px-1 text-center text-xs text-muted-foreground outline-none ring-ring transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:ring-2 disabled:cursor-wait"
+                      >
+                        {reading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                        Sumar más
+                        <span className="text-[10px]">o soltalos acá</span>
+                      </button>
+                    </li>
+                  )}
+                </SlideGrid>
+              )}
+              {cards.length > 0 && !multiple && (
+                <ul className="flex flex-wrap gap-2">
+                  {cards.map((c, i) => (
+                    <li key={c.id} className="relative">
+                      <span className="block h-20 w-16 overflow-hidden rounded-lg bg-secondary">
+                        {c.media.kind === "video" ? (
+                          <video src={c.media.url} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.media.url} alt="" className="h-full w-full object-cover" />
+                        )}
+                      </span>
+                      <span className="absolute left-1 top-1 rounded bg-ink/75 px-1 text-[10px] font-semibold tabular-nums text-cream">{i + 1}</span>
+                      <button
+                        type="button"
+                        aria-label={`Quitar ${c.media.name}`}
+                        onClick={() => removeCard(c)}
+                        className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-foreground text-background"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!cards.length && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    addFiles([...e.dataTransfer.files]);
+                  }}
+                  disabled={reading}
+                  className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-foreground/10 px-4 py-8 text-center outline-none ring-ring transition-colors hover:border-foreground/25 focus-visible:ring-2 disabled:cursor-wait"
+                >
+                  {reading ? <Loader2 className="h-6 w-6 animate-spin" /> : <ImagePlus className="h-6 w-6" />}
+                  <span className="text-sm font-medium">{multiple ? (cards.length ? "Sumar más archivos" : "Elegí los archivos del carrusel") : "Elegí la imagen o el video"}</span>
+                  <span className="text-xs text-muted-foreground">O arrastralos acá.</span>
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,video/*"
+                multiple={multiple}
+                className="hidden"
+                onChange={(e) => {
+                  addFiles([...(e.target.files ?? [])]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          )}
+
+          {step === 2 && first && (
+            <ul className="grid gap-1.5" role="group" aria-label="Mockups">
+              {PLACEMENTS.map((p) => {
+                const on = placements.includes(p.id);
+                const note = adaptation(p.id, first);
+                return (
+                  <li key={p.id}>
+                    <label className={cn("flex cursor-pointer items-start gap-3 rounded-xl border px-2.5 py-2 transition-colors", on ? "border-foreground/40 bg-secondary/60" : "hover:bg-secondary/40")}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => setPlacements((prev) => (on ? prev.filter((x) => x !== p.id) : [...prev, p.id]))}
+                        className="mt-0.5 h-4 w-4 accent-foreground"
+                      />
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium">
+                          {p.label}
+                          {note && <span className="text-[11px] font-normal text-amber-700">{note}</span>}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">{p.hint}</span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
 
         <div className="flex items-center justify-between gap-2 border-t pt-3">
           <div className="min-w-0 text-xs text-muted-foreground">

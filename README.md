@@ -436,7 +436,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 **Cómo se usa**
 
 1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
-2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (o con las flechas), y se saca o se suma alguno.
+2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
 3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
 4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Debajo de cada teléfono, copiar o descargar ese mockup.
 
@@ -444,7 +444,7 @@ También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sol
 
 **Cada fila** tiene, en una línea: el número y el tipo de pieza (se puede cambiar), el archivo y su proporción (con ⚠ si algo no está bien), el selector de **mockups** (un menú con casillas, agrupado en feed, Reels e historias; los que Meta adapta lo dicen), "Con fondo / Recortado" si hace falta, **reemplazar** el archivo (o soltar otro encima de su teléfono) u **Ordenar slides** si es un carrusel, el color del botón (sale del creativo; se puede cambiar), descargar todos sus mockups y quitarla.
 
-**Carruseles**: a la izquierda de sus mockups hay un lugar para **soltar fotos** (o hacer click) y sumarlas como slides; al soltarlas se abre **Ordenar slides**, con los nuevos al final y marcados, para acomodarlos arrastrando (o con las flechas), sacar alguno o sumar más. El mismo orden se abre cuando se quiera con el botón **Ordenar slides**; nada cambia hasta «Listo». Soltar una foto sobre un teléfono reemplaza el slide que se ve. Arrastrar archivos al resto de la fila también abre el orden (en un post, uno solo lo reemplaza y varios lo vuelven carrusel).
+**Carruseles**: a la izquierda de sus mockups hay un lugar para **soltar fotos** (o hacer click) y sumarlas como slides; al soltarlas se abre **Ordenar slides**, con los nuevos al final y marcados, para acomodarlos arrastrando, sacar alguno o sumar más. El mismo orden se abre cuando se quiera con el botón **Ordenar slides**; nada cambia hasta «Listo». Soltar una foto sobre un teléfono reemplaza el slide que se ve. Arrastrar archivos al resto de la fila también abre el orden (en un post, uno solo lo reemplaza y varios lo vuelven carrusel).
 
 **Los mockups** (todos salen de capturas reales en un iPhone de 390 × 844 pt):
 
@@ -464,10 +464,10 @@ También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sol
 
 Los mockups adaptados lo dicen debajo del teléfono.
 
-**La barra de arriba**: Agregar pieza; **ver sin la interfaz**, **marcar lo que tapa** (en rojo), **zona segura**, **marcar el texto fuera de la zona segura** y **burbujas de seguidores**; el **engranaje** con la configuración; y **descargar todo**.
+**La barra de arriba**: Agregar pieza; **ver sin la interfaz**, **marcar lo que tapa** (en rojo), **zona segura**, **detectar texto fuera de la zona segura** (el de los destellos) y **burbujas de seguidores**; el **engranaje** con la configuración; y **descargar todo**.
 
 - **Zona segura**: la de la Guía de anuncios para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que el "Safe Zone Guardrail" de Ads Manager. En el feed no aplica: no hay nada encima del creativo. En los dos de Reels se le suma la **columna de íconos** del costado, medida con todos sus números (por eso la zona segura tiene un escalón abajo a la derecha).
-- **Texto fuera de la zona segura** (prendido de entrada): la app busca texto en cada creativo, sin IA y sin que el archivo salga del navegador. Las letras dejan muchos bordes seguidos y parejos en una misma línea, y las fotos casi nunca. Si al menos un 15 % de un texto cae en lo que no es seguro (o queda recortado fuera de la pantalla), se marca en rojo en el mockup y debajo del teléfono dice cuántos; la fila lo avisa con ⚠. De un video se miran varios cuadros (uno cada ~2 s, de 3 a 8), porque el texto puede aparecer en cualquier momento. Es una estimación: si marca algo que no es texto, o está bien así, **Ignorar** lo apaga para ese archivo. La idea es la del «Validador de márgenes - Meta Reels»; acá se cruza con la zona de cada mockup.
+- **Detectar texto fuera de la zona segura** (destellos; apagado de entrada y se recuerda en la cuenta: se busca recién al prenderlo): la app busca texto en cada creativo, sin IA y sin que el archivo salga del navegador. Las letras dejan muchos bordes seguidos y parejos en una misma línea, y las fotos casi nunca. Si al menos un 15 % de un texto cae en lo que no es seguro (o queda recortado fuera de la pantalla), se marca en rojo en el mockup y debajo del teléfono dice cuántos; la fila lo avisa con ⚠. De un video se miran varios cuadros (uno cada ~2 s, de 3 a 8), porque el texto puede aparecer en cualquier momento. Es una estimación: si marca algo que no es texto, o está bien así, **Ignorar** lo apaga para ese archivo. La idea es la del «Validador de márgenes - Meta Reels»; acá se cruza con la zona de cada mockup.
 - **Burbujas de seguidores** (Reels desde el feed): no siempre salen (dependen de quién lo ve), pero cuando salen tapan.
 - **Configuración** (engranaje; vale para todas las piezas y se recuerda en la cuenta): el cliente (pone su logo de foto de perfil y, si tiene su Instagram en la ficha, ese usuario), el usuario y la foto, el texto (se ve solo el principio, como lo corta Instagram en cada mockup), el título (tarjeta de Reels), el botón (los de Meta) y el idioma de Instagram (español o inglés: cambian «Más información» / «Learn more», «Publicidad» / «Ad»… y no miden lo mismo).
 

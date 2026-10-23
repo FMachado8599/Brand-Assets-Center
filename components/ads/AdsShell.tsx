@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { BoxSelect, Download, Eye, EyeOff, FolderDown, ImagePlus, Plus, ScanLine, ScanText, Settings, Users } from "lucide-react";
+import { BoxSelect, Download, Eye, EyeOff, FolderDown, ImagePlus, Plus, ScanLine, Settings, Sparkles, Users } from "lucide-react";
 import { ClientMark, logoBackground } from "@/components/clients/ClientMark";
 import { BarAction, BarButton, BarDivider, BarPopover, ContextBar } from "@/components/shell/ContextBar";
 import { Button } from "@/components/ui/button";
@@ -101,11 +101,10 @@ export function AdsShell() {
     (piece: Piece) => {
       setPieces((prev) => [...prev, piece]);
       loadFrames(piece.cards, setFrame);
-      scanCards(piece.cards, setTexts);
       // Que se vea la pieza nueva.
       setTimeout(() => document.getElementById(`pieza-${piece.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     },
-    [setFrame, setTexts]
+    [setFrame]
   );
 
   /** Arrastrar o pegar archivos arma la pieza sola (el tipo se cambia arriba de sus mockups). */
@@ -144,7 +143,6 @@ export function AdsShell() {
     const slide = at >= 0 ? at : Math.min(piece.slide, order.length - 1);
     patchPiece(piece.id, { cards: order, slide, type: order.length > 1 ? "carrusel" : piece.type });
     loadFrames(order.filter((c) => !c.frame), setFrame);
-    scanCards(order.filter((c) => !c.texts), setTexts);
   };
 
   const cancelOrder = (added: AdCard[]) => {
@@ -160,13 +158,22 @@ export function AdsShell() {
     if (old) URL.revokeObjectURL(old.media.url);
     setPieces((prev) => prev.map((p) => (p.id === piece.id ? { ...p, cards: p.cards.map((c) => (c.id === cardId ? card : c)) } : p)));
     loadFrames([card], setFrame);
-    scanCards([card], setTexts);
   };
 
   const removePiece = (piece: Piece) => {
     piece.cards.forEach((c) => URL.revokeObjectURL(c.media.url));
     setPieces((prev) => prev.filter((p) => p.id !== piece.id));
   };
+
+  // El texto se busca solo con el aviso prendido, una vez por archivo (incluidos los que se suman después).
+  const scanned = useRef(new Set<string>());
+  useEffect(() => {
+    if (!opts.detectText) return;
+    const todo = pieces.flatMap((p) => p.cards).filter((c) => !c.texts && !scanned.current.has(c.id));
+    if (!todo.length) return;
+    todo.forEach((c) => scanned.current.add(c.id));
+    scanCards(todo, setTexts);
+  }, [opts.detectText, pieces, setTexts]);
 
   // Ctrl+V con imágenes copiadas arma una pieza, desde cualquier parte de la página.
   useEffect(() => {
@@ -261,7 +268,7 @@ export function AdsShell() {
       time,
       card: piece.cards.length > 1 ? { index: cardIndex, total: piece.cards.length } : undefined,
       texts: piece.textIgnored.includes(card.id) ? null : (card.texts ?? null),
-      textCheck: opts.textCheck,
+      textCheck: opts.detectText,
     };
   };
 
@@ -366,10 +373,10 @@ export function AdsShell() {
         <BarButton label="Marcar lo que tapa" icon={BoxSelect} pressed={mark} onClick={() => setMark((v) => !v)} />
         <BarButton label="Zona segura (Meta + íconos de Reels)" icon={ScanLine} pressed={opts.safeZone} onClick={() => set({ safeZone: !opts.safeZone })} />
         <BarButton
-          label={opts.textCheck ? "Dejar de marcar el texto fuera de la zona segura" : "Marcar el texto fuera de la zona segura"}
-          icon={ScanText}
-          pressed={opts.textCheck}
-          onClick={() => set({ textCheck: !opts.textCheck })}
+          label={opts.detectText ? "Apagar la detección de texto fuera de la zona segura" : "Detectar texto fuera de la zona segura (automático, puede fallar)"}
+          icon={Sparkles}
+          pressed={opts.detectText}
+          onClick={() => set({ detectText: !opts.detectText })}
         />
         <BarButton
           label={opts.social ? "Ocultar las burbujas de seguidores" : "Mostrar las burbujas de seguidores"}

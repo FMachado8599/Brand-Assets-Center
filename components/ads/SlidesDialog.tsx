@@ -12,7 +12,7 @@ import { moveItem, SlideGrid } from "./SlideGrid";
 const isFileDrag = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
 
 /**
- * Ordenar los slides de un carrusel: se arrastran (o se mueven con las flechas), se sacan y se suman más.
+ * Ordenar los slides de un carrusel: se arrastran, se sacan y se suman más.
  * Se abre al sumar slides (los nuevos quedan al final, marcados) y con "Ordenar slides". Nada cambia hasta "Listo".
  */
 export function SlidesDialog({
@@ -89,7 +89,7 @@ export function SlidesDialog({
         <DialogHeader>
           <DialogTitle>Ordenar slides</DialogTitle>
           <DialogDescription>
-            Arrastralos para cambiar el orden (o usá las flechas). {added.length > 0 && "Los nuevos están marcados. "}Podés soltar más fotos acá. Nada
+            Arrastralos para cambiar el orden. {added.length > 0 && "Los nuevos están marcados. "}Podés soltar más fotos acá. Nada
             cambia hasta «Listo».
           </DialogDescription>
         </DialogHeader>

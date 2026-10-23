@@ -1,16 +1,16 @@
 "use client";
 
-import { useRef, type DragEvent, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdCard } from "./pieces";
 
 const isFileDrag = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
 
 /**
- * Los slides de un carrusel, para ordenarlos: se arrastran (o se mueven con las flechas) y se sacan con la
- * cruz. Lo usan «Ordenar slides» y el paso de los archivos al agregar un carrusel. Arrastrar archivos desde
- * la compu no lo toca: eso lo maneja quien lo usa.
+ * Los slides de un carrusel, para ordenarlos arrastrándolos (con el teclado: ← y → sobre el slide elegido) y
+ * sacarlos con la cruz. Lo usan «Ordenar slides» y el paso de los archivos al agregar un carrusel. Arrastrar
+ * archivos desde la compu no lo toca: eso lo maneja quien lo usa.
  */
 export function SlideGrid({
   cards,
@@ -33,15 +33,39 @@ export function SlideGrid({
   className?: string;
 }) {
   const dragging = useRef<number | null>(null);
+  /** El que se está arrastrando, para mostrarlo medio transparente. */
+  const [held, setHeld] = useState<string | null>(null);
+  const items = useRef(new Map<string, HTMLLIElement>());
+
+  /** Con el teclado: lo mueve y sigue con el foco encima, para poder seguir moviéndolo. */
+  const moveByKey = (card: AdCard, from: number, to: number) => {
+    if (to < 0 || to >= cards.length) return;
+    onMove(from, to);
+    requestAnimationFrame(() => items.current.get(card.id)?.focus());
+  };
 
   return (
     <ol className={cn("grid grid-cols-3 gap-3 overflow-y-auto overflow-x-hidden p-2 sm:grid-cols-5", className)} aria-label="Slides del carrusel">
       {cards.map((c, i) => (
         <li
           key={c.id}
+          ref={(el) => {
+            if (el) items.current.set(c.id, el);
+            else items.current.delete(c.id);
+          }}
           draggable
+          tabIndex={0}
+          aria-label={`Slide ${i + 1} de ${cards.length}: ${c.media.name}. Arrastralo, o usá las flechas del teclado, para cambiarlo de lugar.`}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+              e.preventDefault();
+              moveByKey(c, i, e.key === "ArrowLeft" ? i - 1 : i + 1);
+            }
+            if ((e.key === "Delete" || e.key === "Backspace") && canRemove) onRemove(c);
+          }}
           onDragStart={(e) => {
             dragging.current = i;
+            setHeld(c.id);
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", c.id);
           }}
@@ -53,8 +77,14 @@ export function SlideGrid({
               dragging.current = i;
             }
           }}
-          onDragEnd={() => (dragging.current = null)}
-          className="group relative cursor-grab active:cursor-grabbing"
+          onDragEnd={() => {
+            dragging.current = null;
+            setHeld(null);
+          }}
+          className={cn(
+            "group relative cursor-grab rounded-xl outline-none ring-ring ring-offset-2 ring-offset-card transition-opacity focus-visible:ring-2 active:cursor-grabbing",
+            held === c.id && "opacity-40"
+          )}
         >
           <span className={cn("relative block aspect-[4/5] overflow-hidden rounded-xl bg-secondary ring-2", isNew?.(c) ? "ring-primary" : "ring-transparent")}>
             {c.media.kind === "video" ? (
@@ -75,28 +105,8 @@ export function SlideGrid({
           >
             <X className="h-3.5 w-3.5" />
           </button>
-          <span className="mt-1 flex items-center justify-between gap-1">
-            <button
-              type="button"
-              aria-label={`Mover el slide ${i + 1} a la izquierda`}
-              onClick={() => onMove(i, i - 1)}
-              disabled={i === 0}
-              className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </button>
-            <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={c.media.name}>
-              {c.media.name}
-            </span>
-            <button
-              type="button"
-              aria-label={`Mover el slide ${i + 1} a la derecha`}
-              onClick={() => onMove(i, i + 1)}
-              disabled={i === cards.length - 1}
-              className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30"
-            >
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+          <span className="mt-1 block truncate text-center text-[10px] text-muted-foreground" title={c.media.name}>
+            {c.media.name}
           </span>
         </li>
       ))}

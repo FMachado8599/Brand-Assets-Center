@@ -21,8 +21,8 @@ export type AdOptions = {
   clientId: string | null;
   social: boolean;
   safeZone: boolean;
-  /** Marcar en rojo el texto del creativo que cae donde no es seguro. */
-  textCheck: boolean;
+  /** Detectar el texto del creativo que cae donde no es seguro (apagado de entrada: es una estimación). */
+  detectText: boolean;
   /** De antes de las piezas; ya no se usa. */
   placements?: Placement[];
 };
@@ -36,7 +36,7 @@ export const DEFAULT_OPTIONS: AdOptions = {
   clientId: null,
   social: true,
   safeZone: false,
-  textCheck: true,
+  detectText: false,
 };
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
