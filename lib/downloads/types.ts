@@ -33,6 +33,8 @@ export type YoutubeQuality = {
 export type YoutubeSource = {
   worker: string;
   token: string;
+  /** Quién lo pide, firmado por la app: el servicio lo muestra en su ventana. */
+  quien?: string;
   qualities: YoutubeQuality[];
   /** Peso estimado del audio solo, en bytes. */
   audio?: number;

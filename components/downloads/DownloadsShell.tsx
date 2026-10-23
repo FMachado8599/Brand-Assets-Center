@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ClipboardPaste, CloudUpload, Download, FolderInput, Link2, ListPlus, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BarChart3, ClipboardPaste, CloudUpload, Download, FolderInput, Link2, ListPlus, SlidersHorizontal } from "lucide-react";
 import { useAccount } from "@/components/shell/AccountProvider";
 import { BarAction, BarButton, BarDivider, BarPopover, BarSearch, ContextBar, PanelTitle } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
@@ -9,7 +10,8 @@ import { Hint } from "@/components/ui/tooltip";
 import { useStoredState } from "@/hooks/useStoredState";
 import { DriveError, getDriveToken, type DriveConfig } from "@/lib/downloads/drive.client";
 import { findLinks, NO_LINKS, scanLinks, type Link } from "@/lib/downloads/links";
-import { saveTarget } from "@/lib/downloads/save.client";
+import { registroDe, type RegistroDescarga } from "@/lib/downloads/registro";
+import { anotarDescargas, saveTarget } from "@/lib/downloads/save.client";
 import { planTargets } from "@/lib/downloads/targets";
 import type { CoverMode, MediaFile, MediaInfo, SaveSettings } from "@/lib/downloads/types";
 import { DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
@@ -37,7 +39,8 @@ function SummaryIcons<T extends string>({ option, children }: { option: ModeOpti
   );
 }
 
-export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
+export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig | null; metricas?: boolean }) {
+  const router = useRouter();
   const account = useAccount();
   const email = account?.user?.email ?? null;
   const [settings, setSettings] = useStoredState<SaveSettings>("descargas:opciones", DEFAULT_SETTINGS);
@@ -162,14 +165,18 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
     progress({ state: "working", label: "Empezando" });
 
     let driveUrl: string | undefined;
+    // Lo que se guardó, para el registro de descargas (se anota aunque después falle otro archivo).
+    const saved: RegistroDescarga[] = [];
     for (const [i, target] of targets.entries()) {
       const prefix = targets.length > 1 ? `${i + 1} de ${targets.length} · ` : "";
       try {
-        const saved = await saveTarget(target, settings, token, (p) =>
+        const result = await saveTarget(target, settings, token, (p) =>
           progress({ state: "working", label: prefix + p.label, percent: p.percent })
         );
-        driveUrl = saved.driveUrl;
+        driveUrl = result.driveUrl;
+        saved.push(registroDe(target, settings.audio, settings.destino, result.bytes));
       } catch (err) {
+        anotarDescargas(saved);
         if (err instanceof DriveError && err.lostFolder) setSettings((s) => ({ ...s, carpeta: null }));
         progress({ state: "error", label: err instanceof Error ? err.message : "No se pudo guardar." });
         return;
@@ -177,6 +184,7 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
       // Los navegadores frenan descargas en ráfaga: se espacian un poco.
       if (i < targets.length - 1) await new Promise((r) => setTimeout(r, 400));
     }
+    anotarDescargas(saved);
     progress({
       state: "done",
       label: DONE_LABEL[settings.destino],
@@ -254,6 +262,7 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
             email={email}
           />
         </BarPopover>
+        {metricas && <BarButton label="Métricas: quién baja qué" icon={BarChart3} onClick={() => router.push("/descargas/metricas")} />}
         {ready.length > 1 && readyTargets.length > 0 && (
           <>
             <BarDivider />

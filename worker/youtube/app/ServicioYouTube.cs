@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -28,11 +29,25 @@ namespace Herramientas
 {
     enum Estado { Arrancando, Funcionando, Aviso, Error, Detenido }
 
+    /// <summary>Un pedido de alguien de la app: quién, desde dónde, qué video y cómo terminó.</summary>
+    sealed class Pedido
+    {
+        public DateTime Hora;
+        public string Job, Quien, Email, Desde, Titulo, Que, Resultado;
+        public bool Terminado, Fallo;
+    }
+
     static class Programa
     {
         public const string Titulo = "Servicio de YouTube";
-        public const string PedidoMostrar = "Local\\Herramientas.ServicioYouTube.Mostrar";
-        const string UnaSolaVez = "Local\\Herramientas.ServicioYouTube";
+        /// <summary>
+        /// SERVICIO_PRUEBA=1: una segunda copia para probar cambios sin tocar la que está andando (otro nombre,
+        /// otro registro, y no se anota para arrancar con Windows). Va con otro PORT y TMP_DIR.
+        /// </summary>
+        public static readonly bool Prueba = Environment.GetEnvironmentVariable("SERVICIO_PRUEBA") == "1";
+        static readonly string Nombre = "Local\\Herramientas.ServicioYouTube" + (Prueba ? ".Prueba" : "");
+        public static readonly string PedidoMostrar = Nombre + ".Mostrar";
+        static readonly string UnaSolaVez = Nombre;
 
         [DllImport("user32.dll")]
         static extern bool SetProcessDPIAware();
@@ -78,6 +93,9 @@ namespace Herramientas
         readonly IntPtr trabajo;
         readonly object candado = new object();
         readonly List<string> lineas = new List<string>();
+        // Los últimos pedidos, desde que se abrió la app (el historial completo está en la página de métricas).
+        readonly List<Pedido> pedidos = new List<Pedido>();
+        readonly JavaScriptSerializer json = new JavaScriptSerializer();
         StreamWriter archivo;
 
         Process proceso;
@@ -136,6 +154,14 @@ namespace Herramientas
             if (saliendo || proceso != null) return;
             direccion = null;
             bajando = 0;
+            // Lo que estaba bajando cuando se cerró el servicio ya no va a terminar.
+            foreach (var pedido in pedidos)
+            {
+                if (pedido.Terminado) continue;
+                pedido.Terminado = true;
+                pedido.Fallo = true;
+                pedido.Resultado = "Se cortó (se reinició el servicio)";
+            }
             string node = BuscarNode();
             if (node == null)
             {
@@ -156,6 +182,8 @@ namespace Herramientas
             info.RedirectStandardError = true;
             info.StandardOutputEncoding = Encoding.UTF8;
             info.StandardErrorEncoding = Encoding.UTF8;
+            // Con esto el servicio manda una línea "@@{...}" por pedido, para la pestaña Descargas.
+            info.EnvironmentVariables["SERVICIO_APP"] = "1";
 
             var p = new Process();
             p.StartInfo = info;
@@ -266,8 +294,122 @@ namespace Herramientas
         void Leer(string linea)
         {
             if (linea == null) return;
+            if (linea.StartsWith("@@"))
+            {
+                // Un pedido o su resultado: va a la pestaña Descargas (el registro ya tiene su línea legible).
+                string datos = linea.Substring(2);
+                try { ui.BeginInvoke((Action)(() => Evento(datos))); } catch (InvalidOperationException) { }
+                return;
+            }
             Escribir(linea);
             try { ui.BeginInvoke((Action)(() => Interpretar(linea))); } catch (InvalidOperationException) { }
+        }
+
+        void Evento(string datos)
+        {
+            Dictionary<string, object> e;
+            try { e = json.Deserialize<Dictionary<string, object>>(datos); }
+            catch { return; }
+            if (e == null) return;
+            string tipo = Texto(e, "tipo"), job = Texto(e, "job");
+            if (tipo == "pedido")
+            {
+                var p = new Pedido();
+                p.Hora = DateTime.Now;
+                p.Job = job;
+                p.Email = Texto(e, "email");
+                p.Quien = Texto(e, "quien") ?? p.Email ?? "Sin identificar";
+                p.Desde = Desde(Texto(e, "desde"));
+                p.Titulo = Texto(e, "titulo") ?? Texto(e, "video") ?? "";
+                p.Que = Que(Texto(e, "modo"), Numero(e, "calidad"));
+                string estado = Texto(e, "estado");
+                if (estado == "done")
+                {
+                    p.Terminado = true;
+                    p.Resultado = "Ya estaba listo" + Peso(Numero(e, "bytes"));
+                }
+                else p.Resultado = estado == "queued" ? "En espera" : "Bajando…";
+                pedidos.Insert(0, p);
+                if (pedidos.Count > 300) pedidos.RemoveAt(pedidos.Count - 1);
+            }
+            else if (tipo == "listo" || tipo == "error")
+            {
+                // Varias personas pueden haber pedido el mismo video: terminan todos juntos.
+                foreach (var p in pedidos)
+                {
+                    if (p.Job != job || p.Terminado) continue;
+                    p.Terminado = true;
+                    p.Fallo = tipo == "error";
+                    long? segundos = Numero(e, "segundos");
+                    p.Resultado = tipo == "listo"
+                        ? "Listo" + Peso(Numero(e, "bytes")) + (segundos.HasValue ? " en " + segundos + " s" : "")
+                        : "No se pudo: " + (Texto(e, "error") ?? "error");
+                }
+            }
+            else return;
+
+            var activos = new HashSet<string>();
+            foreach (var p in pedidos) if (!p.Terminado && p.Job != null) activos.Add(p.Job);
+            bajando = activos.Count;
+            ActualizarTexto();
+            if (ventana != null && !ventana.IsDisposed) ventana.MostrarDescargas(pedidos, Resumen());
+        }
+
+        /// <summary>"Hoy: 5 pedidos de 3 personas · 4 desde la oficina".</summary>
+        string Resumen()
+        {
+            int total = 0, oficina = 0;
+            var personas = new HashSet<string>();
+            foreach (var p in pedidos)
+            {
+                if (p.Hora.Date != DateTime.Today) continue;
+                total++;
+                if (p.Email != null) personas.Add(p.Email);
+                if (p.Desde == "Oficina") oficina++;
+            }
+            if (pedidos.Count == 0) return "Todavía nadie pidió un video desde que se abrió el servicio. Acá aparece quién baja cada uno y desde dónde.";
+            if (total == 0) return "Hoy todavía no hubo pedidos.";
+            string quienes = personas.Count == 0 ? "" : " de " + personas.Count + (personas.Count == 1 ? " persona" : " personas");
+            return "Hoy: " + total + (total == 1 ? " pedido" : " pedidos") + quienes + " · " + oficina + " desde la oficina";
+        }
+
+        static string Desde(string valor)
+        {
+            switch (valor)
+            {
+                case "oficina": return "Oficina";
+                case "afuera": return "Afuera";
+                case "local": return "Esta PC";
+                default: return "¿?";
+            }
+        }
+
+        static string Que(string modo, long? calidad)
+        {
+            if (modo == "audio") return "Solo audio";
+            string q = calidad.HasValue ? calidad + "p" : "Video";
+            return modo == "mute" ? q + " sin audio" : q;
+        }
+
+        static string Peso(long? bytes)
+        {
+            if (!bytes.HasValue || bytes.Value <= 0) return "";
+            double mb = bytes.Value / 1e6;
+            return " · " + (mb >= 1000 ? (mb / 1000).ToString("0.0") + " GB" : mb.ToString(mb >= 10 ? "0" : "0.0") + " MB");
+        }
+
+        static string Texto(Dictionary<string, object> e, string clave)
+        {
+            object v;
+            return e.TryGetValue(clave, out v) && v is string && ((string)v).Length > 0 ? (string)v : null;
+        }
+
+        static long? Numero(Dictionary<string, object> e, string clave)
+        {
+            object v;
+            if (!e.TryGetValue(clave, out v) || v == null) return null;
+            try { return Convert.ToInt64(v); }
+            catch { return null; }
         }
 
         void Interpretar(string l)
@@ -313,16 +455,6 @@ namespace Herramientas
                     Fijar(Estado.Error, "El puerto está ocupado", "¿Quedó abierta la ventana de iniciar.cmd? Cerrala y tocá Reiniciar.");
                 }
             }
-            else if (Regex.IsMatch(l, @"^\S+\s+→ "))
-            {
-                bajando++;
-                ActualizarTexto();
-            }
-            else if (Regex.IsMatch(l, @"^\S+\s+[✓✗] "))
-            {
-                bajando = Math.Max(0, bajando - 1);
-                ActualizarTexto();
-            }
         }
 
         void Fijar(Estado e, string t, string d)
@@ -365,6 +497,7 @@ namespace Herramientas
                 string[] copia;
                 lock (candado) copia = lineas.ToArray();
                 ventana.Cargar(copia);
+                ventana.MostrarDescargas(pedidos, Resumen());
             }
             ventana.MostrarEstado(estado, titulo, detalle, direccion);
             ventana.Show();
@@ -388,6 +521,7 @@ namespace Herramientas
 
         void PrimeraVez()
         {
+            if (Programa.Prueba) return;
             using (var ajustes = Registry.CurrentUser.CreateSubKey(ClaveAjustes))
             {
                 if (ajustes.GetValue("InicioConfigurado") == null)
@@ -443,7 +577,7 @@ namespace Herramientas
 
         void AbrirArchivo()
         {
-            string ruta = Path.Combine(carpeta, "servicio.log");
+            string ruta = Path.Combine(carpeta, Programa.Prueba ? "servicio.prueba.log" : "servicio.log");
             try
             {
                 if (File.Exists(ruta) && new FileInfo(ruta).Length > 2 * 1024 * 1024)
@@ -512,6 +646,9 @@ namespace Herramientas
         readonly Label lblPunto = new Label(), lblEstado = new Label(), lblDetalle = new Label(), lblDireccion = new Label();
         readonly TextBox texto = new TextBox();
         readonly Button btnCopiar = new Button(), btnCarpeta = new Button(), btnReiniciar = new Button(), btnCerrar = new Button();
+        readonly TabControl pestanas = new TabControl();
+        readonly ListView lista = new ListView();
+        readonly Label lblResumen = new Label();
 
         public VentanaRegistro(Action copiar, Action abrirCarpeta, Action reiniciar)
         {
@@ -519,11 +656,11 @@ namespace Herramientas
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             Font = new Font("Segoe UI", 9F);
-            Text = "Servicio de YouTube · Herramientas";
+            Text = "Servicio de YouTube · Herramientas" + (Programa.Prueba ? " (prueba)" : "");
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(760, 500);
-            MinimumSize = new Size(480, 320);
+            ClientSize = new Size(880, 540);
+            MinimumSize = new Size(560, 360);
             ShowInTaskbar = true;
 
             var raiz = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(14) };
@@ -563,6 +700,56 @@ namespace Herramientas
             texto.BackColor = SystemColors.Window;
             texto.AccessibleName = "Registro del servicio";
 
+            // Descargas: quién pidió cada video, desde dónde y cómo terminó (lo más nuevo arriba).
+            float escala;
+            using (var g = CreateGraphics()) escala = g.DpiX / 96F;
+            lista.View = View.Details;
+            lista.FullRowSelect = true;
+            lista.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+            lista.ShowItemToolTips = true;
+            lista.Dock = DockStyle.Fill;
+            lista.AccessibleName = "Pedidos de videos";
+            foreach (var c in new[] { new { t = "Hora", w = 52 }, new { t = "Quién", w = 150 }, new { t = "Desde", w = 70 },
+                                      new { t = "Video", w = 260 }, new { t = "Qué", w = 100 }, new { t = "Cómo terminó", w = 180 } })
+                lista.Columns.Add(c.t, (int)(c.w * escala));
+            // La última columna ocupa lo que sobra (sin barra de scroll horizontal).
+            lista.Resize += delegate
+            {
+                int resto = lista.ClientSize.Width;
+                for (int i = 0; i < lista.Columns.Count - 1; i++) resto -= lista.Columns[i].Width;
+                lista.Columns[lista.Columns.Count - 1].Width = Math.Max((int)(120 * escala), resto);
+            };
+            lblResumen.AutoSize = true;
+            lblResumen.Dock = DockStyle.Fill;
+            lblResumen.Margin = new Padding(2, 6, 2, 8);
+            var notaDescargas = new Label
+            {
+                Text = "Se ven los pedidos desde que se abrió el servicio. El historial completo (YouTube, Instagram y Pinterest) está en Herramientas → Descargas → Métricas.",
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                ForeColor = SystemColors.GrayText,
+                Margin = new Padding(2, 8, 2, 2),
+            };
+            var panelDescargas = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(6) };
+            panelDescargas.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            panelDescargas.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            panelDescargas.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            panelDescargas.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            panelDescargas.Controls.Add(lblResumen, 0, 0);
+            panelDescargas.Controls.Add(lista, 0, 1);
+            panelDescargas.Controls.Add(notaDescargas, 0, 2);
+
+            var tabDescargas = new TabPage("Descargas") { UseVisualStyleBackColor = true };
+            tabDescargas.Controls.Add(panelDescargas);
+            var tabRegistro = new TabPage("Registro") { UseVisualStyleBackColor = true, Padding = new Padding(6) };
+            tabRegistro.Controls.Add(texto);
+            pestanas.TabPages.Add(tabDescargas);
+            pestanas.TabPages.Add(tabRegistro);
+            pestanas.Dock = DockStyle.Fill;
+            pestanas.Padding = new Point(14, 5);
+            // El registro va al final cuando se lo mira (mientras está oculto no puede scrollear).
+            pestanas.SelectedIndexChanged += delegate { if (pestanas.SelectedTab == tabRegistro) AlFinal(); };
+
             var pie = new TableLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0, 10, 0, 0) };
             pie.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             pie.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -592,7 +779,7 @@ namespace Herramientas
             pie.Controls.Add(botones, 1, 0);
 
             raiz.Controls.Add(cabeza, 0, 0);
-            raiz.Controls.Add(texto, 0, 1);
+            raiz.Controls.Add(pestanas, 0, 1);
             raiz.Controls.Add(pie, 0, 2);
             Controls.Add(raiz);
             CancelButton = btnCerrar; // Esc la cierra
@@ -645,6 +832,22 @@ namespace Herramientas
             texto.SelectionStart = texto.TextLength;
             texto.SelectionLength = 0;
             texto.ScrollToCaret();
+        }
+
+        public void MostrarDescargas(List<Pedido> pedidos, string resumen)
+        {
+            lblResumen.Text = resumen;
+            lista.BeginUpdate();
+            lista.Items.Clear();
+            foreach (var p in pedidos)
+            {
+                var item = new ListViewItem(new[] { p.Hora.ToString("HH:mm"), p.Quien, p.Desde, p.Titulo, p.Que, p.Resultado });
+                item.ToolTipText = p.Titulo + (p.Email != null ? "\n" + p.Quien + " · " + p.Email : "") + "\n" + p.Hora.ToString("dd/MM HH:mm:ss");
+                if (p.Fallo) item.ForeColor = Color.FromArgb(185, 28, 28);
+                else if (!p.Terminado) item.ForeColor = SystemColors.GrayText;
+                lista.Items.Add(item);
+            }
+            lista.EndUpdate();
         }
 
         public void MostrarEstado(Estado e, string titulo, string detalle, string direccion)

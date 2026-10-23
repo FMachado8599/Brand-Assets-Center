@@ -33,7 +33,10 @@ Para probar que anda: `http://localhost:8787/health` responde `{"ok":true,…,"p
 Mantiene corriendo `server.mjs` sin ventana de consola y queda junto al reloj. En Windows 11 los íconos nuevos van a la flechita **^**; para tenerlo siempre a la vista: *Configuración → Personalización → Barra de tareas → Otros iconos de la bandeja del sistema*.
 
 - **El punto del ícono** dice cómo anda: verde, funcionando; naranja, arrancando o reconectando el túnel (se arregla solo); rojo, algo que hay que mirar; gris, apagado. Al pasar el mouse lo dice en palabras (y cuántos videos está bajando).
-- **Click** en el ícono: abre la ventana con el estado, la dirección pública y el registro. Cerrar esa ventana no apaga el servicio. Volver a abrir el `.exe` también la muestra (nunca abre dos copias).
+- **Click** en el ícono: abre la ventana con el estado, la dirección pública y dos pestañas. Cerrar esa ventana no apaga el servicio. Volver a abrir el `.exe` también la muestra (nunca abre dos copias).
+  - **Descargas**: cada pedido de video desde que se abrió el servicio, lo más nuevo arriba: la hora, **quién** (el nombre de su cuenta del estudio, que la app firma junto con el permiso; "Sin identificar" si no viene firmado), **desde dónde** (*Oficina*, *Afuera* o *Esta PC*), el video, la calidad y cómo terminó (bajando, listo con el peso y los segundos, "ya estaba listo" si otra persona lo había pedido hace poco, o el error). Arriba, el resumen del día. El historial completo, de las tres plataformas, está en Herramientas → Descargas → Métricas.
+  - **Registro**: todo lo que dice el servicio (también queda en `servicio.log`).
+- **Desde dónde**: por el túnel, Cloudflare le pasa al servicio la IP real de quien pide (`cf-connecting-ip`); si es la misma IP pública que la de esta PC (o una de la red local) es *Oficina*. La IP solo se compara en el momento: no se muestra ni se guarda. La IP pública de la oficina la averigua al arrancar y cada media hora (con `1.1.1.1/cdn-cgi/trace`) y la anota en el Blob store junto con la dirección, para que la app marque las descargas hechas desde la oficina.
 - **Click derecho**: copiar la dirección pública, reiniciar el servicio, **Arrancar con Windows** (tildado de entrada) y **Salir** (pregunta antes, porque sin el servicio la app no puede bajar de YouTube).
 - **Si el servicio se cae**, lo vuelve a abrir a los 10 segundos y avisa con una notificación. Si se cae 4 veces seguidas al arrancar, deja de intentar y lo dice: el registro explica por qué.
 - **Al cerrar la app** (o si se cuelga) se cierran también Node, el túnel y yt-dlp: no quedan procesos sueltos ocupando el puerto.
@@ -41,6 +44,8 @@ Mantiene corriendo `server.mjs` sin ventana de consola y queda junto al reloj. E
 - **"El puerto está ocupado"**: hay otra copia abierta, casi siempre la consola de `iniciar.cmd`. Cerrala y tocá **Reiniciar**. Usar una u otra, no las dos.
 - Arrancar con Windows se guarda en `HKCU\…\Run` (aparece en *Administrador de tareas → Aplicaciones de arranque* como "Herramientas - Servicio de YouTube"); no necesita permisos de administrador. Busca Node en el PATH; si está en otro lado, `NODE_EXE` en las variables de entorno de Windows.
 - Para cambiarla: editar `app/ServicioYouTube.cs` (C# 5, .NET Framework 4) y correr `app/compilar.cmd` con la app cerrada. El `.exe` y el registro no van al repo.
+- **Probar sin tocar la que está andando**: compilar a otro nombre y abrirla con `SERVICIO_PRUEBA=1` (otro nombre interno, otro registro, `servicio.prueba.log`, y no se anota para arrancar con Windows), junto con otro `PORT`, otro `TMP_DIR` (al arrancar se vacía la carpeta temporal) y `YTDLP_AUTO_UPDATE=0`. Ojo con `BLOB_READ_WRITE_TOKEN`: si la copia de prueba tiene el de verdad, anota su dirección en Vercel y la app empieza a usarla; para probar, uno inválido.
+- El servicio manda a la app una línea `@@{…}` por pedido y por resultado (solo con `SERVICIO_APP=1`, que pone la app): eso arma la pestaña Descargas. En la consola de `iniciar.cmd` no aparecen.
 
 `iniciar.cmd` sigue sirviendo para abrirlo en una consola y ver todo en vivo (por ejemplo, para probar algo).
 
