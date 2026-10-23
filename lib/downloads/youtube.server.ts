@@ -26,30 +26,40 @@ async function config() {
   return { worker: fixed || (await announcedUrl()), secret };
 }
 
-let cached: { url: string; at: number } | null = null;
+/** Lo que anota el servicio: su dirección y la IP pública de la oficina (para saber quién baja desde ahí). */
+export type Announcement = { url?: string; oficina?: { v4?: string | null; v6?: string | null } };
+
+let cached: { data: Announcement | null; at: number } | null = null;
 
 /**
- * La dirección del túnel de Cloudflare, que cambia cada vez que arranca el servicio: la lee del Blob store
- * de Vercel (se guarda un rato en memoria para no leerla en cada pedido).
+ * Lo que el servicio anotó en el Blob store de Vercel al arrancar (la dirección del túnel cambia cada
+ * vez). Se guarda un rato en memoria para no leerlo en cada pedido. null si no hay nada anotado.
  */
-async function announcedUrl() {
-  if (cached && Date.now() - cached.at < 30_000) return cached.url;
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new DownloadError("YouTube todavía no está configurado: falta conectar el Blob store en Vercel (ver README, Descargas).", 501);
-  }
+export async function announcement(): Promise<Announcement | null> {
+  if (cached && Date.now() - cached.at < 30_000) return cached.data;
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  let data: Announcement | null = null;
   for (const access of ["private", "public"] as const) {
     try {
       const blob = await get(BLOB_PATH, { access, useCache: false });
       if (blob?.statusCode !== 200) break;
-      const { url } = JSON.parse(await new Response(blob.stream).text()) as { url?: string };
-      if (!url) break;
-      cached = { url: url.replace(/\/+$/, ""), at: Date.now() };
-      return cached.url;
+      data = JSON.parse(await new Response(blob.stream).text()) as Announcement;
+      break;
     } catch {
       /* el store es del otro tipo (público o privado): se prueba el siguiente */
     }
   }
-  throw new DownloadError("El servicio de YouTube todavía no avisó su dirección. ¿Está abierto en la PC?", 503);
+  cached = { data, at: Date.now() };
+  return data;
+}
+
+async function announcedUrl() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new DownloadError("YouTube todavía no está configurado: falta conectar el Blob store en Vercel (ver README, Descargas).", 501);
+  }
+  const url = (await announcement())?.url;
+  if (!url) throw new DownloadError("El servicio de YouTube todavía no avisó su dirección. ¿Está abierto en la PC?", 503);
+  return url.replace(/\/+$/, "");
 }
 
 type WorkerInfo = {
@@ -62,7 +72,10 @@ type WorkerInfo = {
   audio?: number;
 };
 
-export async function getYoutubeInfo(link: Link): Promise<MediaInfo> {
+/** Quién pide el video: el servicio de la PC lo muestra en vivo en su ventana. */
+export type Requester = { name: string | null; email: string };
+
+export async function getYoutubeInfo(link: Link, requester?: Requester | null): Promise<MediaInfo> {
   const { worker, secret } = await config();
   const id = link.id!;
   const cover = bestCover(id);
@@ -93,8 +106,25 @@ export async function getYoutubeInfo(link: Link): Promise<MediaInfo> {
     thumbnail: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
     duration: data.duration,
     files: [],
-    youtube: { worker, token: sign(id, secret), qualities: data.qualities, audio: data.audio, cover: await cover },
+    youtube: {
+      worker,
+      token: sign(id, secret),
+      quien: requester ? signRequester(id, requester, secret) : undefined,
+      qualities: data.qualities,
+      audio: data.audio,
+      cover: await cover,
+    },
   };
+}
+
+/**
+ * "<datos>.<firma>": nombre y mail de quien pide, firmados para este video con la clave compartida, así el
+ * servicio puede confiar en el nombre que muestra. Va aparte del permiso (un servicio viejo lo ignora).
+ */
+function signRequester(id: string, requester: Requester, secret: string) {
+  const data = Buffer.from(JSON.stringify({ n: requester.name, e: requester.email })).toString("base64url");
+  const sig = crypto.createHmac("sha256", secret).update(`quien.${id}.${data}`).digest("base64url");
+  return `${data}.${sig}`;
 }
 
 /**

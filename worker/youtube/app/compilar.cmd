@@ -10,7 +10,7 @@ if not exist "%CSC%" (
   pause
   exit /b 1
 )
-"%CSC%" /nologo /codepage:65001 /target:winexe /optimize+ /win32icon:icono.ico /r:System.Windows.Forms.dll /r:System.Drawing.dll /out:..\ServicioYouTube.exe ServicioYouTube.cs
+"%CSC%" /nologo /codepage:65001 /target:winexe /optimize+ /win32icon:icono.ico /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /out:..\ServicioYouTube.exe ServicioYouTube.cs
 if errorlevel 1 (
   echo.
   echo No se pudo compilar. Si dice que el archivo esta en uso, cerra la app ^(Salir^) y volve a probar.

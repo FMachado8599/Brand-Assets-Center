@@ -3,6 +3,7 @@
 import { processAudio } from "./audio.client";
 import { DriveError, uploadToDrive } from "./drive.client";
 import { downloadName } from "./links";
+import type { RegistroDescarga } from "./registro";
 import { isVideoTarget, type SaveTarget } from "./targets";
 import type { AudioMode, SaveSettings, YoutubeSource } from "./types";
 
@@ -27,7 +28,7 @@ export async function saveTarget(
   settings: SaveSettings,
   driveToken: string | undefined,
   onProgress: (p: Progress) => void
-): Promise<{ name: string; driveUrl?: string }> {
+): Promise<{ name: string; driveUrl?: string; bytes?: number }> {
   const { info, file, cover } = target;
   const audio: AudioMode = isVideoTarget(target) ? settings.audio : "con";
   const ext = cover ? cover.ext : audio === "solo" ? "m4a" : info.youtube ? "mp4" : file!.ext;
@@ -53,13 +54,13 @@ export async function saveTarget(
     blob = await processAudio(blob, audio as Exclude<AudioMode, "con">, (percent) => onProgress({ label, percent }));
   }
   if (toComputer) saveBlob(blob, name);
-  if (!toDrive) return { name };
+  if (!toDrive) return { name, bytes: blob.size };
 
   if (!settings.carpeta || !driveToken) throw new DriveError("Elegí la carpeta de Drive en las opciones.");
   const uploaded = await uploadToDrive(blob, name, settings.carpeta.id, driveToken, (percent) =>
     onProgress({ label: "Subiendo a Drive", percent })
   );
-  return { name, driveUrl: uploaded.url };
+  return { name, driveUrl: uploaded.url, bytes: blob.size };
 }
 
 /* ───────────── YouTube ───────────── */
@@ -84,7 +85,8 @@ async function prepareYoutube(yt: YoutubeSource, audio: AudioMode, quality: numb
   let job = await workerJson(`${yt.worker}/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ t: yt.token, mode, q: quality ?? yt.qualities[0]?.q }),
+    // quien: el nombre de quien baja, firmado por la app; la PC lo muestra en su ventana.
+    body: JSON.stringify({ t: yt.token, mode, q: quality ?? yt.qualities[0]?.q, quien: yt.quien }),
   });
   const token = encodeURIComponent(yt.token);
   while (job.status !== "done") {
@@ -126,6 +128,20 @@ async function fetchBlob(href: string, onProgress: (percent: number) => void) {
     if (total) onProgress(Math.round((received / total) * 100));
   }
   return new Blob(chunks, { type: res.headers.get("content-type") ?? "application/octet-stream" });
+}
+
+/**
+ * Anota lo bajado en el registro de descargas (las métricas del estudio). No se espera ni se avisa si
+ * falla: la descarga ya se hizo. keepalive: llega aunque se cierre la página.
+ */
+export function anotarDescargas(items: RegistroDescarga[]) {
+  if (!items.length) return;
+  fetch("/api/descargas/registro", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function clickDownload(href: string, name: string) {
