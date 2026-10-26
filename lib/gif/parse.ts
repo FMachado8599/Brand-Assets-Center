@@ -78,6 +78,8 @@ async function imageSize(file: File) {
 
 /** Hasta cuánto de la imagen se recorta para llenar la medida en vez de dejar bordes blancos. */
 const MAX_CROP = 0.05;
+/** Un recorte de hasta estos píxeles es redondeo del export: se arregla sin avisar. */
+const SILENT_CROP_PX = 2;
 
 /**
  * Cómo entra una imagen de nw×nh en la medida del grupo.
@@ -126,7 +128,7 @@ export function buildGroups(frames: Frame[]): GifGroup[] {
         if (nw === width && nh === height) continue;
         const fit = fitImage(nw, nh, width, height);
         if (fit.mode === "contain") warnings.push(`${f.filename} mide ${nw}×${nh}: va a quedar con bordes blancos`);
-        if (fit.mode === "crop") {
+        if (fit.mode === "crop" && Math.max(fit.cropX, fit.cropY) > SILENT_CROP_PX) {
           const cut = [fit.cropX && `${fit.cropX} px de ancho`, fit.cropY && `${fit.cropY} px de alto`].filter(Boolean).join(" y ");
           warnings.push(`${f.filename} mide ${nw}×${nh}: se recorta ${cut} para que entre`);
         }
