@@ -8,3 +8,6 @@ node_modules
 # Servicio de YouTube: los programas (yt-dlp, ffmpeg) y la clave quedan solo en la PC que lo corre
 worker/youtube/bin/
 worker/youtube/.env
+# La app de la bandeja se compila en cada PC (app/compilar.cmd); su registro tampoco va al repo
+worker/youtube/ServicioYouTube.exe
+worker/youtube/servicio*.log

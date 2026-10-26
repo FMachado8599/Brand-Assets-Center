@@ -1,3 +1,5 @@
+import type { BrandSocial } from "@/lib/clients/socials";
+
 /** Fondo del logo: papel, negro o el color del cliente. */
 export type LogoBg = "light" | "dark" | "brand";
 
@@ -23,6 +25,10 @@ export type Brand = {
   /** Familias tipográficas ("Montserrat"): pueden estar subidas o no. */
   font_families?: string[];
   notes?: string;
+  /** Sus cuentas de redes (migracion-redes.sql). */
+  socials?: BrandSocial[];
+  /** Si el logo es la foto de perfil de una de sus cuentas, cuál (ver socialKey). */
+  logo_from?: string | null;
 };
 export type Category = { id: string; name: string; created_at: string };
 /** Modelo de un cliente. Ej: Changan → Lumin, Hunter, Eado. */

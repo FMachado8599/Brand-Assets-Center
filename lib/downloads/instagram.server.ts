@@ -116,17 +116,17 @@ async function fromGraph(code: string, pageUrl: string, media: IgNode): Promise<
 
 function toFile(node: IgNode): MediaFile | null {
   const thumbnail = thumbnailOf(node);
-  if (node.is_video) {
-    // Las medidas que informa Instagram para los videos no son las del MP4 (dice 1024×1820 y el archivo es
-    // 720×1280): mejor no mostrarlas.
-    return node.video_url && isInstagramMedia(node.video_url)
-      ? { kind: "video", url: node.video_url, ext: "mp4", thumbnail }
-      : null;
-  }
   const best = largest(node.display_resources ?? []);
   const src = best?.src ?? node.display_url;
-  if (!src || !isInstagramMedia(src)) return null;
-  return { kind: "image", url: src, ext: imageExt(src), width: best?.config_width, height: best?.config_height, thumbnail };
+  const image = src && isInstagramMedia(src) ? { url: src, ext: imageExt(src), width: best?.config_width, height: best?.config_height } : null;
+  if (node.is_video) {
+    // Las medidas que informa Instagram para los videos no son las del MP4 (dice 1024×1820 y el archivo es
+    // 720×1280): mejor no mostrarlas. Las de la portada sí son las de la imagen.
+    return node.video_url && isInstagramMedia(node.video_url)
+      ? { kind: "video", url: node.video_url, ext: "mp4", thumbnail, cover: image ?? undefined }
+      : null;
+  }
+  return image && { kind: "image", ...image, thumbnail };
 }
 
 async function fromHtml(code: string, pageUrl: string, html: string): Promise<MediaInfo> {

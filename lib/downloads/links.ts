@@ -83,12 +83,18 @@ function httpsUrl(src: string) {
   }
 }
 
-/** Los MP4 del CDN de videos de Pinterest y las imágenes originales. */
+/** Los MP4 del CDN de videos de Pinterest, las imágenes originales y la portada de los videos. */
 export function isPinterestMedia(src: string) {
   const url = httpsUrl(src);
   if (!url) return false;
   if (/^v\d*\.pinimg\.com$/.test(url.hostname)) return /^\/videos\/[\w/.-]+\.mp4$/.test(url.pathname);
-  return url.hostname === "i.pinimg.com" && /^\/originals\/[\w/.-]+\.(jpe?g|png|gif|webp)$/i.test(url.pathname);
+  return url.hostname === "i.pinimg.com" && /^\/(?:videos\/thumbnails\/)?originals\/[\w/.-]+\.(jpe?g|png|gif|webp)$/i.test(url.pathname);
+}
+
+/** Las miniaturas de YouTube (la portada de cada video). */
+export function isYoutubeCover(src: string) {
+  const url = httpsUrl(src);
+  return !!url && url.hostname === "i.ytimg.com" && /^\/vi(?:_webp)?\/[\w-]{11}\/(?:maxres|sd|hq)default\.(?:jpg|webp)$/.test(url.pathname);
 }
 
 /** Instagram sirve todo desde el CDN de Meta (instagram.f<ciudad>.fna.fbcdn.net, scontent.cdninstagram.com…). */
@@ -99,7 +105,7 @@ export function isInstagramMedia(src: string) {
 
 /** Lo único que baja el proxy de descargas: así no sirve para traer cualquier cosa de internet. */
 export function isAllowedMedia(src: string) {
-  return isPinterestMedia(src) || isInstagramMedia(src);
+  return isPinterestMedia(src) || isInstagramMedia(src) || isYoutubeCover(src);
 }
 
 export function safeFileName(name: string) {
@@ -126,9 +132,9 @@ export function clip(text: string, max: number) {
 
 /**
  * El nombre con que se guarda: el del posteo, el número dentro del carrusel, y si se le sacó o se separó
- * el audio. `ext` es la del archivo que sale (un video convertido a solo audio termina en .m4a).
+ * el audio, o si es la portada. `ext` es la del archivo que sale (un video convertido a solo audio termina en .m4a).
  */
-export function downloadName(info: MediaInfo, ext: string, opts: { file?: MediaFile; audio?: AudioMode } = {}) {
+export function downloadName(info: MediaInfo, ext: string, opts: { file?: MediaFile; audio?: AudioMode; cover?: boolean } = {}) {
   // En Instagram la cuenta dice de quién es y en YouTube el canal; en Pinterest es quien lo guardó, que no
   // importa. Los títulos de Pinterest además suelen arrastrar palabras clave después de un " | ": quedan afuera.
   const parts = info.platform === "pinterest" ? [info.title.split(" | ")[0]] : [info.author, info.title];
@@ -136,6 +142,6 @@ export function downloadName(info: MediaInfo, ext: string, opts: { file?: MediaF
   const base = clip(safeFileName(parts.filter(Boolean).join(" - ")), 90).replace(/[\s.,;:!?¿¡…–—-]+$/, "") || "descarga";
   const index = opts.file ? info.files.indexOf(opts.file) : -1;
   const number = info.files.length > 1 && index >= 0 ? ` (${index + 1})` : "";
-  const tag = opts.audio === "sin" ? " (sin audio)" : opts.audio === "solo" ? " (audio)" : "";
+  const tag = opts.cover ? " (portada)" : opts.audio === "sin" ? " (sin audio)" : opts.audio === "solo" ? " (audio)" : "";
   return `${base}${number}${tag}.${ext}`;
 }

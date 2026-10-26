@@ -346,6 +346,7 @@ export function BarPopover({
   align = "center",
   open,
   onOpenChange,
+  focusPanel,
 }: {
   label: string;
   icon?: LucideIcon;
@@ -357,13 +358,26 @@ export function BarPopover({
   align?: "start" | "center" | "end";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Al abrir, el foco queda en el panel y no en su primer control (que con tooltip lo mostraría de entrada). */
+  focusPanel?: boolean;
 }) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <BarButton label={label} icon={icon} glyph={glyph} badge={badge} highlight={highlight} />
       </PopoverTrigger>
-      <PopoverContent align={align} className={className}>
+      <PopoverContent
+        align={align}
+        className={className}
+        onOpenAutoFocus={
+          focusPanel
+            ? (e) => {
+                e.preventDefault();
+                (e.currentTarget as HTMLElement | null)?.focus();
+              }
+            : undefined
+        }
+      >
         {children}
       </PopoverContent>
     </Popover>

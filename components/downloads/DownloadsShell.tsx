@@ -1,18 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ClipboardPaste, CloudUpload, Download, FolderInput, Instagram, Link2, ListPlus, MonitorDown, Pin, SlidersHorizontal, Youtube } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { BarChart3, ClipboardPaste, CloudUpload, Download, FolderInput, Link2, ListPlus, SlidersHorizontal } from "lucide-react";
 import { useAccount } from "@/components/shell/AccountProvider";
 import { BarAction, BarButton, BarDivider, BarPopover, BarSearch, ContextBar, PanelTitle } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
+import { Hint } from "@/components/ui/tooltip";
 import { useStoredState } from "@/hooks/useStoredState";
 import { DriveError, getDriveToken, type DriveConfig } from "@/lib/downloads/drive.client";
 import { findLinks, NO_LINKS, scanLinks, type Link } from "@/lib/downloads/links";
-import { saveTarget, type SaveTarget } from "@/lib/downloads/save.client";
-import type { MediaFile, MediaInfo, SaveSettings } from "@/lib/downloads/types";
-import { actionLabel, DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
+import { registroDe, type RegistroDescarga } from "@/lib/downloads/registro";
+import { anotarDescargas, saveTarget } from "@/lib/downloads/save.client";
+import { planTargets } from "@/lib/downloads/targets";
+import type { CoverMode, MediaFile, MediaInfo, SaveSettings } from "@/lib/downloads/types";
+import { DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
 import { LinkList } from "./LinkList";
-import { DEFAULT_SETTINGS, describeSettings, SaveOptions } from "./SaveOptions";
+import { AUDIO_OPTIONS, COVER_OPTIONS, DESTINO_OPTIONS, ModeIcons, optionOf, type ModeOption } from "./modes";
+import { PlatformIcon } from "./PlatformIcon";
+import { audioCounts, DEFAULT_SETTINGS, describeSettings, SaveOptions } from "./SaveOptions";
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -21,7 +27,20 @@ function isTyping(target: EventTarget | null) {
 
 const DONE_LABEL = { compu: "Descargado", ambos: "Descargado y en Drive", drive: "En Drive" } as const;
 
-export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
+/** Un pedazo del resumen de "Cómo se guarda": los íconos de lo elegido, con su nombre en el tooltip. */
+function SummaryIcons<T extends string>({ option, children }: { option: ModeOption<T>; children?: ReactNode }) {
+  return (
+    <Hint label={option.label}>
+      <span className="inline-flex min-w-0 items-center gap-1">
+        <ModeIcons icons={option.icons} />
+        {children}
+      </span>
+    </Hint>
+  );
+}
+
+export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig | null; metricas?: boolean }) {
+  const router = useRouter();
   const account = useAccount();
   const email = account?.user?.email ?? null;
   const [settings, setSettings] = useStoredState<SaveSettings>("descargas:opciones", DEFAULT_SETTINGS);
@@ -35,8 +54,12 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
   const ready = items.filter(
     (i): i is DownloadItem & { info: MediaInfo } => i.status === "ready" && !!i.info && (i.info.files.length > 0 || !!i.info.youtube)
   );
-  const readyCount = ready.reduce((n, i) => n + Math.max(1, i.info.files.length), 0);
-  const customized = settings.destino !== "compu" || settings.audio !== "con";
+  /** Qué bajar de los videos de una fila: lo que se eligió en ella o, si no, lo de todos. */
+  const modeOf = (item: DownloadItem) => item.portada ?? settings.portada;
+  // Alguna fila eligió otra cosa: "Qué bajar" de todos pasa a "Personalizado".
+  const coverMixed = items.some((i) => i.portada !== undefined && i.portada !== settings.portada);
+  const readyTargets = ready.flatMap((i) => planTargets(i.info, modeOf(i), { quality: i.quality }));
+  const customized = settings.destino !== "compu" || settings.audio !== "con" || settings.portada !== "video" || coverMixed;
 
   const update = useCallback((url: string, patch: Partial<DownloadItem>) => {
     setItems((prev) => prev.map((i) => (i.link.url === url ? { ...i, ...patch } : i)));
@@ -58,6 +81,15 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
     },
     [update]
   );
+
+  /** Elegirlo para todos pisa lo de cada fila. */
+  const setCover = (portada: CoverMode) => {
+    setSettings((s) => ({ ...s, portada }));
+    setItems((prev) => prev.map((i) => (i.portada === undefined ? i : { ...i, portada: undefined })));
+  };
+
+  /** Una fila con lo mismo que todos deja de ser una excepción. */
+  const setItemCover = (url: string, portada: CoverMode) => update(url, { portada: portada === settings.portada ? undefined : portada });
 
   /** Suma a la lista los links del texto; false si no había ninguno que sirva. */
   const add = useCallback(
@@ -127,21 +159,24 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
   const saveItem = async (item: DownloadItem & { info: MediaInfo }, token: string | undefined, file?: MediaFile) => {
     const url = item.link.url;
     const { info } = item;
-    const targets: SaveTarget[] = info.youtube
-      ? [{ info, quality: item.quality }]
-      : (file ? [file] : info.files).map((f) => ({ info, file: f }));
+    const targets = planTargets(info, modeOf(item), { file, quality: item.quality });
     const progress = (transfer: Transfer) => update(url, { transfer });
+    if (!targets.length) return progress({ state: "error", label: "Este video no tiene portada para bajar." });
     progress({ state: "working", label: "Empezando" });
 
     let driveUrl: string | undefined;
+    // Lo que se guardó, para el registro de descargas (se anota aunque después falle otro archivo).
+    const saved: RegistroDescarga[] = [];
     for (const [i, target] of targets.entries()) {
       const prefix = targets.length > 1 ? `${i + 1} de ${targets.length} · ` : "";
       try {
-        const saved = await saveTarget(target, settings, token, (p) =>
+        const result = await saveTarget(target, settings, token, (p) =>
           progress({ state: "working", label: prefix + p.label, percent: p.percent })
         );
-        driveUrl = saved.driveUrl;
+        driveUrl = result.driveUrl;
+        saved.push(registroDe(target, settings.audio, settings.destino, result.bytes));
       } catch (err) {
+        anotarDescargas(saved);
         if (err instanceof DriveError && err.lostFolder) setSettings((s) => ({ ...s, carpeta: null }));
         progress({ state: "error", label: err instanceof Error ? err.message : "No se pudo guardar." });
         return;
@@ -149,6 +184,7 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
       // Los navegadores frenan descargas en ráfaga: se espacian un poco.
       if (i < targets.length - 1) await new Promise((r) => setTimeout(r, 400));
     }
+    anotarDescargas(saved);
     progress({
       state: "done",
       label: DONE_LABEL[settings.destino],
@@ -176,7 +212,8 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
       return;
     }
     for (const item of ready) {
-      if (item.transfer?.state !== "working") await saveItem(item, token);
+      const empty = !planTargets(item.info, modeOf(item), { quality: item.quality }).length;
+      if (item.transfer?.state !== "working" && !empty) await saveItem(item, token);
     }
   };
 
@@ -214,15 +251,22 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
           align="end"
           open={optionsOpen}
           onOpenChange={setOptionsOpen}
+          focusPanel
         >
-          <SaveOptions settings={settings} onChange={setSettings} drive={drive} email={email} />
+          <SaveOptions
+            settings={settings}
+            onChange={setSettings}
+            onCover={setCover}
+            coverMixed={coverMixed}
+            drive={drive}
+            email={email}
+          />
         </BarPopover>
-        {ready.length > 1 && (
+        {metricas && <BarButton label="Métricas: quién baja qué" icon={BarChart3} onClick={() => router.push("/descargas/metricas")} />}
+        {ready.length > 1 && readyTargets.length > 0 && (
           <>
             <BarDivider />
-            <BarAction label="Guardar todo" icon={ActionIcon} onClick={saveAll}>
-              {actionLabel(settings.destino, readyCount)}
-            </BarAction>
+            <BarAction label="Descargar todo" icon={ActionIcon} onClick={saveAll} />
           </>
         )}
       </ContextBar>
@@ -231,16 +275,26 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
         <div className="mb-6 text-center">
           <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Descargas</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Pegá links de YouTube, Instagram o Pinterest y bajá los videos y las fotos en la mejor calidad que tengan:
-            a tu compu, a una carpeta de Drive o a las dos.
+            Pegá links de YouTube, Instagram o Pinterest y bajá los videos, sus portadas y las fotos en la mejor
+            calidad que tengan: a tu compu, a una carpeta de Drive o a las dos.
           </p>
           <button
             type="button"
             onClick={() => setOptionsOpen(true)}
-            className="mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card/80 px-3 py-1 text-xs font-medium transition-colors hover:border-foreground/30"
+            aria-label={`Cómo se guarda: ${describeSettings(settings, coverMixed)}. Cambiar`}
+            className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full border bg-card/80 px-3 py-1 text-xs font-medium transition-colors hover:border-foreground/30"
           >
-            {settings.destino === "compu" ? <MonitorDown className="h-3.5 w-3.5 shrink-0" /> : <CloudUpload className="h-3.5 w-3.5 shrink-0" />}
-            <span className="truncate">{describeSettings(settings)}</span>
+            <SummaryIcons option={optionOf(DESTINO_OPTIONS, settings.destino)}>
+              {settings.destino !== "compu" && <span className="truncate">{settings.carpeta?.name ?? "falta la carpeta"}</span>}
+            </SummaryIcons>
+            <span aria-hidden className="text-muted-foreground/60">·</span>
+            {coverMixed ? <span>Personalizado</span> : <SummaryIcons option={optionOf(COVER_OPTIONS, settings.portada)} />}
+            {audioCounts(settings, coverMixed) && (
+              <>
+                <span aria-hidden className="text-muted-foreground/60">·</span>
+                <SummaryIcons option={optionOf(AUDIO_OPTIONS, settings.audio)} />
+              </>
+            )}
             <span className="shrink-0 text-muted-foreground">· Cambiar</span>
           </button>
         </div>
@@ -258,7 +312,9 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
                   key={item.link.url}
                   item={item}
                   settings={settings}
+                  mode={modeOf(item)}
                   onSave={(file) => item.info && save(item as DownloadItem & { info: MediaInfo }, file)}
+                  onCover={(portada) => setItemCover(item.link.url, portada)}
                   onQuality={(quality) => update(item.link.url, { quality })}
                   onRetry={() => load(item.link)}
                   onRemove={() => setItems((prev) => prev.filter((i) => i.link.url !== item.link.url))}
@@ -284,13 +340,13 @@ export function DownloadsShell({ drive }: { drive: DriveConfig | null }) {
 
         <ul className="mt-8 grid gap-3 text-sm sm:grid-cols-2">
           {[
-            { icon: Youtube, title: "YouTube", text: "Hasta 1080p, con o sin audio, o solo el audio. Lo baja la PC de la oficina." },
-            { icon: Instagram, title: "Instagram", text: "Reels, videos, fotos y carruseles enteros, de cuentas públicas." },
-            { icon: Pin, title: "Pinterest", text: "Videos e imágenes en su tamaño original, también con links pin.it." },
-            { icon: FolderInput, title: "Directo a Drive", text: "Pegás el link de una carpeta y lo que bajes se guarda ahí." },
+            { icon: <PlatformIcon platform="youtube" />, title: "YouTube", text: "Hasta 1080p, con o sin audio, o solo el audio. Lo baja la PC de la oficina." },
+            { icon: <PlatformIcon platform="instagram" />, title: "Instagram", text: "Reels, videos, fotos y carruseles enteros, de cuentas públicas." },
+            { icon: <PlatformIcon platform="pinterest" />, title: "Pinterest", text: "Videos e imágenes en su tamaño original, también con links pin.it." },
+            { icon: <FolderInput className="h-4 w-4" />, title: "Directo a Drive", text: "Pegás el link de una carpeta y lo que bajes se guarda ahí." },
           ].map((f) => (
             <li key={f.title} className="rounded-2xl border bg-card/80 p-4">
-              <f.icon className="mb-2 h-4 w-4" />
+              <span className="mb-2 flex">{f.icon}</span>
               <p className="font-medium">{f.title}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{f.text}</p>
             </li>

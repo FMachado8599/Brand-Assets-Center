@@ -4,7 +4,9 @@ import type { Brand } from "@/lib/types";
 const LOGOS = "logos";
 
 /** Lo que se puede cambiar de un cliente desde su ficha. */
-export type BrandPatch = Partial<Pick<Brand, "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes">>;
+export type BrandPatch = Partial<
+  Pick<Brand, "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes" | "socials" | "logo_from">
+>;
 
 export const brandsRepo = {
   list: () => supabase.from("brands").select("*").order("name"),
@@ -36,9 +38,13 @@ export const isDuplicateName = (message: string) => /duplicate|unique/i.test(mes
 export const isMissingClientsMigration = (message: string) =>
   /logo_url|logo_path|logo_bg|palette|font_families|notes|bucket not found|schema cache/i.test(message);
 
+/** Falta correr supabase/migracion-redes.sql: las columnas de las redes no existen. */
+export const isMissingSocialsMigration = (message: string) => /socials|logo_from/i.test(message);
+
 /** El error de guardar algo de un cliente, en palabras de la app. */
 export function clientErrorMessage(error: { message: string }) {
   if (isDuplicateName(error.message)) return "Ya hay un cliente con ese nombre";
+  if (isMissingSocialsMigration(error.message)) return "Falta correr supabase/migracion-redes.sql en Supabase";
   if (isMissingClientsMigration(error.message)) return "Falta correr supabase/migracion-clientes.sql en Supabase";
   return error.message;
 }

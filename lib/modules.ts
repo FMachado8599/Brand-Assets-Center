@@ -1,4 +1,4 @@
-import { ArrowDownToLine, Briefcase, Film, House, PenLine, RefreshCw, Smile, SquareKanban, StickyNote, type LucideIcon } from "lucide-react";
+import { ArrowDownToLine, Briefcase, Film, House, Megaphone, PenLine, RefreshCw, Smile, SquareKanban, StickyNote, type LucideIcon } from "lucide-react";
 
 export type AppModule = {
   href: string;
@@ -20,6 +20,7 @@ export const MODULES: AppModule[] = [
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase },
   { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine },
+  { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone },
 ];
 
 /** La última herramienta abierta en este navegador: el panel de Inicio la marca. */

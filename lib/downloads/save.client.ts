@@ -3,26 +3,23 @@
 import { processAudio } from "./audio.client";
 import { DriveError, uploadToDrive } from "./drive.client";
 import { downloadName } from "./links";
-import type { AudioMode, MediaFile, MediaInfo, SaveSettings, YoutubeSource } from "./types";
+import type { RegistroDescarga } from "./registro";
+import { isVideoTarget, type SaveTarget } from "./targets";
+import type { AudioMode, SaveSettings, YoutubeSource } from "./types";
 
 /**
- * Guardar algo de la lista: un archivo de un posteo, o un video de YouTube en una calidad.
+ * Guardar algo de la lista: un archivo de un posteo, un video de YouTube en una calidad, o una portada.
  *
- *  1. De dónde sale: Instagram y Pinterest pasan por /api/descargas/file (así salen con su nombre);
- *     YouTube se prepara en el servicio de la PC y se baja directo de ahí.
+ *  1. De dónde sale: Instagram, Pinterest y las portadas pasan por /api/descargas/file (así salen con su
+ *     nombre); los videos de YouTube se preparan en el servicio de la PC y se bajan directo de ahí.
  *  2. Si hay que sacar o separar el audio (y no es YouTube, que ya viene así), se procesa en el navegador.
  *  3. A la compu, a Drive o a las dos. Solo a la compu y sin procesar, lo baja el navegador directamente
  *     (no pasa por la memoria de la página y se ve en sus descargas).
  */
 
 export type Progress = { label: string; percent?: number };
-export type SaveTarget = { info: MediaInfo; file?: MediaFile; quality?: number };
 
-export function isVideoTarget({ info, file }: SaveTarget) {
-  return !!info.youtube || file?.kind === "video";
-}
-
-export function fileHref(file: MediaFile, name: string) {
+export function fileHref(file: { url: string }, name: string) {
   return `/api/descargas/file?${new URLSearchParams({ src: file.url, name })}`;
 }
 
@@ -31,16 +28,18 @@ export async function saveTarget(
   settings: SaveSettings,
   driveToken: string | undefined,
   onProgress: (p: Progress) => void
-): Promise<{ name: string; driveUrl?: string }> {
-  const { info, file } = target;
+): Promise<{ name: string; driveUrl?: string; bytes?: number }> {
+  const { info, file, cover } = target;
   const audio: AudioMode = isVideoTarget(target) ? settings.audio : "con";
-  const ext = audio === "solo" ? "m4a" : info.youtube ? "mp4" : file!.ext;
-  const name = downloadName(info, ext, { file, audio });
+  const ext = cover ? cover.ext : audio === "solo" ? "m4a" : info.youtube ? "mp4" : file!.ext;
+  const name = downloadName(info, ext, { file, audio, cover: !!cover });
 
-  const href = info.youtube
-    ? await prepareYoutube(info.youtube, audio, target.quality, name, onProgress)
-    : fileHref(file!, name);
-  const processing = !info.youtube && audio !== "con";
+  const href = cover
+    ? fileHref(cover, name)
+    : info.youtube
+      ? await prepareYoutube(info.youtube, audio, target.quality, name, onProgress)
+      : fileHref(file!, name);
+  const processing = !cover && !info.youtube && audio !== "con";
   const toComputer = settings.destino !== "drive";
   const toDrive = settings.destino !== "compu";
 
@@ -55,13 +54,13 @@ export async function saveTarget(
     blob = await processAudio(blob, audio as Exclude<AudioMode, "con">, (percent) => onProgress({ label, percent }));
   }
   if (toComputer) saveBlob(blob, name);
-  if (!toDrive) return { name };
+  if (!toDrive) return { name, bytes: blob.size };
 
   if (!settings.carpeta || !driveToken) throw new DriveError("Elegí la carpeta de Drive en las opciones.");
   const uploaded = await uploadToDrive(blob, name, settings.carpeta.id, driveToken, (percent) =>
     onProgress({ label: "Subiendo a Drive", percent })
   );
-  return { name, driveUrl: uploaded.url };
+  return { name, driveUrl: uploaded.url, bytes: blob.size };
 }
 
 /* ───────────── YouTube ───────────── */
@@ -86,7 +85,8 @@ async function prepareYoutube(yt: YoutubeSource, audio: AudioMode, quality: numb
   let job = await workerJson(`${yt.worker}/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ t: yt.token, mode, q: quality ?? yt.qualities[0]?.q }),
+    // quien: el nombre de quien baja, firmado por la app; la PC lo muestra en su ventana.
+    body: JSON.stringify({ t: yt.token, mode, q: quality ?? yt.qualities[0]?.q, quien: yt.quien }),
   });
   const token = encodeURIComponent(yt.token);
   while (job.status !== "done") {
@@ -128,6 +128,20 @@ async function fetchBlob(href: string, onProgress: (percent: number) => void) {
     if (total) onProgress(Math.round((received / total) * 100));
   }
   return new Blob(chunks, { type: res.headers.get("content-type") ?? "application/octet-stream" });
+}
+
+/**
+ * Anota lo bajado en el registro de descargas (las métricas del estudio). No se espera ni se avisa si
+ * falla: la descarga ya se hizo. keepalive: llega aunque se cierre la página.
+ */
+export function anotarDescargas(items: RegistroDescarga[]) {
+  if (!items.length) return;
+  fetch("/api/descargas/registro", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function clickDownload(href: string, name: string) {
