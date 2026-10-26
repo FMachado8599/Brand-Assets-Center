@@ -6,7 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase-server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const PASOS: SyncPaso[] = ["personas", "proyectos", "miembros", "tareas", "columnas"];
+const PASOS: SyncPaso[] = ["personas", "proyectos", "miembros", "tareas", "columnas", "actividad"];
 
 /**
  * Un paso de la sincronización con Basecamp (ver lib/integraciones/basecamp-sync.ts). La app llama

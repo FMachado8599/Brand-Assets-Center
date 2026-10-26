@@ -9,33 +9,15 @@ import { conectarUrl, useIntegraciones } from "@/hooks/useIntegraciones";
 import type { BoardResumen } from "@/lib/board/tipos";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
-
-function hace(iso: string | null | undefined) {
-  if (!iso) return "nunca";
-  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (min < 1) return "recién";
-  if (min < 60) return `hace ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `hace ${h} h`;
-  return new Date(iso).toLocaleDateString("es-UY", { day: "numeric", month: "short" });
-}
+import { BasecampMark, BoardNav, hace } from "./comun";
 
 const numero = (n: number) => n.toLocaleString("es-UY");
 
-export function BasecampMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn("h-4 w-4 shrink-0", className)}>
-      <circle cx="12" cy="12" r="10" fill="#1d2d35" />
-      <path d="M5.5 15.2c1.7-2.6 3.4-4.4 4.8-4.4 1.5 0 1.9 2 3.3 2 1 0 2.3-1.3 4.9-4.6" fill="none" stroke="#ffd100" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 /**
- * Board, paso 1: conectar el Basecamp del estudio con una cuenta que vea todo (una admin) y traer
- * todos los proyectos, su gente y sus tareas. Más adelante acá viven "mis tareas" y las de cada sector.
+ * La pestaña Basecamp del Board: la cuenta del estudio conectada (una admin, que ve todo), la
+ * sincronización y lo que hay de cada proyecto.
  */
-export function BoardShell() {
+export function BasecampView() {
   const { data, error, sinMigracion, loaded } = useIntegraciones();
   const sync = useBasecampSync();
   const [resumen, setResumen] = useState<BoardResumen | null>(null);
@@ -104,6 +86,8 @@ export function BoardShell() {
   return (
     <div className="min-h-screen">
       <ContextBar>
+        <BoardNav />
+        <BarDivider />
         <BarSearch value={buscar} onChange={setBuscar} placeholder="Buscar un proyecto" />
         {bc && (
           <>
@@ -126,9 +110,9 @@ export function BoardShell() {
 
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-[6.5rem] sm:px-6">
         <div className="mb-6 text-center">
-          <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Board</h1>
+          <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Basecamp</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-            Todas las tareas de Basecamp del estudio, en un solo lugar. Primer paso: traer todos los proyectos, su gente y sus tareas.
+            La cuenta del estudio conectada, la sincronización y lo que hay de cada proyecto.
           </p>
         </div>
 

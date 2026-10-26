@@ -16,9 +16,12 @@ import type { Basecamp } from "./basecamp";
  *  tareas    → las cards que cambiaron desde la última vez (la primera vez, las de los últimos
  *              120 días), de todos los proyectos en una sola lista. Con `completa`, todas.
  *  columnas  → en qué tablero (sector) y etapa está cada columna nueva.
+ *  actividad → lo último que hizo cada persona del equipo en Basecamp (su timeline) y, al final, la
+ *              regla de activos: sin actividad en 30 días, inactivo (migracion-actividad.sql; sin
+ *              esa migración se saltea).
  */
 
-export type SyncPaso = "personas" | "proyectos" | "miembros" | "tareas" | "columnas" | "listo";
+export type SyncPaso = "personas" | "proyectos" | "miembros" | "tareas" | "columnas" | "actividad" | "listo";
 
 export type SyncResumen = {
   personas?: number;
@@ -34,6 +37,10 @@ export type SyncResumen = {
   completa?: boolean;
   /** Mientras se leen los miembros en varios pedidos: el último proyecto leído. */
   miembrosDesde?: number | null;
+  /** Mientras se lee la actividad en varios pedidos: la última persona leída. */
+  actividadDesde?: number | null;
+  /** Lo que cambió la regla de activos al terminar. null si falta migracion-actividad.sql. */
+  actividad?: { leidas: number; desactivados: string[]; reactivados: string[] } | null;
   /** Mientras se leen las tareas en varios pedidos: por dónde seguir y desde cuándo se empezó. */
   cursor?: string | null;
   inicio?: string | null;
@@ -280,6 +287,49 @@ async function miembros(bc: Basecamp, db: SupabaseClient, desde: number | null, 
   return { cantidad, complete: true, ultimo };
 }
 
+/** Cada cuánto se vuelve a leer la actividad de una persona (un pedido por persona). */
+const ACTIVIDAD_CADA_MS = 6 * 3_600_000;
+
+/**
+ * Lo último que hizo en Basecamp cada persona del equipo: el primer evento de su timeline
+ * (/reports/users/progress/:id.json, del más nuevo al más viejo). Se saltea a quien se leyó hace poco.
+ */
+async function actividad(bc: Basecamp, db: SupabaseClient, desde: number | null, deadline: number) {
+  const equipo = (await check(db.from("equipo").select("bc_persona_id").not("bc_persona_id", "is", null))) as { bc_persona_id: number }[];
+  const ids = [...new Set(equipo.map((e) => Number(e.bc_persona_id)))].filter((id) => id > (desde ?? 0)).sort((a, b) => a - b);
+  const leidas = ids.length
+    ? ((await check(db.from("bc_personas").select("id, actividad_leida").in("id", ids))) as { id: number; actividad_leida: string | null }[])
+    : [];
+  const leidaEn = new Map(leidas.map((p) => [Number(p.id), p.actividad_leida]));
+  const reciente = Date.now() - ACTIVIDAD_CADA_MS;
+  let cantidad = 0;
+  let ultimo = desde;
+
+  for (const id of ids) {
+    if (Date.now() > deadline) return { cantidad, complete: false, ultimo };
+    const leida = leidaEn.get(id);
+    if (leida && new Date(leida).getTime() > reciente) {
+      ultimo = id;
+      continue;
+    }
+    let ultima: string | null = null;
+    try {
+      const r = await bc.one<{ events?: { created_at?: string }[] }>(`${bc.base()}/reports/users/progress/${id}.json`);
+      ultima = r.events?.[0]?.created_at ?? null;
+    } catch (e) {
+      // Si Basecamp ya no la conoce (404) no hizo nada; cualquier otro error no cuenta como medida.
+      if (!/respondió 404/.test((e as Error).message)) {
+        ultimo = id;
+        continue;
+      }
+    }
+    await check(db.from("bc_personas").update({ ultima_actividad: ultima, actividad_leida: new Date().toISOString() }).eq("id", id));
+    cantidad++;
+    ultimo = id;
+  }
+  return { cantidad, complete: true, ultimo };
+}
+
 async function tareas(bc: Basecamp, db: SupabaseClient, estado: { tareas_hasta: string | null; resumen: SyncResumen }, deadline: number) {
   const inicio = estado.resumen.inicio ?? new Date().toISOString();
   const corte = estado.resumen.completa
@@ -477,8 +527,41 @@ export async function correrPaso(
         await guardar();
         return { paso, siguiente: "columnas", detalle: `${resumen.columnas} tableros leídos…`, resumen };
       }
+      await guardar();
+      return { paso, siguiente: "actividad", detalle: `${resumen.columnas} tableros leídos`, resumen };
+    }
+
+    if (paso === "actividad") {
+      try {
+        const r = await actividad(bc, db, resumen.actividadDesde ?? null, deadline);
+        const leidas = (resumen.actividad?.leidas ?? 0) + r.cantidad;
+        if (!r.complete) {
+          resumen.actividadDesde = r.ultimo;
+          resumen.actividad = { leidas, desactivados: [], reactivados: [] };
+          await guardar();
+          return { paso, siguiente: "actividad", detalle: `${leidas} personas leídas…`, resumen };
+        }
+        resumen.actividadDesde = null;
+        // La regla de activos: sin actividad en 30 días, inactivo (salvo admins y lo fijado a mano).
+        const { data, error } = await db.rpc("equipo_aplicar_actividad", { p_dias: 30 });
+        if (error) throw new Error(error.message);
+        const cambios = (data ?? {}) as { desactivados?: string[]; reactivados?: string[] };
+        resumen.actividad = { leidas, desactivados: cambios.desactivados ?? [], reactivados: cambios.reactivados ?? [] };
+      } catch (e) {
+        const message = (e as Error).message;
+        // Sin migracion-equipo o migracion-actividad, este paso se saltea sin frenar la sincronización.
+        if (!sinTabla(message) && !/ultima_actividad|actividad_leida|equipo_aplicar_actividad/i.test(message)) throw e;
+        resumen.actividad = null;
+        resumen.actividadDesde = null;
+      }
       await guardar({ ultimo: new Date().toISOString(), corriendo_desde: null });
-      return { paso, siguiente: "listo", detalle: "Listo", resumen };
+      const a = resumen.actividad;
+      return {
+        paso,
+        siguiente: "listo",
+        detalle: a ? `Listo · ${a.desactivados.length} inactivos nuevos, ${a.reactivados.length} reactivados` : "Listo",
+        resumen,
+      };
     }
 
     return { paso, siguiente: "listo", detalle: "Listo", resumen };

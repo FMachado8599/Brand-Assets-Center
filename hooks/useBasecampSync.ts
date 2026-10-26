@@ -5,7 +5,7 @@ import { toast } from "@/components/ui/toaster";
 import { refreshClients } from "@/hooks/useClients";
 import { refreshIntegraciones, useIntegraciones } from "@/hooks/useIntegraciones";
 
-type Paso = "personas" | "proyectos" | "miembros" | "tareas" | "columnas" | "listo";
+type Paso = "personas" | "proyectos" | "miembros" | "tareas" | "columnas" | "actividad" | "listo";
 
 type State = { corriendo: boolean; paso: Paso | null; detalle: string; error: string | null };
 
@@ -15,6 +15,7 @@ const NOMBRES: Record<Paso, string> = {
   miembros: "Gente por proyecto",
   tareas: "Tareas",
   columnas: "Tableros",
+  actividad: "Actividad del equipo",
   listo: "Listo",
 };
 
@@ -41,6 +42,7 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
   set({ corriendo: true, paso: "personas", detalle: "", error: null });
   let paso: Paso = "personas";
   let nuevos: string[] = [];
+  let cambiosEquipo: { desactivados: string[]; reactivados: string[] } | null = null;
   try {
     for (let vuelta = 0; vuelta < 80 && paso !== "listo"; vuelta++) {
       const r = await fetch("/api/basecamp/sync", {
@@ -57,6 +59,7 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
         throw new Error(body.error ?? `Error ${r.status}`);
       }
       if (body.paso === "proyectos") nuevos = body.resumen?.clientesNuevos ?? [];
+      if (body.paso === "actividad" && body.siguiente === "listo") cambiosEquipo = body.resumen?.actividad ?? null;
       paso = body.siguiente as Paso;
       set({ paso, detalle: body.detalle ?? "" });
     }
@@ -69,6 +72,9 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
             : `${nuevos.length} clientes nuevos desde Basecamp: ${nuevos.slice(0, 4).join(", ")}${nuevos.length > 4 ? "…" : ""}`
         );
       } else if (!silencioso) toast("Basecamp al día");
+      const lista = (nombres: string[]) => `${nombres.slice(0, 4).join(", ")}${nombres.length > 4 ? "…" : ""}`;
+      if (cambiosEquipo?.desactivados.length) toast(`Sin actividad en 30 días, quedaron inactivos: ${lista(cambiosEquipo.desactivados)}`);
+      if (cambiosEquipo?.reactivados.length) toast(`Volvieron a tener actividad: ${lista(cambiosEquipo.reactivados)}`);
     }
   } catch (e) {
     set({ error: (e as Error).message });

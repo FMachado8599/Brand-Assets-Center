@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "./crypto";
 
-export type Proveedor = "basecamp" | "google";
+export type Proveedor = "basecamp" | "google" | "influencity";
 
 /** Una conexión, con los tokens ya descifrados. Solo existe en el servidor. */
 export type Conexion = {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BoardShell } from "@/components/tareas/BoardShell";
+import { MisTareas } from "@/components/tareas/MisTareas";
 
 export const dynamic = "force-dynamic";
 
@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function BoardPage() {
-  return <BoardShell />;
+  return <MisTareas />;
 }
