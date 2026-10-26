@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Influencity, mensajeInfluencity } from "@/lib/influencity/api";
 import { errorJson } from "@/lib/influencity/ruta";
 import { anotarError, correrPaso, type SyncPaso } from "@/lib/influencity/sync";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -15,6 +15,7 @@ const PASOS: SyncPaso[] = ["trackings", "publicaciones", "perfiles", "cierre"];
  * paso) vuelve a leer todo, también las campañas terminadas y los perfiles al día.
  */
 export async function POST(request: NextRequest) {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const body = (await request.json().catch(() => ({}))) as { paso?: string; completa?: boolean };
   const paso = (PASOS.includes(body.paso as SyncPaso) ? body.paso : "trackings") as SyncPaso;
   const db = createSupabaseServer();

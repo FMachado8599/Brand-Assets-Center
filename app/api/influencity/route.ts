@@ -5,12 +5,13 @@ import { errorJson } from "@/lib/influencity/ruta";
 import { leerCuotas } from "@/lib/influencity/sync";
 import { hasSecret } from "@/lib/integraciones/crypto";
 import { borrarConexion, guardarConexion, leerPublicas } from "@/lib/integraciones/store";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
 /** Cómo está la conexión con Influencity y la última sincronización (sin el token). */
 export async function GET() {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const db = createSupabaseServer();
   try {
     const [conexiones, sync] = await Promise.all([
@@ -30,6 +31,7 @@ export async function GET() {
  * guarda cifrado. También se anota qué incluye el plan y lo que queda de las cuotas.
  */
 export async function POST(request: NextRequest) {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const { token } = (await request.json().catch(() => ({}))) as { token?: string };
   const limpio = token?.trim().replace(/^Bearer\s+/i, "") ?? "";
   if (limpio.length < 10) return NextResponse.json({ error: "Pegá el token de la API de Influencity" }, { status: 400 });
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
 
 /** Desconectar: se borra el token guardado (lo sincronizado queda). */
 export async function DELETE() {
+  if (!hasSupabaseEnv) return faltaSupabase();
   try {
     await borrarConexion(createSupabaseServer(), "influencity");
     return NextResponse.json({ ok: true });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 import { Influencity, InfluencityError, mensajeInfluencity } from "./api";
 import { faltaMigracionInfluencers } from "./tipos";
 
@@ -11,6 +11,7 @@ export const ID_INFLUENCITY = /^[a-f0-9]{24}$/i;
  * cliente de la API con el token guardado y los errores en palabras de la app.
  */
 export async function conInfluencity(fn: (api: Influencity, db: SupabaseClient) => Promise<unknown>) {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const db = createSupabaseServer();
   try {
     const api = await Influencity.desde(db);
