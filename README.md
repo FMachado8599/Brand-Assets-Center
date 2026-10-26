@@ -100,6 +100,26 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 ---
 
+## Flujo de trabajo: una rama por feature
+
+- **`main`** es producción: Vercel publica cada push.
+- **`new-feature`** junta lo que está listo para ir a producción. Su preview (`brand-assets-center-git-new-feature-…vercel.app`) es donde se revisa antes de pasarlo.
+- **Cada feature tiene su rama**, que sale de `new-feature` (hoy: `board`, `redaccion-ia`, `influencers`, `feat/planificacion`). Una feature nueva es una rama nueva.
+
+**El recorrido de una feature:**
+
+1. Se trabaja en su rama. Cada push corre la prueba automática (ver abajo) y deja ✓ o ✗ en el commit.
+2. Cuando la feature está cerrada, se abre un *pull request* de su rama hacia `new-feature`. Si todavía no está lista, se abre como borrador (*draft*).
+3. La prueba corre sobre cómo quedaría el merge. **Si pasa y el pull request no es borrador, se mergea solo**; si falla, queda abierto y muestra qué falló.
+4. Vercel actualiza la preview de `new-feature`. Se revisa ahí.
+5. Para producción se abre un pull request de `new-feature` hacia `main`. Ese corre la misma prueba pero **se mergea a mano**: pasar a producción es una decisión.
+
+**Las migraciones de la base no son automáticas.** Si una feature trae un `supabase/migracion-*.sql` nuevo, se corre primero en testing y después en producción, *antes* de mergear a `main`.
+
+**La prueba automática** es un GitHub Action (`.github/workflows/ci.yml`). En una máquina de GitHub instala las dependencias (`pnpm install --frozen-lockfile`), chequea los tipos (`tsc --noEmit`), hace el build de producción y corre `scripts/humo.mjs`. Ese script levanta el build y abre todas las páginas, y falla si alguna da error del servidor (5xx). Corre sin variables de entorno, así que no prueba el login ni la base: confirma que todo compila y que ninguna página se rompe. Los resultados están en la pestaña *Actions* de GitHub; si algo falla, llega un mail. El repo es público, así que no consume minutos pagos.
+
+Para correr lo mismo en local: `pnpm exec tsc --noEmit`, `NEXT_DIST_DIR=.next-build pnpm build` y `NEXT_DIST_DIR=.next-build node scripts/humo.mjs`. Usá otra carpeta de build para no pisar la de `next dev`.
+
 ## Cuentas y visitas
 
 Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
