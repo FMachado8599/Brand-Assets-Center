@@ -1,10 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 export const hasSupabaseEnv = Boolean(url && key);
+
+/** Lo que contesta una ruta de la API que necesita la base si Supabase no está configurado (ej: un preview sin las variables). */
+export function faltaSupabase() {
+  return NextResponse.json({ error: "Falta configurar Supabase en este entorno" }, { status: 503 });
+}
 
 /**
  * Cliente de Supabase para rutas del servidor: lee la sesión de las cookies
