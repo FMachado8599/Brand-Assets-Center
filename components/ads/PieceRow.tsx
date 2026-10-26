@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
-import { AlertTriangle, ArrowLeftRight, Check, ChevronDown, Copy, Download, ImagePlus, Loader2, RefreshCw, Smartphone, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Check, ChevronDown, Copy, Download, ImagePlus, Loader2, Maximize2, RefreshCw, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ import { ratioLabel } from "@/lib/ads/reel";
 import { textCollisions } from "@/lib/ads/safe";
 import { cn } from "@/lib/utils";
 import { PHONE, type MockupInput } from "./draw";
+import { MockupFullscreen, type FullscreenMockup } from "./MockupFullscreen";
 import { MockupView } from "./MockupView";
 import { isLowRes, isOffRatio, MAX_CARDS, type AdCard, type Piece } from "./pieces";
 
@@ -62,7 +63,8 @@ const hasFiles = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
  * Una pieza: arriba, en una línea, su tipo, su archivo y lo que se ajusta; abajo, un mockup por lugar, en fila.
  * En un carrusel cada mockup muestra un slide y tiene flechas para pasar; a la izquierda hay un lugar para soltar
  * más fotos, que abre el orden de los slides (también con "Ordenar slides"). Soltar un archivo sobre un teléfono
- * reemplaza el que se ve.
+ * reemplaza el que se ve. Cada mockup lleva arriba su nombre y abajo sus acciones; tocándolo (o con "Ver en
+ * pantalla completa") se abre en grande.
  */
 export function PieceRow({
   piece,
@@ -101,6 +103,8 @@ export function PieceRow({
   /** Qué archivo se reemplaza con el selector de archivos. */
   const replacing = useRef<string | null>(null);
   const [dropOn, setDropOn] = useState<"row" | string | null>(null);
+  /** El mockup abierto en pantalla completa (en un carrusel, el slide que se esté viendo). */
+  const [big, setBig] = useState<{ cardId: string; placement: Placement } | null>(null);
   const first = piece.cards[0].media;
   const total = piece.cards.length;
   const carousel = piece.type === "carrusel" || total > 1;
@@ -118,6 +122,21 @@ export function PieceRow({
   const color = piece.ctaColor ?? piece.cards[0].colors.cta;
   const count = placements.length * total;
   const summary = placements.length <= 2 ? placements.map((p) => placementInfo(p).label).join(" · ") : `${placements.length} mockups`;
+
+  const mockupName = (placement: Placement, cardIndex: number) => `${placementInfo(placement).label}${total > 1 ? ` · ${cardIndex + 1}/${total}` : ""}`;
+  const navFor = (cardIndex: number) =>
+    total > 1 ? { index: cardIndex, total, onPrev: () => onSlide(cardIndex - 1), onNext: () => onSlide(cardIndex + 1) } : undefined;
+
+  const bigCard = big ? (carousel ? piece.cards[Math.min(piece.slide, total - 1)] : piece.cards.find((c) => c.id === big.cardId)) : undefined;
+  let fullscreen: FullscreenMockup | null = null;
+  if (big && bigCard && placements.includes(big.placement)) {
+    const cardIndex = piece.cards.indexOf(bigCard);
+    fullscreen = {
+      title: mockupName(big.placement, cardIndex),
+      note: adaptation(big.placement, bigCard.media),
+      mockup: { ...inputFor({ piece, card: bigCard, cardIndex, placement: big.placement }), nav: navFor(cardIndex) },
+    };
+  }
 
   const toggle = (id: Placement, on: boolean) => {
     if (!on && placements.length === 1) return;
@@ -357,7 +376,7 @@ export function PieceRow({
             const key = `${piece.id}:${card.id}:${placement}`;
             const target = { piece, card, cardIndex, placement };
             const note = adaptation(placement, card.media);
-            const name = `${placementInfo(placement).label}${total > 1 ? ` · ${cardIndex + 1}/${total}` : ""}`;
+            const name = mockupName(placement, cardIndex);
             const input = inputFor(target);
             const status = textStatus(piece, card, input);
             return (
@@ -378,28 +397,21 @@ export function PieceRow({
                   if (file) onReplaceCard(card.id, file);
                 }}
               >
-                <div className="relative">
-                  <MockupView
-                    key={card.id}
-                    {...input}
-                    scale={scale}
-                    onSource={(el) => onSource(key, el)}
-                    nav={
-                      total > 1
-                        ? { index: cardIndex, total, onPrev: () => onSlide(cardIndex - 1), onNext: () => onSlide(cardIndex + 1) }
-                        : undefined
-                    }
-                  />
+                <figcaption className="max-w-full text-center text-xs font-medium" style={{ width: PHONE.w * scale }}>
+                  {name}
+                  {note && <span className="block text-[10px] font-normal text-amber-700">{note}</span>}
+                </figcaption>
+                {/* Tocar el teléfono lo abre en grande (las flechas del carrusel no). */}
+                <div className="relative cursor-zoom-in" onClick={() => setBig({ cardId: card.id, placement })}>
+                  <MockupView key={card.id} {...input} scale={scale} onSource={(el) => onSource(key, el)} nav={navFor(cardIndex)} />
                   {dropOn === key && (
                     <span className="pointer-events-none absolute inset-0 grid place-items-center rounded-[2rem] bg-primary/25 ring-4 ring-primary">
                       <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">Soltá para reemplazarlo</span>
                     </span>
                   )}
                 </div>
-                <figcaption className="flex max-w-full items-center gap-0.5">
-                  <span className="mr-1 min-w-0 text-xs font-medium">
-                    {name}
-                    {note && <span className="block text-[10px] font-normal text-amber-700">{note}</span>}
+                <div className="flex max-w-full items-center gap-0.5">
+                  <span className="mr-1 min-w-0">
                     {status !== "off" && (
                       <span
                         className={cn(
@@ -440,6 +452,11 @@ export function PieceRow({
                       </span>
                     )}
                   </span>
+                  <Hint label="Ver en pantalla completa">
+                    <Button variant="ghost" size="iconSm" aria-label={`Ver el mockup ${name} en pantalla completa`} onClick={() => setBig({ cardId: card.id, placement })}>
+                      <Maximize2 />
+                    </Button>
+                  </Hint>
                   <Hint label="Copiar la imagen">
                     <Button variant="ghost" size="iconSm" aria-label={`Copiar el mockup ${name}`} onClick={() => onCopy(target)} disabled={exporting}>
                       <Copy />
@@ -457,12 +474,13 @@ export function PieceRow({
                       </Button>
                     </Hint>
                   )}
-                </figcaption>
+                </div>
               </figure>
             );
           })
         )}
       </div>
+      <MockupFullscreen shown={fullscreen} onClose={() => setBig(null)} />
     </section>
   );
 }

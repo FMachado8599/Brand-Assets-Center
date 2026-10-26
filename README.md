@@ -467,7 +467,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
 2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
 3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
-4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Debajo de cada teléfono, copiar o descargar ese mockup.
+4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Arriba de cada teléfono va su nombre (y, si Meta lo adapta, cómo) y debajo sus acciones: **ver en pantalla completa**, copiar o descargar ese mockup. Tocar el teléfono también lo abre en grande, sobre un fondo oscuro y del tamaño que entre en la ventana (en un carrusel, con sus flechas); se cierra con la X, tocando afuera o con `Esc`.
 
 También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sola (varios archivos → carrusel; 9:16 → reel si es video o historia si es imagen; si no, post) y el tipo se cambia arriba de sus mockups.
 
