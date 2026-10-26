@@ -90,7 +90,7 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 **Armar una base de testing de cero:**
 
-1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql` y `migracion-sugerencias.sql`.
+1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql`, `migracion-sugerencias.sql` y `migracion-descargas-registro.sql`.
 2. En *Authentication → Sign In / Providers → Google*, activar Google con el mismo cliente OAuth de producción. En Google Cloud, sumar `https://<proyecto>.supabase.co/auth/v1/callback` a los *Authorized redirect URIs* de ese cliente.
 3. En *Authentication → URL Configuration*, poner la URL de testing como *Site URL* y sumar `https://brand-assets-center-testing.vercel.app/**` y `http://localhost:3000/**` a las *Redirect URLs*.
 
@@ -416,6 +416,15 @@ Para que lo alcancen Vercel y los navegadores del equipo, el servicio abre solo 
 3. **Arrancar el servicio**: doble click en `worker/youtube/ServicioYouTube.exe` (si no está, se arma con `worker/youtube/app/compilar.cmd`). Es una app de la bandeja: corre sin ventana, queda junto al reloj con un punto verde cuando funciona y arranca sola con Windows. Ver `worker/youtube/README.md`. Sigue estando `iniciar.cmd`, que lo abre en una consola (útil para probar), pero no los dos a la vez.
 
 En local, `.env.local` tiene `YOUTUBE_WORKER_URL=http://localhost:8787`: una dirección fija manda sobre la anotada (sirve también si el servicio pasa a un servidor con dirección propia). Los túneles sin cuenta de Cloudflare no tienen garantía de funcionamiento y Cloudflare pide no usarlos para mover mucho video: para lo que baja el estudio alcanza, pero si el uso crece, lo prolijo es el servidor de la empresa o un túnel con cuenta y dominio.
+
+### Métricas: quién baja qué
+
+Cada archivo que alguien baja (o sube a Drive) desde Descargas queda anotado en la tabla `descargas_registro`: quién (su cuenta), cuándo, de qué plataforma y posteo (link, título y cuenta), qué salió (video, foto, portada o audio, con la calidad y el número dentro del carrusel), a dónde y cuánto pesó (exacto si pasó por la página; si no, lo que informó el origen). Lo manda la página después de cada guardado a `POST /api/descargas/registro` (`lib/downloads/registro.ts`); si falla no se avisa, porque la descarga ya se hizo.
+
+- **Desde dónde**: si fue desde la red de la oficina. El servidor compara en el momento la IP de quien baja con la IP pública de la oficina, y anota solo sí o no: **la IP no se guarda** (está en `/privacidad`). La IP de la oficina la averigua el servicio de YouTube (corre en una PC de ahí) y la anota en el Blob store junto con su dirección; se revisa cada media hora porque puede cambiar. También se puede fijar con `OFICINA_IPS` en Vercel (separadas por coma). Sin ninguna de las dos, queda "–" (no se sabe). En IPv6 se compara la red, no la dirección (`lib/downloads/oficina.server.ts`).
+- **La página** `/descargas/metricas` (botón de gráfico en la barra de Descargas) la ven solo quienes estén en `descargas_admins`; para el resto no existe (404). Tiene el período (7, 30 o 90 días, o todo), los totales, las descargas por día (por semana si el período es largo; con vista de tabla), por plataforma, qué se baja y a dónde, por persona, lo más bajado y la actividad reciente. Tocar una plataforma o una persona filtra todo. **Exportar CSV** baja lo filtrado (separado por punto y coma, para que Excel en español lo abra en columnas).
+- **Activarlo**: correr `supabase/migracion-descargas-registro.sql` (después de `migracion-usuarios.sql` y `migracion-acceso.sql`). Crea el registro, `descargas_admins` (con `fmachado@camaratbwa.com`) y la función que lee el registro con el nombre de cada uno. Para sumar a alguien: `insert into public.descargas_admins (email) values ('…@camaratbwa.com');`. Sin la migración no se anota nada y la página avisa que falta.
+- En la PC, la app de la bandeja muestra en vivo quién pide cada video de YouTube y si es desde la oficina (pestaña **Descargas**, ver `worker/youtube/README.md`). El nombre lo firma la app junto con el permiso del video, así el servicio no puede mostrar uno falso.
 
 ### Drive: activarlo (una sola vez)
 
