@@ -11,7 +11,8 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
-| **Descargas** | `/descargas` | Bajar videos y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
+| **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
+| **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -89,7 +90,7 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 **Armar una base de testing de cero:**
 
-1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql`, `migracion-sugerencias.sql` y `migracion-material.sql`.
+1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql`, `migracion-sugerencias.sql`, `migracion-material.sql` y `migracion-descargas-registro.sql`.
 2. En *Authentication → Sign In / Providers → Google*, activar Google con el mismo cliente OAuth de producción. En Google Cloud, sumar `https://<proyecto>.supabase.co/auth/v1/callback` a los *Authorized redirect URIs* de ese cliente.
 3. En *Authentication → URL Configuration*, poner la URL de testing como *Site URL* y sumar `https://brand-assets-center-testing.vercel.app/**` y `http://localhost:3000/**` a las *Redirect URLs*.
 
@@ -304,7 +305,9 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
 - **La lista** (`/clientes`): cada cliente con su logo (o sus iniciales), su paleta y cuánto tiene a su nombre.
 - **La ficha** (`/clientes/<id>`), donde se edita todo y se guarda solo:
   - **Logo**: se suelta o se elige (SVG, PNG, JPG, WEBP o GIF, hasta 5 MB). Se elige sobre qué fondo se ve (claro, oscuro o su color: un logo blanco no se ve sobre papel), y se descarga o se cambia desde ahí.
+  - **Foto de perfil como logo**: debajo del logo aparece cada una de sus redes con su foto de perfil; marcar una (como un checkbox) la sube como logo, y desmarcarla lo quita. Una foto de perfil se muestra redonda en toda la app, como en la red. Cada red la da de un tamaño: Facebook 720 px, YouTube 900, X 400, LinkedIn 200, Instagram y TikTok solo 100 (sin iniciar sesión no la dan más grande: se avisa que se puede ver borrosa).
   - **Nombre, color y notas**: el color es el que lo identifica en las listas. Las notas son libres (tono, contactos, links).
+  - **Redes**: Instagram, TikTok, Facebook, YouTube, X y LinkedIn. Se pega el link al perfil (la red sale sola del link) o se escribe el usuario y se elige la red. Cada una abre su perfil. En Ads, elegir el cliente pone su usuario de Instagram.
   - **Colores**: la paleta, con nombre para cada color. Un click copia el HEX (o el RGB). Si hay logo, sugiere sus colores para sumarlos de un click. La estrella marca el color del cliente.
   - **Tipografías**: se eligen entre las subidas, se suben ahí mismo (quedan en la biblioteca de Tarjetas) o se anota una que todavía no está. Cada peso se copia con su nombre completo, como lo nombran Illustrator e InDesign.
   - **Productos**: se agregan y se quitan ahí.
@@ -327,6 +330,8 @@ En la ficha, la sección **Material de marca** (la estadística «archivos de ma
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+Para las **redes**, después corré `supabase/migracion-redes.sql`: suma a `brands` las cuentas (`socials`) y de cuál salió el logo (`logo_from`). Se puede repetir. Sin ella, la ficha avisa en Redes y todo lo demás (incluido subir un logo a mano) anda igual. La foto de perfil la busca `GET /api/clientes/foto?red=…&cuenta=…` (solo con sesión del estudio): lee la página pública de cada red y devuelve la imagen, solo si viene del CDN de esa red.
 
 Para el **Material de marca**, después corré `supabase/migracion-material.sql` (necesita que ya estén `migracion-acceso.sql` y `migracion-clientes.sql`): crea la tabla `brand_materials` y el bucket privado `material`, con acceso solo para el estudio. Se puede repetir sin problema. Sin ella, la sección avisa que falta y no deja subir nada; el resto de la ficha funciona igual.
 
@@ -408,13 +413,15 @@ Baja lo que hay en links de YouTube, Instagram y Pinterest, en la mejor calidad 
 
 - **Pegar links**: en la caja de la página (o en el botón de lista de la barra) entra un mensaje o una lista entera: muestra cuántos links reconoce y de qué plataforma antes de agregarlos. También anda Ctrl+V en cualquier parte de la página, el botón de pegar de la barra o escribir en la barra + Enter. Entra un link por fila; los repetidos y los de otras páginas se ignoran (y se avisa cuántos).
 - **YouTube**: videos, Shorts y vivos ya terminados. Se elige la calidad en cada fila (hasta 1080p en H.264 + AAC, el MP4 que abre cualquier editor). Lo baja **el servicio de la PC de la oficina** (ver abajo): si esa PC está apagada, las filas de YouTube lo avisan.
-- **Instagram**: posteos (`/p/…`), reels (`/reel/…`, también con el usuario adelante) y `/tv/…`, de cuentas públicas. Los videos salen en MP4 (720p, lo que da Instagram sin sesión), las fotos en su mayor tamaño (1080 px) y los carruseles enteros: **Descargar N** baja todo y la tira de miniaturas baja cada archivo por separado. El ícono de copiar trae el texto del posteo. Las historias no se pueden: piden sesión.
+- **Instagram**: posteos (`/p/…`), reels (`/reel/…`, también con el usuario adelante) y `/tv/…`, de cuentas públicas. Los videos salen en MP4 (720p, lo que da Instagram sin sesión), las fotos en su mayor tamaño (1080 px) y los carruseles enteros: **Descargar** baja todo y la tira de miniaturas baja cada archivo por separado. El ícono de copiar trae el texto del posteo. Las historias no se pueden: piden sesión.
 - **Pinterest**: pins de video y de imagen, de cualquier dominio (`pinterest.com/pin/…`, `ar.pinterest.com`, `pinterest.es`…) y los links cortos (`pin.it/…`). Las imágenes salen en su tamaño original.
-- **Cómo se guarda** (ícono de ajustes de la barra, o el resumen debajo del título). Se recuerda en la cuenta de cada uno:
+- **Cada fila**: debajo del título, el logo de la plataforma (Instagram, YouTube o Pinterest; el nombre sale al pasar el mouse) y los datos del posteo. El botón dice siempre **Descargar**; al pasar el mouse dice qué va a bajar y adónde ("Descargar el video y su portada a tu compu"). Si el link tiene algún video, pegado a Descargar está el botón de **qué bajar de ese link**: el video, el video y su portada, o solo la portada (si no trae portada, solo deja el video).
+- **Cómo se guarda** (ícono de ajustes de la barra, o el resumen debajo del título, que muestra lo elegido con íconos). Las opciones son íconos: el nombre sale al pasar el mouse (y es lo que leen los lectores de pantalla) y a la derecha de cada título dice lo elegido. Se recuerda en la cuenta de cada uno:
+  - *Qué bajar de los videos*: lo mismo que el botón de cada fila, para todas. Elegirlo acá lo cambia en todas las filas. Si se cambia una sola fila, pasa solo a **Personalizado** (no se elige a mano); los links nuevos salen con lo último que se eligió acá. La portada es la imagen que se ve antes de darle play, en su tamaño completo: en Instagram la de cada video (también dentro de los carruseles, numerada igual), en Pinterest la imagen del pin y en YouTube la miniatura más grande que tenga (1280×720 si existe). Sale como `… (portada).jpg`. Las fotos se bajan igual en los tres modos, y con *Solo portada* el sonido no cuenta. La portada de YouTube sale directo de YouTube: no necesita la PC (pero leer el link sí).
   - *Sonido de los videos*: con audio, sin audio (el video mudo) o solo audio (`.m4a`). No se vuelve a comprimir nada: se copian las pistas tal cual. En Instagram y Pinterest lo hace el navegador (`lib/downloads/audio.client.ts`, con [mediabunny](https://mediabunny.dev)); en YouTube, el servicio de la PC.
   - *Dónde*: compu, compu y Drive, o solo Drive.
   - *Carpeta de Drive*: se pega el link de la carpeta. La primera vez Google pide permiso y abre su selector ya parado en esa carpeta, para confirmarla con un click; después queda guardada.
-- Los archivos se llaman como el posteo: `@cuenta - primera línea del texto.mp4` en Instagram, `Canal - Título.mp4` en YouTube y el título del pin en Pinterest; con `(3)` si es del carrusel, `(sin audio)` o `(audio)`. Con dos o más links listos aparece la acción de la barra para guardar todo junto (el navegador puede pedir permiso para descargas múltiples la primera vez).
+- Los archivos se llaman como el posteo: `@cuenta - primera línea del texto.mp4` en Instagram, `Canal - Título.mp4` en YouTube y el título del pin en Pinterest; con `(3)` si es del carrusel, `(sin audio)`, `(audio)` o `(portada)`. Con dos o más links listos aparece **Descargar todo** en la barra, que baja cada fila con lo suyo (el navegador puede pedir permiso para descargas múltiples la primera vez).
 
 ### Cómo funciona
 
@@ -422,8 +429,8 @@ Baja lo que hay en links de YouTube, Instagram y Pinterest, en la mejor calidad 
   - **Instagram** (`lib/downloads/instagram.server.ts`): abre la página *embed* del posteo (`/p/<código>/embed/captioned/`, la que usan los sitios para insertar un posteo), que trae los datos sin sesión. Solo responde si el pedido parece una navegación (`Sec-Fetch-Mode: navigate`), y el `fetch()` de Node no deja poner ese encabezado: por eso va con `node:https`. Las fotos sueltas no traen datos y se leen del HTML del embed. Las APIs internas (GraphQL, `?__a=1`) piden iniciar sesión.
   - **Pinterest** (`lib/downloads/pinterest.server.ts`): abre la página pública del pin y lee el schema.org que publica para los buscadores (`VideoObject` en los videos, `SocialMediaPosting` en las imágenes). La API interna de Pinterest pide sesión.
   - **YouTube** (`lib/downloads/youtube.server.ts`): le pide los datos al servicio de la PC con la clave compartida y firma un permiso para ese video (vence a las 6 horas). El navegador le habla directo al servicio con ese permiso: le pide que prepare el archivo, sigue el avance y lo baja de ahí. Los videos de YouTube no pasan por Vercel.
-- `/api/descargas/file?src=…&name=…` baja los archivos de Instagram y Pinterest a través del servidor (edge), para que salgan con su nombre (y porque el CDN de Pinterest no habilita CORS). Solo acepta archivos de los CDN de Pinterest (`v*.pinimg.com/videos`, `i.pinimg.com/originals`) e Instagram (`*.fbcdn.net`, `*.cdninstagram.com`), y la extensión la decide el tipo que manda el origen. Cada descarga pasa por Vercel, así que consume transferencia.
-- `lib/downloads/save.client.ts` arma cada guardado: de dónde sale el archivo, si hay que sacarle o separarle el audio y adónde va. Solo a la compu y sin procesar, lo baja el navegador directamente; si hay que procesarlo o subirlo a Drive, primero se baja a la memoria de la página.
+- `/api/descargas/file?src=…&name=…` baja los archivos de Instagram y Pinterest, y las portadas, a través del servidor (edge), para que salgan con su nombre (y porque el CDN de Pinterest no habilita CORS). Solo acepta archivos de los CDN de Pinterest (`v*.pinimg.com/videos`, `i.pinimg.com/originals`, `i.pinimg.com/videos/thumbnails/originals`), de Instagram (`*.fbcdn.net`, `*.cdninstagram.com`) y las miniaturas de YouTube (`i.ytimg.com/vi/<id>/maxres|sd|hqdefault`), y la extensión la decide el tipo que manda el origen. Cada descarga pasa por Vercel, así que consume transferencia.
+- `lib/downloads/targets.ts` decide qué sale de cada fila según *Qué bajar* (el de la fila o, si no eligió, el de todos) y arma la descripción del botón Descargar. Las opciones con sus íconos están en `components/downloads/modes.tsx` y los logos de las plataformas en `components/downloads/PlatformIcon.tsx`. `lib/downloads/save.client.ts` arma cada guardado: de dónde sale el archivo, si hay que sacarle o separarle el audio y adónde va. Solo a la compu y sin procesar, lo baja el navegador directamente; si hay que procesarlo o subirlo a Drive, primero se baja a la memoria de la página.
 - **Drive** (`lib/downloads/drive.client.ts`) usa la cuenta de Google de cada persona, con el permiso `drive.file`: la app solo ve lo que ella sube y las carpetas que la persona le confirma en el selector de Google (Google Picker). Así nadie le da acceso a todo su Drive y Google no pide verificar la app. Los archivos van directo del navegador a Google.
 - Los links de archivos de Instagram vencen a los pocos días: si una fila quedó abierta mucho tiempo, sacala y volvé a pegar el link.
 - **Si un día deja de andar**, lo más probable es que Instagram o Pinterest hayan cambiado su página: lo que hay que ajustar está en esos dos archivos. Instagram además puede tratar distinto a los servidores en la nube que a una conexión de oficina; si en Vercel falla y en local anda, es eso.
@@ -436,9 +443,18 @@ Para que lo alcancen Vercel y los navegadores del equipo, el servicio abre solo 
 
 1. **Crear el Blob store** (una sola vez): en Vercel, **Storage → Create → Blob**, y conectarlo al proyecto (Production, Preview y Development). Vercel agrega solo la variable `BLOB_READ_WRITE_TOKEN` al proyecto. Ese mismo token (en el store, pestaña *.env.local*) va también en `worker/youtube/.env`, para que el servicio pueda anotar la dirección.
 2. **Cargar en Vercel** `YOUTUBE_WORKER_SECRET`: la clave que está en `worker/youtube/.env` (se crea la primera vez que se abre el servicio). Después, *Redeploy*.
-3. **Arrancar el servicio**: doble click en `worker/youtube/iniciar.cmd`. Al ratito muestra "Dirección anotada en Vercel: la app ya la usa". Para que arranque con Windows, poné un acceso directo a `iniciar.cmd` en la carpeta de inicio (`Win+R` → `shell:startup`).
+3. **Arrancar el servicio**: doble click en `worker/youtube/ServicioYouTube.exe` (si no está, se arma con `worker/youtube/app/compilar.cmd`). Es una app de la bandeja: corre sin ventana, queda junto al reloj con un punto verde cuando funciona y arranca sola con Windows. Ver `worker/youtube/README.md`. Sigue estando `iniciar.cmd`, que lo abre en una consola (útil para probar), pero no los dos a la vez.
 
 En local, `.env.local` tiene `YOUTUBE_WORKER_URL=http://localhost:8787`: una dirección fija manda sobre la anotada (sirve también si el servicio pasa a un servidor con dirección propia). Los túneles sin cuenta de Cloudflare no tienen garantía de funcionamiento y Cloudflare pide no usarlos para mover mucho video: para lo que baja el estudio alcanza, pero si el uso crece, lo prolijo es el servidor de la empresa o un túnel con cuenta y dominio.
+
+### Métricas: quién baja qué
+
+Cada archivo que alguien baja (o sube a Drive) desde Descargas queda anotado en la tabla `descargas_registro`: quién (su cuenta), cuándo, de qué plataforma y posteo (link, título y cuenta), qué salió (video, foto, portada o audio, con la calidad y el número dentro del carrusel), a dónde y cuánto pesó (exacto si pasó por la página; si no, lo que informó el origen). Lo manda la página después de cada guardado a `POST /api/descargas/registro` (`lib/downloads/registro.ts`); si falla no se avisa, porque la descarga ya se hizo.
+
+- **Desde dónde**: si fue desde la red de la oficina. El servidor compara en el momento la IP de quien baja con la IP pública de la oficina, y anota solo sí o no: **la IP no se guarda** (está en `/privacidad`). La IP de la oficina la averigua el servicio de YouTube (corre en una PC de ahí) y la anota en el Blob store junto con su dirección; se revisa cada media hora porque puede cambiar. También se puede fijar con `OFICINA_IPS` en Vercel (separadas por coma). Sin ninguna de las dos, queda "–" (no se sabe). En IPv6 se compara la red, no la dirección (`lib/downloads/oficina.server.ts`).
+- **La página** `/descargas/metricas` (botón de gráfico en la barra de Descargas) la ven solo quienes estén en `descargas_admins`; para el resto no existe (404). Tiene el período (7, 30 o 90 días, o todo), los totales, las descargas por día (por semana si el período es largo; con vista de tabla), por plataforma, qué se baja y a dónde, por persona, lo más bajado y la actividad reciente. Tocar una plataforma o una persona filtra todo. **Exportar CSV** baja lo filtrado (separado por punto y coma, para que Excel en español lo abra en columnas).
+- **Activarlo**: correr `supabase/migracion-descargas-registro.sql` (después de `migracion-usuarios.sql` y `migracion-acceso.sql`). Crea el registro, `descargas_admins` (con `fmachado@camaratbwa.com`) y la función que lee el registro con el nombre de cada uno. Para sumar a alguien: `insert into public.descargas_admins (email) values ('…@camaratbwa.com');`. Sin la migración no se anota nada y la página avisa que falta.
+- En la PC, la app de la bandeja muestra en vivo quién pide cada video de YouTube y si es desde la oficina (pestaña **Descargas**, ver `worker/youtube/README.md`). El nombre lo firma la app junto con el permiso del video, así el servicio no puede mostrar uno falso.
 
 ### Drive: activarlo (una sola vez)
 
@@ -449,6 +465,54 @@ En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOO
 3. **Credenciales → el cliente OAuth → Orígenes autorizados de JavaScript**: agregar los mismos dominios (producción, preview y `http://localhost:3000`).
 4. **Pantalla de consentimiento → Acceso a los datos**: agregar el permiso `.../auth/drive.file` (no es sensible: no hace falta verificar la app).
 5. Cargar `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_PICKER_API_KEY` en Vercel (y en `.env.local`). Sin ellas, las opciones de Drive aparecen deshabilitadas.
+
+---
+
+## Ads
+
+Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y saber si algo del creativo queda tapado.
+
+**Cómo se usa**
+
+1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
+2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
+3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
+4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Debajo de cada teléfono, copiar o descargar ese mockup.
+
+También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sola (varios archivos → carrusel; 9:16 → reel si es video o historia si es imagen; si no, post) y el tipo se cambia arriba de sus mockups.
+
+**Cada fila** tiene, en una línea: el número y el tipo de pieza (se puede cambiar), el archivo y su proporción (con ⚠ si algo no está bien), el selector de **mockups** (un menú con casillas, agrupado en feed, Reels e historias; los que Meta adapta lo dicen), "Con fondo / Recortado" si hace falta, **reemplazar** el archivo (o soltar otro encima de su teléfono) u **Ordenar slides** si es un carrusel, el color del botón (sale del creativo; se puede cambiar), descargar todos sus mockups y quitarla.
+
+**Carruseles**: a la izquierda de sus mockups hay un lugar para **soltar fotos** (o hacer click) y sumarlas como slides; al soltarlas se abre **Ordenar slides**, con los nuevos al final y marcados, para acomodarlos arrastrando, sacar alguno o sumar más. El mismo orden se abre cuando se quiera con el botón **Ordenar slides**; nada cambia hasta «Listo». Soltar una foto sobre un teléfono reemplaza el slide que se ve. Arrastrar archivos al resto de la fila también abre el orden (en un post, uno solo lo reemplaza y varios lo vuelven carrusel).
+
+**Los mockups** (todos salen de capturas reales en un iPhone de 390 × 844 pt):
+
+| Mockup | Qué tapa o muestra | Captura de referencia |
+| --- | --- | --- |
+| **Feed** | El inicio: la barra de Instagram, la cuenta con «Publicidad», el creativo (4:5 como mucho de alto), la barra del botón debajo, me gusta / comentar / enviar / guardar, «Me gusta», dos líneas de texto y la barra de abajo. En un carrusel, el «2/5» arriba a la derecha (lo único que va encima del creativo) y los puntitos. | Sin calibrar todavía: medidas típicas de Instagram |
+| **Reels** | En la pestaña Reels: la tarjeta con miniatura y título pegada al botón, los íconos del costado, todos con su número abajo (me gusta, comentarios, compartidos y enviados: así se ve lo más que ocupan), la cuenta con el anillo de historia, dos líneas de texto que terminan en «… Publicidad» y la barra de abajo. | Jetour (738 × 1600 px) |
+| **Reels desde el feed** | La flecha para atrás, los íconos del costado (también con su número abajo), las burbujas de seguidores, el botón, la cuenta, una línea de texto con «Publicidad» y la barra de comentarios. | Changan (923 × 2000 px) |
+| **Historia** | La barra de progreso (una por archivo si es un carrusel), la cuenta, ⋯ y ✕; el sticker blanco del enlace; abajo, «Publicidad» con me gusta y responder. | Leapmotor |
+| **Historia con «Me interesa»** | Lo mismo más «No me interesa» y «Me interesa» (anuncios de clientes potenciales). | Leapmotor |
+| **Historia con formulario** | El sticker y, debajo del creativo, «Desliza hacia arriba para ver el formulario». | Changan |
+
+**Cuando Meta adapta la pieza.** Con las ubicaciones Advantage+ (las automáticas), un mismo anuncio puede salir en feed, historias y Reels aunque se haya armado para uno solo. Andromeda, el sistema con el que Meta elige qué anuncio mostrarle a cada persona, premia tener creativos variados, pero no cambia formatos: lo que adapta la pieza es la ubicación. Entonces:
+
+- Un **post o carrusel 4:5 o 1:1 en historias o Reels** se muestra entero con fondo (en el mockup, el mismo creativo desenfocado) o, si está prendido "Ampliar imagen" de Advantage+ creative, Meta lo completa a 9:16 con IA (eso no se puede simular: es contenido nuevo). "Con fondo / Recortado" elige cómo verlo.
+- Un **reel o historia 9:16 en el feed** se recorta a 4:5.
+
+Los mockups adaptados lo dicen debajo del teléfono.
+
+**La barra de arriba**: Agregar pieza; **ver sin la interfaz**, **marcar lo que tapa** (en rojo), **zona segura**, **detectar texto fuera de la zona segura** (el de los destellos) y **burbujas de seguidores**; el **engranaje** con la configuración; y **descargar todo**.
+
+- **Zona segura**: la de la Guía de anuncios para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que el "Safe Zone Guardrail" de Ads Manager. En el feed no aplica: no hay nada encima del creativo. En los dos de Reels se le suma la **columna de íconos** del costado, medida con todos sus números (por eso la zona segura tiene un escalón abajo a la derecha).
+- **Detectar texto fuera de la zona segura** (destellos; apagado de entrada y se recuerda en la cuenta: se busca recién al prenderlo): la app busca texto en cada creativo, sin IA y sin que el archivo salga del navegador. Las letras dejan muchos bordes seguidos y parejos en una misma línea, y las fotos casi nunca. Si al menos un 15 % de un texto cae en lo que no es seguro (o queda recortado fuera de la pantalla), se marca en rojo en el mockup y debajo del teléfono dice cuántos; la fila lo avisa con ⚠. De un video se miran varios cuadros (uno cada ~2 s, de 3 a 8), porque el texto puede aparecer en cualquier momento. Es una estimación: si marca algo que no es texto, o está bien así, **Ignorar** lo apaga para ese archivo. La idea es la del «Validador de márgenes - Meta Reels»; acá se cruza con la zona de cada mockup.
+- **Burbujas de seguidores** (Reels desde el feed): no siempre salen (dependen de quién lo ve), pero cuando salen tapan.
+- **Configuración** (engranaje; vale para todas las piezas y se recuerda en la cuenta): el cliente (pone su logo de foto de perfil y, si tiene su Instagram en la ficha, ese usuario), el usuario y la foto, el texto (se ve solo el principio, como lo corta Instagram en cada mockup), el título (tarjeta de Reels), el botón (los de Meta) y el idioma de Instagram (español o inglés: cambian «Más información» / «Learn more», «Publicidad» / «Ad»… y no miden lo mismo).
+
+**Descargas**: cada teléfono copia o descarga su mockup; cada fila baja todos los suyos (un `.zip` si son varios); **descargar todo** arma un `.zip` con una carpeta por pieza (`01 Post - nombre/Feed.png`, `02 Carrusel - nombre/Feed - 2 de 5.png`…). Son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes); de un video sale el cuadro que se está viendo (o, en lote, uno de adentro). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes).
+
+**Cómo está hecho**: los tipos de pieza, los mockups, qué se marca por defecto y dónde va el creativo están en `lib/ads/placements.ts`; los textos en los dos idiomas en `lib/ads/text.ts`; la zona segura (con la columna de íconos) y qué texto cae afuera, en `lib/ads/safe.ts`; la búsqueda de texto, en `lib/ads/textScan.ts`. Cada mockup se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías): en pantalla el creativo va en un `<img>`/`<video>` debajo (así los videos se reproducen) y al descargar se dibuja adentro. Las piezas y la lectura de archivos están en `components/ads/pieces.ts`; el diálogo en `AddPieceDialog.tsx`, cada fila en `PieceRow.tsx` y la configuración en `AdsSettings.tsx`. Nada se sube a ningún lado: los archivos se abren en el navegador.
 
 ---
 

@@ -14,6 +14,7 @@ import http from "node:http";
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -221,6 +222,7 @@ async function download(job) {
     job.status = "error";
     job.error = code === 0 ? "yt-dlp terminó sin dejar el archivo." : friendly(stderr);
     log(`✗ ${job.key}: ${job.error}`);
+    event({ tipo: "error", job: job.key, error: job.error });
     return;
   }
   // El video solo llega como MP4 "DASH" (fragmentado), que algunos editores no abren: se rearma como un MP4
@@ -240,7 +242,9 @@ async function download(job) {
   job.status = "done";
   job.percent = 100;
   job.touched = Date.now();
-  log(`✓ ${job.key} (${(job.size / 1e6).toFixed(1)} MB en ${Math.round((Date.now() - started) / 1000)} s)`);
+  const seconds = Math.round((Date.now() - started) / 1000);
+  log(`✓ ${job.key} (${(job.size / 1e6).toFixed(1)} MB en ${seconds} s)`);
+  event({ tipo: "listo", job: job.key, bytes: job.size, segundos: seconds });
 }
 
 function ffmpeg(args) {
@@ -283,6 +287,93 @@ function safeEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
+/* ───────────── Quién y desde dónde ───────────── */
+
+/** "<datos>.<firma>": nombre y mail de quien pide, firmados por la app para este video (youtube.server.ts). */
+function checkRequester(value, id) {
+  const [data, sig] = String(value ?? "").split(".");
+  if (!data || !sig) return null;
+  const expected = crypto.createHmac("sha256", SECRET).update(`quien.${id}.${data}`).digest("base64url");
+  if (!safeEqual(sig, expected)) return null;
+  try {
+    const j = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    const email = typeof j.e === "string" ? j.e.slice(0, 200) : null;
+    return email ? { email, name: typeof j.n === "string" && j.n.trim() ? j.n.trim().slice(0, 120) : null } : null;
+  } catch {
+    return null;
+  }
+}
+
+const FROM_LABEL = { oficina: "oficina", afuera: "afuera", local: "esta PC", desconocido: "¿?" };
+
+/**
+ * Desde dónde viene un pedido: la oficina (la misma IP pública que esta PC, o la red local), afuera, o
+ * esta misma PC. Por el túnel los pedidos llegan desde cloudflared y la IP real viene en cf-connecting-ip.
+ * La IP se mira en el momento y no se guarda en ningún lado.
+ */
+function origin(req) {
+  const remote = (req.socket.remoteAddress ?? "").replace(/^::ffff:/i, "");
+  const viaTunnel = (remote === "127.0.0.1" || remote === "::1") && req.headers["cf-connecting-ip"];
+  const ip = viaTunnel ? String(req.headers["cf-connecting-ip"]).trim().replace(/^::ffff:/i, "") : remote;
+  if (!viaTunnel && (ip === "127.0.0.1" || ip === "::1")) return "local";
+  if (isPrivateIp(ip)) return "oficina";
+  if (!office.v4 && !office.v6) return "desconocido";
+  return sameNetwork(ip, office.v4) || sameNetwork(ip, office.v6) ? "oficina" : "afuera";
+}
+
+function isPrivateIp(ip) {
+  if (net.isIP(ip) === 4) return /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
+  return ip === "::1" || /^f[cd]/i.test(ip) || /^fe80:/i.test(ip);
+}
+
+/** IPv4: la misma. IPv6: la misma red (los primeros 64 bits), porque ahí cada compu tiene su dirección. */
+function sameNetwork(a, b) {
+  if (!a || !b || net.isIP(a) !== net.isIP(b)) return false;
+  if (net.isIP(a) === 4) return a === b;
+  const prefix = (ip) => {
+    const [head, tail = ""] = ip.toLowerCase().split("::");
+    const left = head ? head.split(":") : [];
+    const right = tail ? tail.split(":") : [];
+    const middle = ip.includes("::") ? Array(8 - left.length - right.length).fill("0") : [];
+    return [...left, ...middle, ...right].slice(0, 4).map((g) => g.padStart(4, "0")).join(":");
+  };
+  return prefix(a) === prefix(b);
+}
+
+/** La IP pública de esta PC (la de la oficina hacia internet), por IPv4 y por IPv6 si hay. */
+let office = { v4: null, v6: null };
+
+async function publicIp(url) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    return (await res.text()).match(/^ip=(.+)$/m)?.[1]?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+async function checkOffice() {
+  const [v4, v6] = await Promise.all([
+    publicIp("https://1.1.1.1/cdn-cgi/trace"),
+    publicIp("https://[2606:4700:4700::1111]/cdn-cgi/trace"),
+  ]);
+  // Sin internet no se pisa lo que ya se sabía.
+  if (!v4 && !v6) return;
+  if (v4 === office.v4 && v6 === office.v6) return;
+  office = { v4, v6 };
+  log(`IP pública de la oficina: ${[v4, v6].filter(Boolean).join(" · ")}`);
+  // Si ya se había anotado la dirección, se vuelve a anotar con la IP nueva (la app la usa para las métricas).
+  if (announcedUrl) announce(announcedUrl);
+}
+
+/**
+ * Para la app de la bandeja (ServicioYouTube.exe): una línea "@@{json}" por pedido, descarga lista o error,
+ * que muestra en su pestaña Descargas. Solo con SERVICIO_APP=1 (la pone la app): en la consola no aparecen.
+ */
+function event(data) {
+  if (process.env.SERVICIO_APP === "1") console.log("@@" + JSON.stringify({ hora: Date.now(), ...data }));
+}
+
 /* ───────────── HTTP ───────────── */
 
 const server = http.createServer(async (req, res) => {
@@ -308,7 +399,25 @@ const server = http.createServer(async (req, res) => {
       const mode = MODES.has(body.mode) ? body.mode : "video";
       const q = QUALITIES.includes(Number(body.q)) ? Number(body.q) : 1080;
       const job = startJob(id, mode, q);
-      if (job.status === "queued") log(`→ ${job.key}`);
+      // Quién y desde dónde, para verlo en vivo (la IP no se guarda ni se muestra: solo oficina o afuera).
+      const who = checkRequester(body.quien, id);
+      const person = who?.name || who?.email || "sin identificar";
+      const from = origin(req);
+      const reused = job.status === "done";
+      log(`${reused ? "↺" : "→"} ${job.key} · ${person} (${FROM_LABEL[from]})${reused ? " · ya estaba listo" : ""}`);
+      event({
+        tipo: "pedido",
+        job: job.key,
+        video: id,
+        titulo: infoCache.get(id)?.data.title ?? null,
+        modo: mode,
+        calidad: mode === "audio" ? null : q,
+        quien: who?.name ?? null,
+        email: who?.email ?? null,
+        desde: from,
+        estado: job.status,
+        bytes: reused ? job.size : null,
+      });
       return json(res, 200, publicJob(job));
     }
 
@@ -454,6 +563,9 @@ function firstRun() {
 
 server.listen(PORT, () => {
   log(`Servicio de YouTube en http://localhost:${PORT}  (yt-dlp: ${YTDLP})`);
+  // La IP de la oficina puede cambiar (las IPs de los proveedores no son fijas): se revisa cada media hora.
+  officeChecked = checkOffice();
+  setInterval(checkOffice, 30 * 60 * 1000).unref();
   if (process.env.YTDLP_AUTO_UPDATE !== "0") updateYtdlp();
   if (CLOUDFLARED) startTunnel();
   else if (process.env.PUBLIC_URL) announce(process.env.PUBLIC_URL.replace(/\/+$/, ""));
@@ -469,6 +581,9 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => p
 let tunnel = null;
 let publicUrl = null;
 let failedChecks = 0;
+/** La dirección que ya quedó anotada en Vercel (para volver a anotarla si cambia la IP de la oficina). */
+let announcedUrl = null;
+let officeChecked = Promise.resolve();
 
 /** Túnel de Cloudflare sin cuenta: da una dirección https://<palabras>.trycloudflare.com nueva cada vez. */
 function startTunnel() {
@@ -521,14 +636,20 @@ async function reachable(url) {
 }
 
 async function announce(url) {
-  log(`Dirección pública: ${url}`);
+  if (url !== announcedUrl) log(`Dirección pública: ${url}`);
   if (!BLOB_TOKEN) {
     log("Falta BLOB_READ_WRITE_TOKEN en .env: la app no se va a enterar de esta dirección (ver README).");
     return;
   }
+  // Con la IP de la oficina ya averiguada (tarda un par de segundos al arrancar).
+  await officeChecked;
   for (let attempt = 0; ; attempt++) {
     const error = await writeBlob(url);
-    if (!error) return log("Dirección anotada en Vercel: la app ya la usa.");
+    if (!error) {
+      const again = url === announcedUrl;
+      announcedUrl = url;
+      return log(again ? "IP de la oficina actualizada en Vercel." : "Dirección anotada en Vercel: la app ya la usa.");
+    }
     log(`No pude anotar la dirección en Vercel (${error}).`);
     await sleep(Math.min(5 * 60_000, 15_000 * 2 ** attempt));
     // Si mientras tanto el túnel cambió de dirección, ya la anota el intento nuevo.
@@ -542,7 +663,8 @@ async function announce(url) {
  */
 let blobAccess = null;
 async function writeBlob(url) {
-  const body = JSON.stringify({ url, actualizado: new Date().toISOString() });
+  // oficina: la IP pública de esta PC, para que la app sepa qué descargas se hacen desde la oficina.
+  const body = JSON.stringify({ url, oficina: office, actualizado: new Date().toISOString() });
   let lastError = "";
   for (const access of blobAccess ? [blobAccess] : ["private", "public"]) {
     try {

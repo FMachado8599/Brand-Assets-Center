@@ -18,6 +18,7 @@ import { useRedacciones } from "@/hooks/useRedacciones";
 import { brandsRepo, clientErrorMessage, type BrandPatch } from "@/lib/repos/brands";
 import { materialsRepo } from "@/lib/repos/materials";
 import { LOGO_ACCEPT, logoProblem } from "@/lib/clients/logo";
+import { socialKey, socialLabel, socialName, type BrandSocial } from "@/lib/clients/socials";
 import { hasSupabase } from "@/lib/supabase";
 import type { Brand, LogoBg } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ import { FontsSection } from "./profile/FontsSection";
 import { MaterialSection } from "./profile/MaterialSection";
 import { PaletteSection } from "./profile/PaletteSection";
 import { MigrationNotice } from "./profile/Section";
+import { fetchProfilePhoto, LogoFromSocials, SocialsField } from "./profile/Socials";
 import { CardsSection, KitSection, ProductsSection, RedaccionesSection } from "./profile/WorkSections";
 
 const SAVE_DELAY = 600;
@@ -41,7 +43,7 @@ const SAVE_DELAY = 600;
 export function ClientProfile({ id }: { id: string }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { clients, loading, hasProfile } = useClients();
+  const { clients, loading, hasProfile, hasSocials } = useClients();
   const { cards, products, fonts, reload, loading: dataLoading } = useData();
   const redacciones = useRedacciones();
   const kits = useBrandKits();
@@ -207,6 +209,7 @@ export function ClientProfile({ id }: { id: string }) {
           brand={brand}
           save={save}
           saveSoon={saveSoon}
+          socialsMissing={hasSocials === false}
           stats={[
             ["#tarjetas", own.cards.length, "tarjeta", "tarjetas"],
             ["#productos", own.products.length, "producto", "productos"],
@@ -256,17 +259,25 @@ function ProfileHeader({
   brand,
   save,
   saveSoon,
+  socialsMissing,
   stats,
 }: {
   brand: Brand;
   save: (patch: BrandPatch, done?: string) => Promise<boolean>;
   saveSoon: (patch: BrandPatch) => void;
+  socialsMissing: boolean;
   stats: [string, number, string, string][];
 }) {
   const [logoBusy, setLogoBusy] = useState(false);
+  /** La cuenta cuya foto de perfil se está subiendo como logo. */
+  const [picking, setPicking] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const changeLogo = async (file: File) => {
+  /** logo_from solo viaja si hay algo que anotar o borrar: sin migracion-redes.sql la columna no existe. */
+  const fromPatch = (from: string | null): BrandPatch => (from || brand.logo_from ? { logo_from: from } : {});
+
+  /** `from`: la cuenta de la que salió (si es una foto de perfil). */
+  const changeLogo = async (file: File, from: BrandSocial | null = null) => {
     setLogoBusy(true);
     const up = await brandsRepo.uploadLogo(file);
     if (up.error) {
@@ -275,14 +286,33 @@ function ProfileHeader({
       return;
     }
     const old = brand.logo_path;
-    const ok = await save({ logo_url: up.url, logo_path: up.path }, brand.logo_url ? "Logo cambiado" : "Logo agregado");
+    const done = from
+      ? `Logo: la foto de perfil de ${socialLabel(from)} en ${socialName(from.network)}`
+      : brand.logo_url
+        ? "Logo cambiado"
+        : "Logo agregado";
+    const ok = await save({ logo_url: up.url, logo_path: up.path, ...fromPatch(from && socialKey(from)) }, done);
     brandsRepo.removeLogoFile(ok ? old : up.path);
     setLogoBusy(false);
   };
 
   const removeLogo = async () => {
     const old = brand.logo_path;
-    if (await save({ logo_url: null, logo_path: null }, "Logo quitado")) brandsRepo.removeLogoFile(old);
+    if (await save({ logo_url: null, logo_path: null, ...fromPatch(null) }, "Logo quitado")) brandsRepo.removeLogoFile(old);
+  };
+
+  const logoFromSocial = async (account: BrandSocial) => {
+    setPicking(socialKey(account));
+    try {
+      const file = await fetchProfilePhoto(account);
+      const problem = logoProblem(file);
+      if (problem) toast(problem, "error");
+      else await changeLogo(file, account);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo traer la foto", "error");
+    } finally {
+      setPicking(null);
+    }
   };
 
   const downloadLogo = async () => {
@@ -309,8 +339,9 @@ function ProfileHeader({
       <div>
         <LogoDrop
           preview={brand.logo_url ?? null}
+          photo={!!brand.logo_from}
           background={logoBackground(brand)}
-          onFile={changeLogo}
+          onFile={(file) => changeLogo(file)}
           busy={logoBusy}
           hint="Soltá el logo acá o hacé click · SVG, PNG o JPG"
           className="aspect-[4/3] w-full rounded-[1.75rem]"
@@ -367,6 +398,7 @@ function ProfileHeader({
             />
           </div>
         )}
+        {!socialsMissing && <LogoFromSocials brand={brand} picking={picking} onPick={logoFromSocial} onClear={removeLogo} />}
       </div>
 
       <div className="flex min-w-0 flex-col">
@@ -391,6 +423,8 @@ function ProfileHeader({
             onChange={(color) => saveSoon({ color })}
           />
         </div>
+
+        <SocialsField brand={brand} save={save} missing={socialsMissing} />
 
         <Notes key={`notas-${brand.id}`} value={brand.notes ?? ""} onChange={(notes) => saveSoon({ notes })} />
       </div>
