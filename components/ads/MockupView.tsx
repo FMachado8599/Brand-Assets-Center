@@ -96,7 +96,11 @@ export function MockupView({ scale, onSource, nav, ...input }: MockupViewProps) 
               key={label}
               type="button"
               aria-label={`${label} (${nav.index + 1} de ${nav.total})`}
-              onClick={onClick}
+              // Sin llegar al teléfono: un click en el mockup lo abre en pantalla completa.
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+              }}
               disabled={off}
               className="pointer-events-auto grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink shadow-md outline-none ring-ring transition hover:bg-white focus-visible:ring-2 disabled:invisible"
             >

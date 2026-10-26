@@ -4,7 +4,7 @@ import { SCREEN, type AdMedia } from "@/lib/ads/reel";
 import { RAIL, railBox, textCollisions, zonesOf, type Rect, type TextBox } from "@/lib/ads/safe";
 import { UI_TEXT, type Lang } from "@/lib/ads/text";
 import { inkOn } from "@/lib/clients/color";
-import { FOLLOW_D, PERSON_D, STROKES, type StrokeName } from "./icons";
+import { FOLLOW_D, PERSON_D, STROKES, WORDMARK, type StrokeName } from "./icons";
 
 /**
  * Todos los mockups se dibujan acá, en un canvas, en puntos de un iPhone de 390 × 844 pt. En pantalla el
@@ -696,7 +696,19 @@ function story(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
 
 /* ───────────── Feed (inicio) ───────────── */
 
-const WORDMARK_FONT = '"Snell Roundhand", "Segoe Script", "Brush Script MT", cursive';
+let wordmarkPath: Path2D | null = null;
+
+/** El logo de Instagram en blanco: `x` es su borde izquierdo y `cy` la mitad de la altura de las mayúsculas. */
+function wordmark(ctx: CanvasRenderingContext2D, x: number, cy: number, width: number) {
+  wordmarkPath ??= new Path2D(WORDMARK.d);
+  const k = width / WORDMARK.w;
+  ctx.save();
+  ctx.translate(x, cy - (WORDMARK.baseline * k) / 2);
+  ctx.scale(k, k);
+  ctx.fillStyle = "#fff";
+  ctx.fill(wordmarkPath);
+  ctx.restore();
+}
 
 /** El texto del feed: la cuenta en negrita y lo que entra en dos líneas; si queda algo, " ... más" en gris. */
 function feedCaption(ctx: CanvasRenderingContext2D, p: MockupInput, y: number, more: string) {
@@ -739,12 +751,8 @@ function feed(ctx: CanvasRenderingContext2D, p: MockupInput, f: Frame) {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
 
-  // Arriba: Instagram, me gusta y mensajes.
-  ctx.font = `400 27px ${WORDMARK_FONT}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#fff";
-  ctx.fillText("Instagram", 15, 70);
+  // Arriba: el logo de Instagram, me gusta y mensajes.
+  wordmark(ctx, 15, 70, 104);
   icon(ctx, "heart", 329, 69, 26);
   icon(ctx, "share", 366, 69, 25);
 

@@ -249,9 +249,14 @@ export function LogoFromSocials({
   onClear: () => void;
 }) {
   const socials = brand.socials ?? [];
+  // Sin redes no hay fotos para elegir: se avisa que existe la opción (también si ya tiene logo).
   if (!socials.length) {
-    return brand.logo_url ? null : (
-      <p className="mt-2 text-xs text-muted-foreground">¿No tenés el logo? Sumá sus redes y usá su foto de perfil.</p>
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        {brand.logo_url
+          ? "¿Preferís su foto de perfil? Sumá sus redes y elegila acá."
+          : "¿No tenés el logo? Sumá sus redes y usá su foto de perfil."}
+      </p>
     );
   }
 
