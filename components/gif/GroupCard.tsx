@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Download, Gauge, Loader2, Pause, Pencil, P
 import { Button } from "@/components/ui/button";
 import { useFramePlayer } from "@/hooks/useFramePlayer";
 import { formatKb } from "@/lib/gif/encode";
-import { formatMs, totalDuration } from "@/lib/gif/parse";
+import { fitImage, formatMs, totalDuration } from "@/lib/gif/parse";
 import { QUALITY_COLORS, type GifGroup, type GifSettings } from "@/lib/gif/types";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,9 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
   const [playing, setPlaying] = useState(true);
   const { index } = useFramePlayer(group.frames, settings, playing);
   const frame = group.frames[index];
+  // Se previsualiza igual que va a quedar en el GIF: recortado si sobra un poco, con bordes blancos si es otra proporción.
+  const contained =
+    frame?.natural && fitImage(frame.natural.width, frame.natural.height, group.width, group.height).mode === "contain";
   const over = rendered && !rendered.fits;
   // Si se ajustó al peso máximo, quedó con menos colores que la calidad elegida.
   const reduced = rendered && rendered.colors < QUALITY_COLORS[settings.quality];
@@ -47,7 +50,10 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
             <img
               src={frame.url}
               alt={frame.filename}
-              className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+              className={cn(
+                "max-h-full max-w-full rounded-sm shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]",
+                contained ? "bg-white object-contain" : "object-cover"
+              )}
               style={{ aspectRatio: `${group.width} / ${group.height}` }}
             />
           )

@@ -76,6 +76,32 @@ async function imageSize(file: File) {
   return size;
 }
 
+/** Hasta cuánto de la imagen se recorta para llenar la medida en vez de dejar bordes blancos. */
+const MAX_CROP = 0.05;
+
+/**
+ * Cómo entra una imagen de nw×nh en la medida del grupo.
+ *
+ * Los exports suelen salir con un píxel de más (970×91 para un 970×90). Encajarla
+ * entera la achica y deja franjas blancas a los costados, así que si la proporción
+ * casi coincide se llena la medida y se recorta lo que sobra, centrado. Solo si es
+ * otra proporción se encaja entera, con bordes blancos.
+ */
+export function fitImage(nw: number, nh: number, width: number, height: number) {
+  const place = (scale: number) => {
+    const w = Math.round(nw * scale);
+    const h = Math.round(nh * scale);
+    return { x: Math.floor((width - w) / 2), y: Math.floor((height - h) / 2), w, h };
+  };
+  const cover = place(Math.max(width / nw, height / nh));
+  const cropX = cover.w - width;
+  const cropY = cover.h - height;
+  if (Math.max(cropX / cover.w, cropY / cover.h) <= MAX_CROP) {
+    return { mode: cropX || cropY ? ("crop" as const) : ("exact" as const), ...cover, cropX, cropY };
+  }
+  return { mode: "contain" as const, ...place(Math.min(width / nw, height / nh)), cropX: 0, cropY: 0 };
+}
+
 export function buildGroups(frames: Frame[]): GifGroup[] {
   const byKey = new Map<string, Frame[]>();
   for (const f of frames) byKey.set(f.groupKey, [...(byKey.get(f.groupKey) ?? []), f]);
@@ -98,8 +124,12 @@ export function buildGroups(frames: Frame[]): GifGroup[] {
         if (!f.natural) continue;
         const { width: nw, height: nh } = f.natural;
         if (nw === width && nh === height) continue;
-        const sameRatio = Math.abs(nw / nh - width / height) < 0.01;
-        if (!sameRatio) warnings.push(`${f.filename} mide ${nw}×${nh}: va a quedar con bordes blancos`);
+        const fit = fitImage(nw, nh, width, height);
+        if (fit.mode === "contain") warnings.push(`${f.filename} mide ${nw}×${nh}: va a quedar con bordes blancos`);
+        if (fit.mode === "crop") {
+          const cut = [fit.cropX && `${fit.cropX} px de ancho`, fit.cropY && `${fit.cropY} px de alto`].filter(Boolean).join(" y ");
+          warnings.push(`${f.filename} mide ${nw}×${nh}: se recorta ${cut} para que entre`);
+        }
       }
       if (sorted.length < 2) warnings.push("Tiene un solo frame: no va a animarse");
 
