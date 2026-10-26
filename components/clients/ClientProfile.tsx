@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, PenLine, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
+import { InfluencersSection } from "@/components/influencers/InfluencersSection";
 import { useData } from "@/components/data/DataProvider";
 import { BarButton, BarDivider, ContextBar } from "@/components/shell/ContextBar";
 import { useConfirm } from "@/components/ui/confirm";
@@ -212,6 +213,7 @@ export function ClientProfile({ id }: { id: string }) {
         <div className="mt-8 grid gap-4">
           <PaletteSection brand={brand} saveSoon={saveSoon} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
+          <InfluencersSection brand={brand} />
           <div className="grid gap-4 lg:grid-cols-2">
             <CardsSection brand={brand} cards={own.cards} products={products} />
             <RedaccionesSection brand={brand} items={own.redacciones} />
