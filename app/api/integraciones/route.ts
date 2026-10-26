@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 import { hasBasecampEnv } from "@/lib/integraciones/basecamp";
 import { hasSecret } from "@/lib/integraciones/crypto";
 import { hasGoogleEnv } from "@/lib/integraciones/google";
@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** Cómo están las conexiones con Basecamp y con el Drive del estudio (sin tokens). */
 export async function GET() {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const db = createSupabaseServer();
   try {
     const [conexiones, sync] = await Promise.all([
@@ -36,6 +37,7 @@ export async function GET() {
 
 /** Desconectar Basecamp o Google: se borran los tokens guardados (lo sincronizado queda). */
 export async function DELETE(request: NextRequest) {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const proveedor = request.nextUrl.searchParams.get("proveedor");
   if (proveedor !== "basecamp" && proveedor !== "google") {
     return NextResponse.json({ error: "Proveedor desconocido" }, { status: 400 });

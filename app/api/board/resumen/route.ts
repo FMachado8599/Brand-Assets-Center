@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { BoardResumen, ProyectoResumen } from "@/lib/board/tipos";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,7 @@ const ETAPAS_CERRADAS = new Set(["done", "not_now"]);
  * Se lee con la sesión de quien pide, así que las tablas siguen protegidas por RLS.
  */
 export async function GET() {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const db = createSupabaseServer();
   try {
     const [proyectos, brands, personas, tableros, columnas, tareas] = await Promise.all([

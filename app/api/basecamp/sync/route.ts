@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Basecamp } from "@/lib/integraciones/basecamp";
 import { correrPaso, type SyncPaso } from "@/lib/integraciones/basecamp-sync";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -14,6 +14,7 @@ const PASOS: SyncPaso[] = ["personas", "proyectos", "miembros", "tareas", "colum
  * primer paso) trae todas las tareas en vez de lo que cambió.
  */
 export async function POST(request: NextRequest) {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const body = (await request.json().catch(() => ({}))) as { paso?: string; completa?: boolean };
   const paso = (PASOS.includes(body.paso as SyncPaso) ? body.paso : "personas") as SyncPaso;
   const db = createSupabaseServer();

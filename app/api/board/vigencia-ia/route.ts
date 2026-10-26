@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +49,7 @@ function fechaValida(f: unknown, hoy: Date): f is string {
 }
 
 export async function POST(req: Request) {
+  if (!hasSupabaseEnv) return faltaSupabase();
   const body = (await req.json().catch(() => null)) as { tarea_id?: unknown } | null;
   const id = Number(body?.tarea_id);
   if (!Number.isFinite(id)) return NextResponse.json({ error: "Falta la tarea." }, { status: 400 });
