@@ -23,6 +23,7 @@ import { ColorChoice } from "./ColorChoice";
 import { LogoDrop } from "./LogoDrop";
 import { FontsSection } from "./profile/FontsSection";
 import { PaletteSection } from "./profile/PaletteSection";
+import { VozMarcaSection } from "./profile/VozMarca";
 import { MigrationNotice } from "./profile/Section";
 import { CardsSection, KitSection, ProductsSection, RedaccionesSection } from "./profile/WorkSections";
 
@@ -37,7 +38,7 @@ const SAVE_DELAY = 600;
 export function ClientProfile({ id }: { id: string }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { clients, loading, hasProfile } = useClients();
+  const { clients, loading, hasProfile, hasVozMarca } = useClients();
   const { cards, products, fonts, reload, loading: dataLoading } = useData();
   const redacciones = useRedacciones();
   const kits = useBrandKits();
@@ -208,6 +209,7 @@ export function ClientProfile({ id }: { id: string }) {
 
         <div className="mt-8 grid gap-4">
           <PaletteSection brand={brand} saveSoon={saveSoon} />
+          <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
           <div className="grid gap-4 lg:grid-cols-2">
             <CardsSection brand={brand} cards={own.cards} products={products} />

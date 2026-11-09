@@ -14,6 +14,8 @@ type State = {
   loaded: boolean;
   /** La base ya tiene la ficha (migracion-clientes.sql). null: no se sabe (no hay clientes para mirar). */
   hasProfile: boolean | null;
+  /** La base ya tiene el kit de voz (migracion-voz-marca.sql). null: no se sabe. */
+  hasVozMarca: boolean | null;
 };
 
 /**
@@ -22,8 +24,8 @@ type State = {
  * fuera de React, así sobrevive al pasar de un módulo a otro y un cliente
  * creado desde cualquier lado aparece en todos al instante.
  */
-let state: State = { clients: [], loaded: !hasSupabase, hasProfile: null };
-const SERVER: State = { clients: [], loaded: false, hasProfile: null };
+let state: State = { clients: [], loaded: !hasSupabase, hasProfile: null, hasVozMarca: null };
+const SERVER: State = { clients: [], loaded: false, hasProfile: null, hasVozMarca: null };
 const listeners = new Set<() => void>();
 let started = false;
 /** Solo cuenta la respuesta del último pedido: una lectura vieja no pisa a una más nueva. */
@@ -44,6 +46,7 @@ function tidy(brand: Brand): Brand {
     palette: cleanPalette(brand.palette),
     font_families: Array.isArray(brand.font_families) ? brand.font_families : [],
     notes: brand.notes ?? "",
+    voz_marca: brand.voz_marca ?? {},
   };
 }
 
@@ -61,7 +64,12 @@ export async function refreshClients() {
     if (error) console.warn("[clientes] no se pudieron leer:", error.message);
     if (data) {
       const rows = data as Brand[];
-      set({ clients: rows.map(tidy), loaded: true, hasProfile: rows.length ? "palette" in rows[0] : null });
+      set({
+        clients: rows.map(tidy),
+        loaded: true,
+        hasProfile: rows.length ? "palette" in rows[0] : null,
+        hasVozMarca: rows.length ? "voz_marca" in rows[0] : null,
+      });
     } else set({ loaded: true });
   }
   return { error };
@@ -98,5 +106,11 @@ export function useClients() {
   useEffect(() => {
     if (!started) refreshClients();
   }, []);
-  return { clients: snap.clients, loading: !snap.loaded, hasProfile: snap.hasProfile, refresh: refreshClients };
+  return {
+    clients: snap.clients,
+    loading: !snap.loaded,
+    hasProfile: snap.hasProfile,
+    hasVozMarca: snap.hasVozMarca,
+    refresh: refreshClients,
+  };
 }

@@ -4,7 +4,9 @@ import type { Brand } from "@/lib/types";
 const LOGOS = "logos";
 
 /** Lo que se puede cambiar de un cliente desde su ficha. */
-export type BrandPatch = Partial<Pick<Brand, "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes">>;
+export type BrandPatch = Partial<
+  Pick<Brand, "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes" | "voz_marca">
+>;
 
 export const brandsRepo = {
   list: () => supabase.from("brands").select("*").order("name"),
