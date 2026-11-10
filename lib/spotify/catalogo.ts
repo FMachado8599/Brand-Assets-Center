@@ -1,4 +1,4 @@
-import type { CancionSpotify } from "./types";
+import type { CancionSpotify, EstadoJam } from "./types";
 
 type Imagen = { url: string; width: number | null };
 
@@ -30,3 +30,20 @@ export function aCancion(t: TrackApi): CancionSpotify {
 /** Las de la cola pueden ser episodios de podcast (sin álbum): esos se saltean. */
 export const esTrack = (t: unknown): t is TrackApi =>
   Boolean(t && typeof t === "object" && "album" in t && "artists" in t);
+
+const clave = (c: Pick<CancionSpotify, "nombre" | "artistas">) =>
+  `${c.nombre}|${c.artistas}`
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * ¿Ya está sonando o en la cola? Por URI o por nombre + artistas (la misma canción puede estar en
+ * un single y en un álbum, con URIs distintas). Lo usan el servidor (para no sumarla) y la burbuja.
+ */
+export function yaEsta(c: Pick<CancionSpotify, "uri" | "nombre" | "artistas">, jam: Pick<EstadoJam, "actual" | "siguientes"> | null) {
+  if (!jam) return false;
+  return [jam.actual, ...jam.siguientes].some((x) => x && (x.uri === c.uri || clave(x) === clave(c)));
+}

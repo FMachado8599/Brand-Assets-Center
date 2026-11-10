@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSpotifyEnv, spotifyAuthorizeUrl, spotifyRedirectUri } from "@/lib/spotify/auth";
-import { empezarOAuth, volverCon } from "@/lib/spotify/sesion";
+import { empezarOAuth, volverCon } from "@/lib/spotify/oauth";
 import { safeNext } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";

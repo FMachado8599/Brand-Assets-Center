@@ -2,24 +2,20 @@ import { hasSecret } from "@/lib/integraciones/crypto";
 
 /**
  * OAuth de Spotify (Authorization Code con client secret): el canje del código y la renovación
- * pasan solo por el servidor, así el secreto y el refresh token nunca llegan al navegador.
+ * pasan solo por el servidor, así el secreto y los tokens nunca llegan al navegador.
  * https://developer.spotify.com/documentation/web-api/tutorials/code-flow
  */
 
 /**
- * Lo mínimo para el reproductor del navegador: streaming (Web Playback SDK, solo Premium),
- * user-read-email + user-read-private (los pide el ejemplo oficial del SDK; user-read-private
- * además lo usa la búsqueda) y user-modify-playback-state (mandar una canción a este navegador y
- * sumarla a la cola). user-read-playback-state + user-read-currently-playing: leer qué suena y la
- * cola (GET /me/player/queue pide los dos).
+ * Lo mínimo para el Jam, con la cuenta del DJ: leer qué suena y la cola (GET /me/player/queue pide
+ * user-read-playback-state y user-read-currently-playing), sumar a la cola (user-modify-playback-state)
+ * y buscar con su país (user-read-private).
  */
 export const SPOTIFY_SCOPES = [
-  "streaming",
-  "user-read-email",
   "user-read-private",
-  "user-modify-playback-state",
   "user-read-playback-state",
   "user-read-currently-playing",
+  "user-modify-playback-state",
 ];
 
 // SPOTIFY_ACCOUNTS_URL y SPOTIFY_API_URL solo para probar contra una API simulada; en producción no se definen.

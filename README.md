@@ -13,6 +13,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 | **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
+| **Spotify** | `/spotify` | El Jam del estudio: qué suena, la cola y sumar canciones, también desde la burbuja flotante en toda la app |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -58,7 +59,7 @@ Abrí http://localhost:3000
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
-| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (prueba) | Sí, para conectar Spotify (ver "Spotify") |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -507,29 +508,51 @@ Los mockups adaptados lo dicen debajo del teléfono.
 
 ---
 
-## Spotify (prueba)
+## Spotify: el Jam del estudio
 
-Primer paso de la integración con Spotify: un reproductor dentro de la app y, más adelante, una cola de canciones compartida. Por ahora es una **prueba técnica** en `/spotify` (no está en la sidebar): conectar una cuenta, que este navegador aparezca como dispositivo de Spotify, buscar una canción y escucharla, con pausa y volumen. Todavía no hay globo flotante, cola ni radio.
+Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, el **DJ**, arma un Jam en su Spotify (Premium) y conecta su cuenta en `/spotify`. Desde ahí cualquiera con sesión en la app ve qué suena y **suma canciones a la cola**, sin conectar su propia cuenta. Para escuchar, cada uno se une al Jam desde Spotify, con el botón o el QR. Spotify se encarga de que suene igual para todos; la app nunca toca ni retransmite el audio.
 
-**Cómo funciona**: cada persona conecta su propia cuenta y el audio va directo de Spotify a su pestaña (Web Playback SDK). La app nunca toca ni retransmite el sonido. El client secret y el refresh token quedan en el servidor. En esta prueba, la conexión vive en una cookie httpOnly cifrada con `INTEGRACIONES_SECRET` y atada al usuario de la app; en la fase 2 pasa a una tabla de Supabase con RLS. "Desconectar" la olvida en la app. Para revocar el permiso del todo, cada uno lo hace en spotify.com/account/apps.
+**Dónde se ve**
+
+- **La burbuja**, abajo a la derecha en cualquier módulo, aparece solo si hay un Jam armado. Cerrada es la tapa del disco con un anillo de progreso. Al tocarla se abre lo que suena (tapa, canción, artista y álbum, la onda de progreso) con tres cosas:
+  - **Unirse al Jam**, que abre el link en Spotify.
+  - **QR**, un widget aparte para unirse desde el celular.
+  - **Cola**, que se despliega hacia arriba con el buscador arriba de todo. Las que ya suenan o están en la cola aparecen como "Ya está" y no se suman de nuevo. Se compara por URI o por nombre y artistas, porque la misma canción puede tener otra URI en un single.
+- No tiene play, pausa ni saltear: eso lo maneja el DJ desde su Spotify. `Esc` cierra de a una cosa.
+- En el celular, la cola y el QR se turnan para entrar en la pantalla.
+- **`/spotify`** (en la sidebar) muestra lo mismo pero entero, más lo del DJ: conectarse, pegar el link del Jam, volver a conectar y terminar el Jam. Tiene también el interruptor para mostrar u ocultar la burbuja, que se recuerda en la cuenta de cada uno. En `/spotify` la burbuja no aparece.
 
 ### Activarlo (una sola vez)
 
-1. En [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), con una cuenta **Premium** (en Development Mode es obligatorio que la dueña de la app lo sea), crear una app con **Web API** y **Web Playback SDK**.
-2. Redirect URIs, exactas: `http://127.0.0.1:3000/api/spotify/callback` para local y la del entorno donde se pruebe (ej: `https://brand-assets-center-git-spotify-fmachado5899-9616s-projects.vercel.app/api/spotify/callback`). Spotify **no acepta `localhost`**: en local hay que abrir la app en `http://127.0.0.1:3000` (e iniciar sesión ahí). Después de agregarlas, apretar **Save** al pie: si la dirección no quedó guardada, Spotify no avisa "URI inválida" sino que vuelve con un `server_error` sin más datos.
-3. En **User Management**, sumar el mail de la cuenta de Spotify de cada persona que lo vaya a usar: **5 como mucho, contando la dueña**.
-4. Cargar `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` (solo servidor) y `INTEGRACIONES_SECRET` (32 caracteres o más; es la misma clave de las integraciones de Board). `SPOTIFY_REDIRECT_URI` es opcional: si no está, se usa `<origen>/api/spotify/callback`.
+1. En [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), crear una app con **Web API**. La dueña de la app tiene que tener **Premium** (Development Mode no funciona sin eso).
+2. Redirect URIs, exactas: `http://127.0.0.1:3000/api/spotify/callback` en local y la del entorno donde se use (ej: `https://brand-assets-center.vercel.app/api/spotify/callback`). Después de agregarlas, apretar **Save** al pie. Si no quedó guardada, Spotify no dice "URI inválida": vuelve con un `server_error` sin más datos. Spotify **no acepta `localhost`**: en local hay que abrir la app en `http://127.0.0.1:3000` e iniciar sesión ahí.
+3. En **User Management**, sumar la cuenta de Spotify de cada persona que vaya a ser **DJ**. Son 5 como mucho, pero solo las que conectan: el resto del estudio usa el Jam sin cuenta.
+4. Cargar `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` (solo servidor) e `INTEGRACIONES_SECRET` (32 caracteres o más; es la misma clave de las integraciones de Board). `SPOTIFY_REDIRECT_URI` es opcional; si no está, se usa `<origen>/api/spotify/callback`.
+5. En Supabase → SQL Editor, correr `supabase/migracion-spotify.sql`, después de `migracion-acceso.sql`.
+
+**Para armar el Jam**: el DJ abre Spotify, pone algo y arranca un Jam. Después, en `/spotify`, aprieta "Conectar Spotify y ser el DJ" y pega el link (Spotify → Jam → Invitar → Copiar link). Si otra persona se conecta, pasa a ser el DJ y el link anterior se borra.
 
 ### Límites de Spotify (revisados el 10/11/2026)
 
-- **Premium** para escuchar en el navegador. Sin Premium, el reproductor lo avisa ("account_error").
-- **Development Mode**: 5 usuarios por app. Para más hay que pedir Extended Quota, que desde mayo de 2025 es solo para empresas con 250.000 usuarios activos por mes o más. En la práctica, esto queda en 5 personas.
-- La búsqueda trae **10 resultados** como mucho, y `/me` ya no dice el mail, el país ni si la cuenta es Premium (cambios de febrero de 2026).
-- La conexión **vence a los 6 meses** de autorizar, aunque se use todos los días. Después hay que volver a conectar.
-- **iPhone/iPad**: el volumen se maneja con los botones del equipo, y el primer play tiene que salir de un toque (por eso se reproduce desde un click).
-- La **radio sincronizada** no está confirmada como permitida: la Developer Policy prohíbe transmitir "desde una sola fuente a varios oyentes a la vez", y el SDK no se puede usar en proyectos comerciales sin aprobación escrita. Antes de la fase 4 hay que consultarlo con Spotify.
+- **No hay API de Jam**: la app no puede crear el Jam ni su link, por eso el DJ lo pega. Lo que se suma va a la cola de lo que suena en la cuenta del DJ, que es la del Jam.
+- El DJ necesita **Premium**, porque sumar a la cola es solo para Premium. Los invitados al Jam, no.
+- La búsqueda trae **10 resultados** como mucho (Development Mode).
+- La conexión del DJ **vence a los 6 meses** de autorizar. Después la app avisa que tiene que volver a conectar.
+- Lo que suena se le pregunta a Spotify **como mucho cada 5 segundos**, y lo comparten todas las burbujas abiertas (por instancia del servidor), para no gastar la cuota de la app.
 
-**Cómo está hecho**: OAuth (Authorization Code con client secret) en `lib/spotify/auth.ts`; la cookie cifrada y el `state` de OAuth en `lib/spotify/sesion.ts`; las rutas en `app/api/spotify/` (`conectar`, `callback`, `token`, `buscar`, `desconectar`). El reproductor es `hooks/useSpotifyPlayer.ts` (carga el SDK, maneja los errores y manda la canción a este navegador), y la página es `components/spotify/SpotifyPrueba.tsx`, que abajo muestra un registro de lo que pasa para probar en distintos navegadores. `SPOTIFY_ACCOUNTS_URL` y `SPOTIFY_API_URL` existen solo para probar contra una API simulada.
+**Cómo está hecho**:
+
+- `lib/spotify/auth.ts`: OAuth (Authorization Code con client secret).
+- `lib/spotify/oauth.ts`: el `state` de OAuth.
+- `lib/spotify/jam.ts`: el DJ en la tabla `spotify_jam`, con los tokens cifrados (leer la tabla no alcanza para usar la cuenta). También renueva el token y guarda en caché lo que suena.
+- `lib/spotify/catalogo.ts`: pasa las canciones de la API a la app y decide si una ya está en la cola. Lo usan el servidor y la burbuja.
+- `app/api/spotify/` tiene las rutas:
+  - `jam`: el estado (GET), el link (PATCH) y terminar (DELETE). El link y terminar son solo para el DJ.
+  - `cola`: sumar una canción.
+  - `buscar`, `conectar` y `callback`.
+- La pantalla está en `components/spotify/jam/` (estética propia: negro y verde de Spotify, vidrio, brillos y botones en relieve, en `estilo.ts`) y `components/spotify/SpotifyJam.tsx`. La burbuja se monta en `AppFrame`.
+- El QR sale de `lib/qr.ts`, sin librerías: modo byte, corrección M, hasta 213 bytes.
+- `SPOTIFY_ACCOUNTS_URL` y `SPOTIFY_API_URL` existen solo para probar contra una API simulada.
 
 ---
 

@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { SpotifyPrueba } from "@/components/spotify/SpotifyPrueba";
+import { SpotifyJam } from "@/components/spotify/SpotifyJam";
+import { ConfirmProvider } from "@/components/ui/confirm";
 import { hasSpotifyEnv } from "@/lib/spotify/auth";
-import { cuentaSpotify } from "@/lib/spotify/sesion";
 
-// La conexión es de cada persona (cookie): no se puede armar la página de antemano.
+// Las variables se pueden cargar sin recompilar.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Spotify (prueba)",
-  description: "Prueba técnica: conectar Spotify y reproducir en el navegador.",
+  title: "Spotify",
+  description: "El Jam del estudio: qué suena, la cola y para sumar canciones.",
 };
 
-/**
- * Fase 1 de la integración con Spotify: una página suelta (no está en la sidebar) para probar
- * OAuth + Web Playback SDK con una cuenta. Todavía no hay widget global, cola ni radio.
- */
-export default async function SpotifyPage() {
-  const configurado = hasSpotifyEnv();
-  const cuenta = configurado ? await cuentaSpotify() : null;
-  return <SpotifyPrueba configurado={configurado} cuenta={cuenta} />;
+/** El Jam entero (lo mismo que la burbuja, más lo del DJ). */
+export default function SpotifyPage() {
+  return (
+    <ConfirmProvider>
+      <SpotifyJam configurado={hasSpotifyEnv()} />
+    </ConfirmProvider>
+  );
 }
