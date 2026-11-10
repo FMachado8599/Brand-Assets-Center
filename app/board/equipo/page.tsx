@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { EquipoView } from "@/components/tareas/EquipoView";
+import { EquipoFilas } from "@/components/tareas/EquipoFilas";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Equipo · Board",
-  description: "Quién es quién en el estudio: puestos, sectores, hubs y marcas de cada uno.",
+  description: "Una fila por persona con sus tareas, de la más prioritaria a la menos.",
 };
 
 export default function EquipoPage() {
-  return <EquipoView />;
+  return <EquipoFilas />;
 }

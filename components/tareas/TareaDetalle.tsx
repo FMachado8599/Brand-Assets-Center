@@ -10,6 +10,7 @@ import { cambiarTarea } from "@/hooks/useFlujo";
 import {
   designadoDe,
   ejecutaSector,
+  puedeTenerTareas,
   ETAPA_LABEL,
   etapaDe,
   etapasDe,
@@ -56,6 +57,7 @@ export function TareaDetalle({
   validaron,
   onClose,
   onValidado,
+  ocultar,
 }: {
   tarea: TareaFlujo | null;
   ctx: Contexto | null;
@@ -63,6 +65,8 @@ export function TareaDetalle({
   validaron: Set<string>;
   onClose: () => void;
   onValidado: () => void;
+  /** En Mi tablero: sacarla de la vista (o volver a mostrarla). Solo la ve así quien la oculta. */
+  ocultar?: { oculta: boolean; alternar: () => void };
 }) {
   const [movimientos, setMovimientos] = useState<Movimiento[] | null>(null);
   const [brief, setBrief] = useState<string | null>(null);
@@ -93,7 +97,14 @@ export function TareaDetalle({
   const sector = sectorDeEtapa(etapa, t.tablero, ctx.data);
   const yo = ctx.data.yo?.equipo_id ?? null;
   const designado = sector ? designadoDe(ctx, t.brand_id, sector) : null;
-  const gente = sector ? ctx.data.personas.filter((p) => p.activo && ejecutaSector(ctx, p.id, sector)) : [];
+  // En Entrada (por empezar) la puede tener cualquiera que trabaje tareas; en las demás, alguien del sector.
+  const enEntrada = etapa === "entrada";
+  const puedeTenerla = (personaId: string) => {
+    const p = ctx.porId.get(personaId);
+    if (!p) return false;
+    return enEntrada ? puedeTenerTareas(ctx, p) : Boolean(sector && p.activo && ejecutaSector(ctx, p.id, sector));
+  };
+  const gente = enEntrada || sector ? ctx.data.personas.filter((p) => puedeTenerla(p.id)) : [];
   const validadores = etapa === "validacion" ? validadoresDe(t, ctx) : [];
   const puedoValidar = Boolean(yo && (validadores.some((p) => p.id === yo) || ctx.data.yo?.admin));
   const nombre = (personaId: string | null) => (personaId ? (ctx.porId.get(personaId)?.nombre ?? "Alguien") : "Basecamp");
@@ -112,7 +123,7 @@ export function TareaDetalle({
     // Pasársela al designado es devolvérsela (queda "del designado", no "tomada").
     const valor = persona && persona === designado?.id ? null : persona;
     const quien = valor ? ctx!.porId.get(valor)?.nombre : designado?.nombre;
-    if (await cambiarTarea(t.id, { responsable_id: valor }, () => flujoRepo.asignar(t.id, valor), quien ? `Ahora la tiene ${quien}` : "Volvió al designado")) hecho();
+    if (await cambiarTarea(t.id, { responsable_id: valor }, () => flujoRepo.asignar(t.id, valor), quien ? `Ahora la tiene ${quien}` : etapa === "entrada" ? "Quedó como en Basecamp" : "Volvió al designado")) hecho();
   }
 
   async function pausar() {
@@ -262,9 +273,9 @@ export function TareaDetalle({
                 </button>
               </div>
             </section>
-          ) : sector ? (
+          ) : sector || enEntrada ? (
             <section className="space-y-2">
-              <h3 className="eyebrow text-muted-foreground">La tiene</h3>
+              <h3 className="eyebrow text-muted-foreground">{enEntrada ? "Por empezar · la tiene" : "La tiene"}</h3>
               <div className="flex items-center gap-3 rounded-2xl border bg-card p-3">
                 {resp.persona ? (
                   <>
@@ -275,18 +286,20 @@ export function TareaDetalle({
                     </div>
                   </>
                 ) : (
-                  <p className="flex-1 text-sm text-muted-foreground">Sin asignar: la marca no tiene designado para esta etapa.</p>
+                  <p className="flex-1 text-sm text-muted-foreground">
+                    {enEntrada ? "Sin asignar: nadie la tiene en Basecamp todavía." : "Sin asignar: la marca no tiene designado para esta etapa."}
+                  </p>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {yo && ejecutaSector(ctx, yo, sector) && resp.persona?.id !== yo && (
+                {yo && puedeTenerla(yo) && resp.persona?.id !== yo && (
                   <button type="button" onClick={() => asignar(yo)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background hover:opacity-90">
                     <UserCheck className="h-4 w-4" /> Tomarla
                   </button>
                 )}
-                {resp.origen === "tomada" && designado && (
+                {resp.origen === "tomada" && (designado || enEntrada) && (
                   <button type="button" onClick={() => asignar(null)} className="inline-flex h-9 items-center gap-1.5 rounded-full border bg-card px-4 text-sm font-medium hover:border-foreground/30">
-                    <Undo2 className="h-4 w-4" /> Devolver a {designado.nombre}
+                    <Undo2 className="h-4 w-4" /> {designado ? `Devolver a ${designado.nombre}` : "Dejarla como en Basecamp"}
                   </button>
                 )}
                 <div className="min-w-[12rem] flex-1">
@@ -300,6 +313,20 @@ export function TareaDetalle({
               </div>
             </section>
           ) : null}
+
+          {ocultar && (
+            <button
+              type="button"
+              onClick={() => {
+                ocultar.alternar();
+                toast(ocultar.oculta ? "Vuelve a estar en tu tablero" : "La sacaste de tu tablero (la ves con “Ocultas”)");
+                if (!ocultar.oculta) onClose();
+              }}
+              className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              {ocultar.oculta ? "Volver a mostrarla en mi tablero" : "Ocultarla de mi tablero"}
+            </button>
+          )}
 
           {/* Fechas */}
           <section className="space-y-2">

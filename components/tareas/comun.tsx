@@ -1,16 +1,16 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Columns3, ListTodo, RefreshCw, Users } from "lucide-react";
+import { Columns3, Network, RefreshCw, Rows3 } from "lucide-react";
 import { BarSegmented } from "@/components/shell/ContextBar";
 import { initials } from "@/lib/clients/color";
 import { cn } from "@/lib/utils";
 
 /** Las pestañas del Board, en la barra de arriba. */
 const PESTANAS = [
-  { value: "/board", label: "Mis tareas", icon: ListTodo },
-  { value: "/board/tablero", label: "Tablero", icon: Columns3 },
-  { value: "/board/equipo", label: "Equipo", icon: Users },
+  { value: "/board", label: "Mi tablero", icon: Columns3 },
+  { value: "/board/equipo", label: "Equipo", icon: Rows3 },
+  { value: "/board/organizacion", label: "Organización", icon: Network },
   { value: "/board/basecamp", label: "Basecamp", icon: RefreshCw },
 ] as const;
 

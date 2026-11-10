@@ -14,11 +14,12 @@ import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { Avatar, BoardNav, hace } from "./comun";
 import { HubsPanel } from "./equipo/HubsPanel";
+import { Organigrama } from "./equipo/Organigrama";
 import { MarcasDialog } from "./equipo/MarcasDialog";
 import { Chip, MultiPick, SelectSimple, type Opcion } from "./equipo/piezas";
 import { PuestosPanel } from "./equipo/PuestosPanel";
 
-type Pestana = "personas" | "hubs" | "puestos";
+type Pestana = "organigrama" | "personas" | "hubs" | "puestos";
 
 const ROLES: Opcion[] = [
   { value: "empleado", label: "Empleado" },
@@ -32,7 +33,7 @@ const ROLES: Opcion[] = [
 export function EquipoView() {
   const { data, error, sinMigracion, loaded, admin } = useEquipo();
   const { clients } = useClients();
-  const [pestana, setPestana] = useState<Pestana>("personas");
+  const [pestana, setPestana] = useState<Pestana>("organigrama");
   const [buscar, setBuscar] = useState("");
   const [trayendo, setTrayendo] = useState(false);
 
@@ -57,11 +58,11 @@ export function EquipoView() {
         )}
       </ContextBar>
 
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-[6.5rem] sm:px-6">
+      <main className={cn("mx-auto px-4 pb-16 pt-[6.5rem] sm:px-6", pestana === "organigrama" ? "max-w-none" : "max-w-6xl")}>
         <div className="mb-6 text-center">
-          <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Equipo</h1>
+          <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Organización</h1>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Quién es quién: puestos, sectores, hubs y de qué marcas es designado cada uno.
+            Quién depende de quién, qué hace cada uno (puestos, sectores, hubs) y de qué marcas es designado.
             {loaded && data && !admin && " Los puestos y los hubs los configura un admin; tus marcas las podés elegir vos."}
             {loaded && data?.conActividad &&
               " Activo se calcula solo: sin nada en Basecamp ni en la app por 30 días, queda inactivo (los admins no se tocan; lo que cambies a mano queda fijo)."}
@@ -80,11 +81,13 @@ export function EquipoView() {
           <Tabs value={pestana} onValueChange={(v) => setPestana(v as Pestana)}>
             <div className="mb-4 flex justify-center">
               <TabsList>
+                <TabsTrigger value="organigrama">Organigrama</TabsTrigger>
                 <TabsTrigger value="personas">Personas · {data.personas.filter((p) => p.activo).length}</TabsTrigger>
-                <TabsTrigger value="hubs">Hubs · {data.hubs.length}</TabsTrigger>
+                <TabsTrigger value="hubs">Hubs y equipos · {data.hubs.length}</TabsTrigger>
                 <TabsTrigger value="puestos">Puestos · {data.puestos.length}</TabsTrigger>
               </TabsList>
             </div>
+            {pestana === "organigrama" && <Organigrama data={data} admin={admin} buscar={buscar} />}
             {pestana === "personas" && <PersonasPanel data={data} buscar={buscar} admin={admin} />}
             {pestana === "hubs" && <HubsPanel data={data} marcas={clients} admin={admin} />}
             {pestana === "puestos" && <PuestosPanel data={data} admin={admin} />}

@@ -38,9 +38,16 @@ export type Persona = {
   ultima_actividad: string | null;
   /** Ya se leyó su actividad en Basecamp (si no, la regla de activos no la toca). */
   actividad_medida: boolean;
+  /** De quiénes depende en el organigrama (puede ser más de uno; vacío: de nadie). */
+  jefes: string[];
+  /** Ya está ubicado en el organigrama (los de arriba de todo no dependen de nadie pero están). */
+  en_organigrama: boolean;
 };
 
-export type Hub = { id: string; nombre: string; lider_id: string | null; marcas: string[] };
+/** hub: grupo de marcas de diseño · cliente: el equipo de un cliente (ej: "Equipo BBVA") con su gente propia. */
+export type TipoHub = "hub" | "cliente";
+
+export type Hub = { id: string; nombre: string; tipo: TipoHub; lideres: string[]; marcas: string[] };
 
 /** "Facu es el diseñador designado de Changan". */
 export type Designacion = { brand_id: string; sector_id: string; persona_id: string };
@@ -64,6 +71,8 @@ export type EquipoData = {
   yo: Yo | null;
   /** Ya se corrió migracion-actividad.sql (activo según la actividad). */
   conActividad: boolean;
+  /** Ya se corrió migracion-organigrama.sql (jefes, equipos de cliente). */
+  conOrganigrama: boolean;
 };
 
 /** Falta correr supabase/migracion-equipo.sql. */
@@ -82,18 +91,28 @@ export async function cargarEquipo(): Promise<EquipoData> {
   // Lo de la actividad (migracion-actividad.sql) puede no estar todavía: sin eso, todo lo demás anda igual.
   const actividad = await supabase.rpc("equipo_actividad");
   const conActividad = !actividad.error;
+  // Lo mismo con el organigrama (migracion-organigrama.sql): jefes y directores de cada hub.
+  const [jefesRes, lideresRes] = await Promise.all([
+    supabase.from("equipo_jefes").select("persona_id, jefe_id"),
+    supabase.from("hub_lideres").select("hub_id, persona_id"),
+  ]);
+  const conOrganigrama = !jefesRes.error && !lideresRes.error;
   const [sectores, puestos, puestoSectores, equipo, equipoPuestos, hubs, hubMarcas, designaciones, bc, yo] = await Promise.all([
     leer<Sector[]>(supabase.from("sectores").select("id, nombre, area, tablero, orden").order("orden")),
     leer<Omit<Puesto, "sectores">[]>(supabase.from("puestos").select("id, nombre, nivel, orden").order("orden").order("nombre")),
     leer<{ puesto_id: string; sector_id: string }[]>(supabase.from("puesto_sectores").select("puesto_id, sector_id")),
-    // Sin migracion-actividad.sql no hay activo_manual.
-    leer<(Omit<Persona, "puestos" | "avatar_url" | "cargo" | "ultima_actividad" | "actividad_medida" | "activo_manual"> & { activo_manual?: boolean | null })[]>(
-      conActividad
-        ? supabase.from("equipo").select("id, nombre, email, bc_persona_id, rol, hub_id, activo, activo_manual").order("nombre")
-        : supabase.from("equipo").select("id, nombre, email, bc_persona_id, rol, hub_id, activo").order("nombre")
-    ),
+    // Toda la fila: activo_manual (migracion-actividad) y reporta_a/en_organigrama (migracion-organigrama)
+    // pueden no existir todavía, y pedirlas por nombre haría fallar todo.
+    leer<
+      (Pick<Persona, "id" | "nombre" | "email" | "bc_persona_id" | "rol" | "hub_id" | "activo"> & {
+        activo_manual?: boolean | null;
+        reporta_a?: string | null;
+        en_organigrama?: boolean;
+      })[]
+    >(supabase.from("equipo").select("*").order("nombre")),
     leer<{ persona_id: string; puesto_id: string }[]>(supabase.from("equipo_puestos").select("persona_id, puesto_id")),
-    leer<{ id: string; nombre: string; lider_id: string | null }[]>(supabase.from("hubs").select("id, nombre, lider_id").order("nombre")),
+    // Toda la fila: tipo (migracion-organigrama) puede no existir todavía.
+    leer<{ id: string; nombre: string; lider_id: string | null; tipo?: TipoHub }[]>(supabase.from("hubs").select("*").order("nombre")),
     leer<{ hub_id: string; brand_id: string }[]>(supabase.from("hub_marcas").select("hub_id, brand_id")),
     leer<Designacion[]>(supabase.from("marca_equipo").select("brand_id, sector_id, persona_id").eq("principal", true)),
     leer<{ id: number; avatar_url: string | null; cargo: string | null }[]>(supabase.from("bc_personas").select("id, avatar_url, cargo")),
@@ -111,6 +130,8 @@ export async function cargarEquipo(): Promise<EquipoData> {
   const sectoresDe = agrupar(puestoSectores.map((p) => ({ k: p.puesto_id, v: p.sector_id })));
   const puestosDe = agrupar(equipoPuestos.map((p) => ({ k: p.persona_id, v: p.puesto_id })));
   const marcasDe = agrupar(hubMarcas.map((h) => ({ k: h.hub_id, v: h.brand_id })));
+  const jefesDe = agrupar(((jefesRes.data ?? []) as { persona_id: string; jefe_id: string }[]).map((j) => ({ k: j.persona_id, v: j.jefe_id })));
+  const lideresDe = agrupar(((lideresRes.data ?? []) as { hub_id: string; persona_id: string }[]).map((l) => ({ k: l.hub_id, v: l.persona_id })));
   const deBasecamp = new Map(bc.map((p) => [Number(p.id), p]));
   const actividadDe = new Map(
     ((actividad.data ?? []) as { persona_id: string; ultima: string | null; medida: boolean }[]).map((a) => [a.persona_id, a])
@@ -128,14 +149,24 @@ export async function cargarEquipo(): Promise<EquipoData> {
         avatar_url: b?.avatar_url ?? null,
         cargo: b?.cargo ?? null,
         activo_manual: p.activo_manual ?? null,
+        // Sin la migración nueva, el único jefe que había (reporta_a).
+        jefes: conOrganigrama ? (jefesDe.get(p.id) ?? []) : p.reporta_a ? [p.reporta_a] : [],
+        en_organigrama: p.en_organigrama ?? false,
         ultima_actividad: actividadDe.get(p.id)?.ultima ?? null,
         actividad_medida: actividadDe.get(p.id)?.medida ?? false,
       };
     }),
-    hubs: hubs.map((h) => ({ ...h, marcas: marcasDe.get(h.id) ?? [] })),
+    hubs: hubs.map((h) => ({
+      id: h.id,
+      nombre: h.nombre,
+      tipo: h.tipo === "cliente" ? "cliente" : "hub",
+      lideres: conOrganigrama ? (lideresDe.get(h.id) ?? []) : h.lider_id ? [h.lider_id] : [],
+      marcas: marcasDe.get(h.id) ?? [],
+    })),
     designaciones,
     yo: yo ? { ...yo, bc_persona_id: yo.bc_persona_id != null ? Number(yo.bc_persona_id) : null } : null,
     conActividad,
+    conOrganigrama,
   };
 }
 
@@ -180,8 +211,27 @@ export const equipoRepo = {
   quitarDesignacion: (brandId: string, sectorId: string, personaId: string) =>
     hacer(supabase.from("marca_equipo").delete().eq("brand_id", brandId).eq("sector_id", sectorId).eq("persona_id", personaId)),
 
-  crearHub: (nombre: string) => hacer(supabase.from("hubs").insert({ nombre: nombre.trim() })),
-  actualizarHub: (id: string, patch: { nombre?: string; lider_id?: string | null }) => hacer(supabase.from("hubs").update(patch).eq("id", id)),
+  crearHub: (nombre: string, tipo: TipoHub = "hub") =>
+    hacer(supabase.from("hubs").insert(tipo === "hub" ? { nombre: nombre.trim() } : { nombre: nombre.trim(), tipo })),
+  actualizarHub: (id: string, patch: { nombre?: string; tipo?: TipoHub }) => hacer(supabase.from("hubs").update(patch).eq("id", id)),
+
+  /** Los directores de un hub o de un equipo de cliente (uno o más). */
+  async ponerLideres(hubId: string, antes: string[], despues: string[]) {
+    const { sumar, sacar } = diferencia(antes, despues);
+    if (sacar.length) await hacer(supabase.from("hub_lideres").delete().eq("hub_id", hubId).in("persona_id", sacar));
+    if (sumar.length) await hacer(supabase.from("hub_lideres").insert(sumar.map((persona_id) => ({ hub_id: hubId, persona_id }))));
+  },
+
+  /** Alguien que no está en Basecamp (ej: la dirección de cuentas). Si después aparece con ese mail, se vincula solo. */
+  async crearPersona(nombre: string, email: string | null) {
+    const { data, error } = await supabase
+      .from("equipo")
+      .insert({ nombre: nombre.trim(), email: email?.trim().toLowerCase() || null })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id as string;
+  },
   borrarHub: (id: string) => hacer(supabase.from("hubs").delete().eq("id", id)),
 
   /** Una marca está en un solo hub: las que vienen de otro se mueven. */
@@ -211,6 +261,13 @@ export const equipoRepo = {
   },
 
   borrarPuesto: (id: string) => hacer(supabase.from("puestos").delete().eq("id", id)),
+
+  /** Organigrama: ponerlo debajo de alguien, con ese único jefe (o arriba de todo, jefe null). */
+  ubicar: (personaId: string, jefeId: string | null) => hacer(supabase.rpc("organigrama_ubicar", { p_persona: personaId, p_jefe: jefeId })),
+  /** Sus jefes (uno o más; vacío: arriba de todo). */
+  ponerJefes: (personaId: string, jefes: string[]) => hacer(supabase.rpc("organigrama_jefes", { p_persona: personaId, p_jefes: jefes })),
+  /** Sacarlo del organigrama: su gente pasa a depender de sus jefes. */
+  sacar: (personaId: string) => hacer(supabase.rpc("organigrama_sacar", { p_persona: personaId })),
 };
 
 /** Los errores de la base, en palabras de la app. */
@@ -219,5 +276,8 @@ export function equipoErrorMessage(message: string) {
   if (/marca_equipo_un_designado/i.test(message)) return "Esa marca ya tiene designado en ese sector.";
   if (/no tiene un puesto de ese sector/i.test(message)) return "Esa persona no tiene un puesto de ese sector.";
   if (/puestos_nombre_key|hubs_nombre_key|duplicate/i.test(message)) return "Ya hay uno con ese nombre.";
+  if (/círculo|sí mismo/i.test(message)) return message;
+  if (/organigrama_|equipo_jefes|hub_lideres|reporta_a|hubs_tipo|column .*tipo/i.test(message)) return "Falta correr supabase/migracion-organigrama.sql en Supabase.";
+  if (/equipo_email_key/i.test(message)) return "Ya hay alguien en el equipo con ese mail.";
   return message;
 }

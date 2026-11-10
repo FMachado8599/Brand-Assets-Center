@@ -59,11 +59,16 @@ export function useArrastre(onSoltar: (id: string, desde: string, hacia: Destino
       const el = document.elementFromPoint(x, y) as HTMLElement | null;
       const lista = el?.closest<HTMLElement>("[data-lista]");
       if (!lista) return null;
-      const tarjetas = [...lista.querySelectorAll<HTMLElement>("[data-arrastre-id]")].filter((t) => t.dataset.arrastreId !== r.activo?.id);
+      // Solo las tarjetas de esta lista (no las de una lista adentro, como en el organigrama).
+      const tarjetas = [...lista.querySelectorAll<HTMLElement>("[data-arrastre-id]")].filter(
+        (t) => t.dataset.arrastreId !== r.activo?.id && t.closest("[data-lista]") === lista
+      );
+      // Las filas (data-eje="x") se ordenan de izquierda a derecha; las columnas, de arriba abajo.
+      const horizontal = lista.dataset.eje === "x";
       let indice = tarjetas.length;
       for (let i = 0; i < tarjetas.length; i++) {
         const b = tarjetas[i].getBoundingClientRect();
-        if (y < b.top + b.height / 2) {
+        if (horizontal ? x < b.left + b.width / 2 : y < b.top + b.height / 2) {
           indice = i;
           break;
         }
@@ -73,7 +78,8 @@ export function useArrastre(onSoltar: (id: string, desde: string, hacia: Destino
 
     const autoScroll = (x: number, y: number) => {
       const el = document.elementFromPoint(x, y) as HTMLElement | null;
-      const horizontal = el?.closest<HTMLElement>("[data-scroll-x]") ?? document.querySelector<HTMLElement>("[data-scroll-x]");
+      // Solo el que está bajo el puntero (con varias filas, cada una scrollea por su cuenta).
+      const horizontal = el?.closest<HTMLElement>("[data-scroll-x]");
       if (horizontal) {
         const b = horizontal.getBoundingClientRect();
         if (x < b.left + BORDE) horizontal.scrollLeft -= VELOCIDAD;
@@ -85,6 +91,9 @@ export function useArrastre(onSoltar: (id: string, desde: string, hacia: Destino
         if (y < b.top + BORDE / 2) vertical.scrollTop -= VELOCIDAD / 2;
         else if (y > b.bottom - BORDE / 2) vertical.scrollTop += VELOCIDAD / 2;
       }
+      // La página entera (filas una debajo de la otra): cerca del borde de la ventana.
+      if (y < BORDE) window.scrollBy(0, -VELOCIDAD / 2);
+      else if (y > window.innerHeight - BORDE / 2) window.scrollBy(0, VELOCIDAD / 2);
     };
 
     const api = {
@@ -149,6 +158,12 @@ export function useArrastre(onSoltar: (id: string, desde: string, hacia: Destino
       },
       up: (e: PointerEvent) => {
         if (!r.inicio || e.pointerId !== r.inicio.pointerId) return;
+        // El destino se calcula en cada cuadro; si se suelta antes del próximo (un movimiento
+        // rápido), se calcula acá con la posición final.
+        if (r.activo) {
+          r.puntero = { x: e.clientX, y: e.clientY };
+          r.destino = calcularDestino(e.clientX, e.clientY);
+        }
         api.terminar(true);
       },
       cancel: () => api.terminar(false),

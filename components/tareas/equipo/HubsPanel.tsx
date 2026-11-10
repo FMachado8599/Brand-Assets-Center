@@ -6,20 +6,28 @@ import { ClientMark } from "@/components/clients/ClientMark";
 import { useConfirm } from "@/components/ui/confirm";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cambiarEquipo } from "@/hooks/useEquipo";
-import { equipoRepo, type EquipoData, type Hub } from "@/lib/board/equipo";
+import { equipoRepo, type EquipoData, type Hub, type TipoHub } from "@/lib/board/equipo";
 import { fold } from "@/lib/redaccion/text";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "../comun";
-import { SelectSimple } from "./piezas";
+import { Chip, MultiPick, SelectSimple, type Opcion } from "./piezas";
+
+const TIPOS: Opcion[] = [
+  { value: "hub", label: "Hub de diseño" },
+  { value: "cliente", label: "Equipo de un cliente" },
+];
 
 /**
- * Hubs: grupos de marcas con su director (ej: Digital dividido en el hub de Gala y el de Julio).
- * Quién lo integra se elige en cada persona (pestaña Personas).
+ * Hubs y equipos de cliente: grupos de marcas con uno o más directores.
+ * - Hub: los de diseño digital (ej: dividido en el hub de Gala y el de Julio).
+ * - Equipo de un cliente: la gente que trabaja solo para esa marca (ej: "Equipo BBVA", dirigido por
+ *   la directora de arte y un director digital). En el organigrama se ve como un recuadro.
  */
 export function HubsPanel({ data, marcas, admin }: { data: EquipoData; marcas: Brand[]; admin: boolean }) {
   const confirm = useConfirm();
   const [nuevo, setNuevo] = useState("");
+  const [tipoNuevo, setTipoNuevo] = useState<TipoHub>("hub");
   const [marcasDe, setMarcasDe] = useState<Hub | null>(null);
   const marcaPorId = useMemo(() => new Map(marcas.map((m) => [m.id, m])), [marcas]);
 
@@ -29,17 +37,32 @@ export function HubsPanel({ data, marcas, admin }: { data: EquipoData; marcas: B
     return data.personas
       .filter((p) => p.activo)
       .sort((a, b) => Number(b.puestos.some((id) => direccion.has(id))) - Number(a.puestos.some((id) => direccion.has(id))) || a.nombre.localeCompare(b.nombre, "es"))
-      .map((p) => ({ value: p.id, label: p.nombre }));
+      .map((p) => ({ value: p.id, label: p.nombre, group: p.puestos.some((id) => direccion.has(id)) ? "Dirección" : "Resto del equipo" }));
   }, [data]);
+  const gente: Opcion[] = useMemo(
+    () => data.personas.filter((p) => p.activo).map((p) => ({ value: p.id, label: p.nombre, hint: data.hubs.find((h) => h.id === p.hub_id)?.nombre })),
+    [data]
+  );
+  const nombre = (id: string) => data.personas.find((p) => p.id === id)?.nombre ?? "?";
+
+  /** Quién integra el hub o el equipo: cada persona está en uno solo (si estaba en otro, se mueve). */
+  async function ponerGente(hub: Hub, antes: string[], despues: string[]) {
+    const sumar = despues.filter((x) => !antes.includes(x));
+    const sacar = antes.filter((x) => !despues.includes(x));
+    await cambiarEquipo(async () => {
+      for (const id of sumar) await equipoRepo.actualizarPersona(id, { hub_id: hub.id });
+      for (const id of sacar) await equipoRepo.actualizarPersona(id, { hub_id: null });
+    });
+  }
 
   async function crear() {
     if (!nuevo.trim()) return;
-    if (await cambiarEquipo(() => equipoRepo.crearHub(nuevo), `Hub "${nuevo.trim()}" creado`)) setNuevo("");
+    if (await cambiarEquipo(() => equipoRepo.crearHub(nuevo, tipoNuevo), `"${nuevo.trim()}" creado`)) setNuevo("");
   }
 
   async function borrar(hub: Hub) {
     const ok = await confirm({
-      title: `¿Borrar el hub ${hub.nombre}?`,
+      title: `¿Borrar ${hub.nombre}?`,
       description: "Sus marcas y su gente quedan sin hub. No se borra nada más.",
       confirmLabel: "Borrar",
       destructive: true,
@@ -60,24 +83,30 @@ export function HubsPanel({ data, marcas, admin }: { data: EquipoData; marcas: B
           <input
             value={nuevo}
             onChange={(e) => setNuevo(e.target.value)}
-            placeholder="Nombre del hub nuevo (ej: Hub Gala)"
+            placeholder={tipoNuevo === "hub" ? "Nombre del hub (ej: Hub Gala)" : "Nombre del equipo (ej: Equipo BBVA)"}
             className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
           />
+          {data.conOrganigrama && (
+            <div className="w-48">
+              <SelectSimple value={tipoNuevo} onChange={(v) => v && setTipoNuevo(v as TipoHub)} opciones={TIPOS} />
+            </div>
+          )}
           <button type="submit" disabled={!nuevo.trim()} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-40">
-            <Plus className="h-4 w-4" /> Crear hub
+            <Plus className="h-4 w-4" /> Crear
           </button>
         </form>
       )}
 
       {!data.hubs.length && (
         <p className="rounded-3xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          Todavía no hay hubs. Un hub agrupa marcas bajo un director (ej: Digital dividido en dos).
+          Todavía no hay hubs ni equipos. Un hub agrupa marcas de diseño bajo un director (ej: Digital dividido en dos); un equipo de cliente
+          es la gente que trabaja solo para esa marca (ej: Equipo BBVA).
         </p>
       )}
 
       <div className="grid gap-3 md:grid-cols-2">
         {data.hubs.map((hub) => {
-          const gente = data.personas.filter((p) => p.hub_id === hub.id);
+          const integrantes = data.personas.filter((p) => p.hub_id === hub.id);
           return (
             <section key={hub.id} className="rounded-3xl border bg-card p-4 shadow-sm">
               <div className="flex items-center gap-2">
@@ -93,6 +122,7 @@ export function HubsPanel({ data, marcas, admin }: { data: EquipoData; marcas: B
                 ) : (
                   <h3 className="flex-1 font-display text-2xl leading-none">{hub.nombre}</h3>
                 )}
+                <Chip tono={hub.tipo === "cliente" ? "fuerte" : "suave"}>{hub.tipo === "cliente" ? "Equipo de cliente" : "Hub"}</Chip>
                 {admin && (
                   <button type="button" onClick={() => borrar(hub)} aria-label={`Borrar ${hub.nombre}`} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
@@ -102,18 +132,20 @@ export function HubsPanel({ data, marcas, admin }: { data: EquipoData; marcas: B
 
               <dl className="mt-3 space-y-3 text-sm">
                 <div>
-                  <dt className="eyebrow mb-1 text-muted-foreground">Director</dt>
+                  <dt className="eyebrow mb-1 text-muted-foreground">{hub.lideres.length > 1 ? "Directores" : "Director"}</dt>
                   <dd>
-                    {admin ? (
-                      <SelectSimple
-                        value={hub.lider_id}
-                        onChange={(v) => cambiarEquipo(() => equipoRepo.actualizarHub(hub.id, { lider_id: v }))}
-                        opciones={lideres}
-                        ninguno="Sin director"
-                      />
-                    ) : (
-                      <span className="font-medium">{data.personas.find((p) => p.id === hub.lider_id)?.nombre ?? "Sin director"}</span>
-                    )}
+                    <MultiPick
+                      opciones={lideres}
+                      elegidos={hub.lideres}
+                      onChange={(next) => cambiarEquipo(() => equipoRepo.ponerLideres(hub.id, hub.lideres, next))}
+                      disabled={!admin || !data.conOrganigrama}
+                    >
+                      {hub.lideres.length ? (
+                        hub.lideres.map((id) => <Chip key={id}>{nombre(id)}</Chip>)
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{admin ? "Elegir director" : "Sin director"}</span>
+                      )}
+                    </MultiPick>
                   </dd>
                 </div>
                 <div>
@@ -136,15 +168,22 @@ export function HubsPanel({ data, marcas, admin }: { data: EquipoData; marcas: B
                   </dd>
                 </div>
                 <div>
-                  <dt className="eyebrow mb-1 text-muted-foreground">Gente · {gente.length}</dt>
-                  <dd className="flex flex-wrap gap-1">
-                    {gente.map((p) => (
-                      <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-secondary py-0.5 pl-0.5 pr-2 text-xs font-medium">
-                        <Avatar nombre={p.nombre} url={p.avatar_url} className="h-5 w-5 text-[8px]" />
-                        {p.nombre}
-                      </span>
-                    ))}
-                    {!gente.length && <span className="text-xs text-muted-foreground">Se elige en cada persona, en la pestaña Personas.</span>}
+                  <dt className="eyebrow mb-1 text-muted-foreground">Gente · {integrantes.length}</dt>
+                  <dd>
+                    <MultiPick
+                      opciones={gente}
+                      elegidos={integrantes.map((p) => p.id)}
+                      onChange={(next) => ponerGente(hub, integrantes.map((p) => p.id), next)}
+                      disabled={!admin}
+                    >
+                      {integrantes.map((p) => (
+                        <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-secondary py-0.5 pl-0.5 pr-2 text-xs font-medium">
+                          <Avatar nombre={p.nombre} url={p.avatar_url} className="h-5 w-5 text-[8px]" />
+                          {p.nombre}
+                        </span>
+                      ))}
+                      {!integrantes.length && <span className="text-xs text-muted-foreground">{admin ? "Elegir quiénes lo integran" : "Nadie todavía"}</span>}
+                    </MultiPick>
                   </dd>
                 </div>
               </dl>

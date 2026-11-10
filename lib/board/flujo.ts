@@ -144,6 +144,19 @@ export function armarContexto(data: EquipoData): Contexto {
 /** Puede tener tareas de ese sector: una de Redacción la toma otro de Redacción (no la dirección, que supervisa). */
 export const ejecutaSector = (ctx: Contexto, personaId: string, sector: string) => ctx.ejecutaEn.get(personaId)?.has(sector) ?? false;
 
+/**
+ * Puede tener tareas por empezar (Entrada): quien trabaja algún sector, o quien todavía no tiene
+ * puestos cargados. No la dirección (supervisa). Igual que tarea_asignar en la base.
+ */
+export const puedeTenerTareas = (ctx: Contexto, persona: Persona) =>
+  persona.activo && (!persona.puestos.length || (ctx.ejecutaEn.get(persona.id)?.size ?? 0) > 0);
+
+/** En qué orden pasa una tarea de Digital por los sectores: para Entrada, quién arranca. */
+const ORDEN_DIGITAL = ["redaccion", "diseno_digital", "cm"];
+
+const sectoresDelTablero = (t: TareaFlujo, ctx: Contexto) =>
+  t.tablero === "Digital" ? ORDEN_DIGITAL : ctx.data.sectores.filter((s) => s.tablero === t.tablero).map((s) => s.id);
+
 /** El designado de una marca en un sector. */
 export function designadoDe(ctx: Contexto, brandId: string | null, sector: string) {
   if (!brandId) return null;
@@ -152,11 +165,38 @@ export function designadoDe(ctx: Contexto, brandId: string | null, sector: strin
 }
 
 /**
- * Quién tiene la tarea en su etapa actual: la que la tomó (o a quien se la pasaron); si no, el
- * designado de la marca para ese sector; si no hay, el único asignado en Basecamp que es de ese sector.
+ * Quién tiene la tarea ahora:
+ * - Entrada (por empezar): quien la tomó; si no, quien la tiene asignada en Basecamp, en el orden del
+ *   flujo (primero redacción, después diseño, después CM); si nadie tiene puestos cargados, el primer
+ *   asignado; si no hay asignados, el designado de la marca para la primera etapa.
+ * - Validación: queda con quien la produjo (diseño en Digital), esperando que la validen.
+ * - El resto: quien la tomó; si no, el designado de la marca para el sector de la etapa; si no hay, el
+ *   único asignado en Basecamp que es de ese sector.
  */
 export function responsableDe(t: TareaFlujo, ctx: Contexto): Responsable {
-  const sector = sectorDeEtapa(etapaDe(t), t.tablero, ctx.data);
+  const etapa = etapaDe(t);
+  if (etapa === "entrada") {
+    const orden = sectoresDelTablero(t, ctx);
+    if (t.responsable_id) return { persona: ctx.porId.get(t.responsable_id) ?? null, origen: "tomada", sector: null };
+    const asignados = t.asignados.map((id) => ctx.porBc.get(id)).filter((p): p is Persona => Boolean(p && p.activo));
+    for (const s of orden) {
+      const p = asignados.find((x) => ejecutaSector(ctx, x.id, s));
+      if (p) return { persona: p, origen: "basecamp", sector: s };
+    }
+    const sinPuestos = asignados.find((p) => !p.puestos.length);
+    if (sinPuestos) return { persona: sinPuestos, origen: "basecamp", sector: null };
+    for (const s of orden) {
+      const d = designadoDe(ctx, t.brand_id, s);
+      if (d) return { persona: d, origen: "designado", sector: s };
+    }
+    return { persona: null, origen: null, sector: orden[0] ?? null };
+  }
+  const sector =
+    etapa === "validacion"
+      ? t.tablero === "Digital"
+        ? "diseno_digital"
+        : sectorDeEtapa("en_proceso", t.tablero, ctx.data)
+      : sectorDeEtapa(etapa, t.tablero, ctx.data);
   if (!sector) return { persona: null, origen: null, sector: null };
   if (t.responsable_id) return { persona: ctx.porId.get(t.responsable_id) ?? null, origen: "tomada", sector };
   const designado = designadoDe(ctx, t.brand_id, sector);
@@ -176,9 +216,13 @@ export function validadoresDe(t: TareaFlujo, ctx: Contexto): Persona[] {
     const d = designadoDe(ctx, t.brand_id, sector);
     if (d) set.set(d.id, d);
   }
-  const hub = t.brand_id ? ctx.data.hubs.find((h) => h.marcas.includes(t.brand_id!)) : null;
-  const lider = hub?.lider_id ? ctx.porId.get(hub.lider_id) : null;
-  if (lider) set.set(lider.id, lider);
+  // Los directores del hub o del equipo de cliente de la marca (pueden ser varios).
+  for (const hub of t.brand_id ? ctx.data.hubs.filter((h) => h.marcas.includes(t.brand_id!)) : []) {
+    for (const id of hub.lideres) {
+      const lider = ctx.porId.get(id);
+      if (lider) set.set(lider.id, lider);
+    }
+  }
   const direccion = new Set(ctx.data.puestos.filter((p) => p.nivel === "direccion").map((p) => p.id));
   for (const id of t.asignados) {
     const p = ctx.porBc.get(id);
@@ -187,6 +231,46 @@ export function validadoresDe(t: TareaFlujo, ctx: Contexto): Persona[] {
     if (s && (s.has("redaccion") || s.has("cuentas") || s.has("cm") || p.puestos.some((x) => direccion.has(x)))) set.set(p.id, p);
   }
   return [...set.values()];
+}
+
+/* ───────────── Prioridad a la vista ───────────── */
+
+/** El color de cada tarjeta: lo urgente primero (como en STATUS). */
+export type Tono = "vencida" | "pronto" | "esperando" | "curso" | "nueva" | "pausada" | "finalizada";
+
+export const TONO: Record<Tono, { label: string; fg: string; bg: string }> = {
+  vencida: { label: "Vencida", fg: "#C0301A", bg: "rgba(247, 62, 18, 0.17)" },
+  pronto: { label: "Vence pronto", fg: "#A86A0C", bg: "rgba(246, 176, 40, 0.26)" },
+  esperando: { label: "Esperando", fg: "#5F4BD0", bg: "rgba(156, 135, 245, 0.24)" },
+  curso: { label: "En curso", fg: "#2563C9", bg: "rgba(86, 150, 244, 0.22)" },
+  nueva: { label: "Por empezar", fg: "#6B6862", bg: "transparent" },
+  pausada: { label: "En pausa", fg: "#6B6862", bg: "rgba(32, 32, 32, 0.07)" },
+  finalizada: { label: "Terminada", fg: "#0F8A70", bg: "rgba(21, 189, 153, 0.22)" },
+};
+
+export const TONOS_LEYENDA: Tono[] = ["vencida", "pronto", "curso", "esperando", "nueva", "pausada"];
+
+const diaISO = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Terminada > en pausa > vencida > vence hoy o mañana > esperando a otro > en curso > por empezar. */
+export function tonoDe(t: TareaFlujo, hoy = new Date()): Tono {
+  const etapa = etapaDe(t);
+  if (etapa === "finalizada") return "finalizada";
+  if (t.pausada) return "pausada";
+  if (t.vence && t.vence < diaISO(hoy)) return "vencida";
+  if (t.vence && t.vence <= diaISO(new Date(hoy.getTime() + 86_400_000))) return "pronto";
+  if (etapa === "validacion" || etapa === "cliente") return "esperando";
+  if (etapa === "entrada") return "nueva";
+  return "curso";
+}
+
+/** Cuánto tiene alguien encima: lo que está en sus manos (sin lo que espera a otro, ni lo pausado). */
+export function cargaDe(tareas: TareaFlujo[]) {
+  const n = tareas.filter((t) => !["esperando", "pausada", "finalizada"].includes(tonoDe(t))).length;
+  if (n <= 3) return { n, label: "Libre", color: TONO.finalizada.fg };
+  if (n <= 6) return { n, label: "Normal", color: "#6B6862" };
+  if (n <= 9) return { n, label: "Cargada", color: TONO.pronto.fg };
+  return { n, label: "Saturada", color: TONO.vencida.fg };
 }
 
 /** Tareas vivas para el Board: sin terminar, o terminadas que todavía no vencieron (después se archivan). */
@@ -302,7 +386,7 @@ export const flujoRepo = {
 export const faltaMigracionFlujo = (message: string) => /board_flujo|tarea_flujo|flujo_reconciliar|tarea_movimientos/i.test(message);
 
 export function flujoErrorMessage(message: string) {
-  if (/no trabaja tareas de ese sector/i.test(message)) return "Esa persona no trabaja tareas de ese sector (la dirección supervisa, no las toma).";
+  if (/no trabaja tareas de ese sector/i.test(message)) return "Esa persona no trabaja tareas de esta etapa: una de Redacción la toma alguien de Redacción, una de Diseño un diseñador (la dirección supervisa, no las toma).";
   if (/no se asigna a una persona/i.test(message)) return "En esta etapa la tarea no es de una persona.";
   if (/etapa_check/i.test(message)) return "Esa etapa no existe.";
   if (/estar en el equipo/i.test(message)) return "Para validar tenés que estar en el equipo (pedile a un admin que te sume).";

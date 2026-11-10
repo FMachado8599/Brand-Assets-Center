@@ -238,10 +238,20 @@ begin
   sector := public.flujo_sector(f.etapa, tablero);
 
   if p_persona is not null then
-    if sector is null then
+    if f.etapa = 'entrada' then
+      -- Por empezar: puede quedar con cualquiera del equipo que trabaje tareas (con puestos sin
+      -- cargar todavía también; si todos sus puestos son de dirección, no: supervisa).
+      if exists (select 1 from public.equipo_puestos ep where ep.persona_id = p_persona)
+         and not exists (
+           select 1 from public.equipo_puestos ep
+           join public.puestos pu on pu.id = ep.puesto_id and pu.nivel <> 'direccion'
+           where ep.persona_id = p_persona
+         ) then
+        raise exception 'Esa persona no trabaja tareas de ese sector';
+      end if;
+    elsif sector is null then
       raise exception 'En esta etapa la tarea no se asigna a una persona';
-    end if;
-    if not exists (
+    elsif not exists (
       select 1 from public.equipo_puestos ep
       join public.puestos pu on pu.id = ep.puesto_id and pu.nivel <> 'direccion'
       join public.puesto_sectores ps on ps.puesto_id = ep.puesto_id
