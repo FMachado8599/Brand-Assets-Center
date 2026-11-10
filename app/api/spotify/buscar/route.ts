@@ -1,19 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SPOTIFY_API, SpotifyError } from "@/lib/spotify/auth";
 import { tokenSpotify } from "@/lib/spotify/sesion";
-import type { CancionSpotify } from "@/lib/spotify/types";
+import { aCancion, esTrack } from "@/lib/spotify/catalogo";
 
 export const dynamic = "force-dynamic";
-
-type Imagen = { url: string; width: number | null };
-type Track = {
-  uri: string;
-  name: string;
-  duration_ms: number;
-  is_playable?: boolean;
-  artists: { name: string }[];
-  album: { name: string; images: Imagen[] };
-};
 
 /** Canciones del catálogo, con la cuenta de quien busca. En Development Mode Spotify devuelve 10 como mucho. */
 export async function GET(request: NextRequest) {
@@ -30,22 +20,8 @@ export async function GET(request: NextRequest) {
     if (res.status === 403) throw new SpotifyError("Spotify no habilitó la búsqueda para esta cuenta o esta app", 403);
     if (!res.ok) throw new SpotifyError(`Spotify no pudo buscar (${res.status})`, 502);
 
-    const data = (await res.json()) as { tracks?: { items: (Track | null)[] } };
-    const canciones: CancionSpotify[] = (data.tracks?.items ?? [])
-      .filter((t): t is Track => Boolean(t))
-      .map((t) => {
-        // Las imágenes vienen de mayor a menor: para la lista alcanza la más chica de al menos 64px.
-        const imagenes = [...t.album.images].sort((a, b) => (a.width ?? 0) - (b.width ?? 0));
-        return {
-          uri: t.uri,
-          nombre: t.name,
-          artistas: t.artists.map((a) => a.name).join(", "),
-          album: t.album.name,
-          portada: (imagenes.find((i) => (i.width ?? 0) >= 64) ?? imagenes[0])?.url ?? null,
-          duracion: t.duration_ms,
-          disponible: t.is_playable !== false,
-        };
-      });
+    const data = (await res.json()) as { tracks?: { items: unknown[] } };
+    const canciones = (data.tracks?.items ?? []).filter(esTrack).map(aCancion);
     return NextResponse.json({ canciones }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     const error = e instanceof SpotifyError ? e : new SpotifyError("No se pudo buscar en Spotify", 502);

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Music, Pause, Play, Search, Volume2 } from "lucide-react";
+import { ListPlus, Loader2, Music, Pause, Play, Search, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toaster";
 import { esIOS, useSpotifyPlayer, type EstadoReproductor } from "@/hooks/useSpotifyPlayer";
-import type { CancionSpotify, CuentaSpotify } from "@/lib/spotify/types";
+import type { CancionSpotify, ColaSpotify, CuentaSpotify } from "@/lib/spotify/types";
 import { cn } from "@/lib/utils";
 
 const ESTADOS: Record<EstadoReproductor, string> = {
@@ -28,6 +28,7 @@ const minutos = (ms: number) => {
 export function SpotifyPrueba({ configurado, cuenta }: { configurado: boolean; cuenta: CuentaSpotify | null }) {
   const router = useRouter();
   const player = useSpotifyPlayer(Boolean(cuenta));
+  const cola = useColaSpotify(Boolean(cuenta));
   const { estado, actual, recibido } = player;
   const [ios, setIos] = useState(false);
   const [localhost, setLocalhost] = useState<string | null>(null);
@@ -184,7 +185,9 @@ export function SpotifyPrueba({ configurado, cuenta }: { configurado: boolean; c
             </div>
           </section>
 
-          <Buscador listo={estado === "listo"} onReproducir={player.reproducir} />
+          <Buscador listo={estado === "listo"} onReproducir={player.reproducir} onSumar={cola.sumar} />
+
+          <ColaJam cola={cola.cola} error={cola.error} />
 
           <section aria-label="Registro del reproductor">
             <h2 className="eyebrow mb-2">Registro</h2>
@@ -206,7 +209,15 @@ export function SpotifyPrueba({ configurado, cuenta }: { configurado: boolean; c
   );
 }
 
-function Buscador({ listo, onReproducir }: { listo: boolean; onReproducir: (uri: string) => void }) {
+function Buscador({
+  listo,
+  onReproducir,
+  onSumar,
+}: {
+  listo: boolean;
+  onReproducir: (uri: string) => void;
+  onSumar: (c: CancionSpotify) => void;
+}) {
   const [q, setQ] = useState("");
   const [canciones, setCanciones] = useState<CancionSpotify[] | null>(null);
   const [buscando, setBuscando] = useState(false);
@@ -240,13 +251,13 @@ function Buscador({ listo, onReproducir }: { listo: boolean; onReproducir: (uri:
         <ul className="mt-3 divide-y rounded-xl border bg-card">
           {canciones.length === 0 && <li className="p-4 text-sm text-muted-foreground">Sin resultados.</li>}
           {canciones.map((c) => (
-            <li key={c.uri}>
+            <li key={c.uri} className="flex items-center">
               <button
                 type="button"
                 onClick={() => onReproducir(c.uri)}
                 disabled={!listo || !c.disponible}
-                aria-label={`Reproducir ${c.nombre}, de ${c.artistas}`}
-                className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`Reproducir ${c.nombre}, de ${c.artistas}, en este navegador`}
+                className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left transition-colors hover:bg-accent focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {c.portada ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -265,9 +276,114 @@ function Buscador({ listo, onReproducir }: { listo: boolean; onReproducir: (uri:
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{minutos(c.duracion)}</span>
                 <Play className="h-4 w-4 shrink-0" aria-hidden />
               </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="mr-1 shrink-0"
+                onClick={() => onSumar(c)}
+                disabled={!c.disponible}
+                aria-label={`Sumar ${c.nombre} a la cola de tu Spotify`}
+                title="Sumar a la cola"
+              >
+                <ListPlus />
+              </Button>
             </li>
           ))}
         </ul>
+      )}
+    </section>
+  );
+}
+
+const CADA_MS = 10_000;
+
+/**
+ * Prueba del Jam: lo que suena en la cuenta (en cualquier dispositivo) y su cola, que se relee
+ * cada 10 s mientras la pestaña está a la vista. sumar() manda una canción a esa cola.
+ */
+function useColaSpotify(conectado: boolean) {
+  const [cola, setCola] = useState<ColaSpotify | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const leer = useCallback(async () => {
+    try {
+      const res = await fetch("/api/spotify/cola", { cache: "no-store" });
+      const data = (await res.json().catch(() => ({}))) as ColaSpotify & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "No se pudo leer la cola");
+      setCola(data);
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!conectado) return;
+    leer();
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") leer();
+    }, CADA_MS);
+    return () => clearInterval(id);
+  }, [conectado, leer]);
+
+  const sumar = useCallback(
+    async (c: CancionSpotify) => {
+      const res = await fetch("/api/spotify/cola", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uri: c.uri }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast(data.error ?? "No se pudo sumar la canción", "error");
+        return;
+      }
+      toast(`«${c.nombre}» sumada a la cola`);
+      // Spotify tarda un instante en reflejarla.
+      setTimeout(leer, 1200);
+    },
+    [leer]
+  );
+
+  return { cola, error, sumar };
+}
+
+function ColaJam({ cola, error }: { cola: ColaSpotify | null; error: string | null }) {
+  return (
+    <section aria-label="Tu Spotify ahora" className="rounded-xl border bg-card p-4">
+      <h2 className="eyebrow">Prueba Jam · tu Spotify ahora</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Arrancá un Jam en tu celular y sumá canciones con <ListPlus className="inline h-3.5 w-3.5 align-[-2px]" aria-label="Sumar a la cola" />: deberían
+        aparecer en la cola del Jam para todos. Se actualiza cada 10 segundos.
+      </p>
+      {error ? (
+        <p className="mt-3 text-sm text-destructive">{error}</p>
+      ) : !cola ? (
+        <p className="mt-3 text-sm text-muted-foreground">Leyendo…</p>
+      ) : !cola.dispositivo ? (
+        <p className="mt-3 text-sm text-muted-foreground">No hay nada sonando en tu Spotify.</p>
+      ) : (
+        <div className="mt-3 space-y-3 text-sm">
+          <p>
+            {cola.sonando ? "Sonando" : "En pausa"} en <strong className="font-semibold">{cola.dispositivo.nombre}</strong>
+            {cola.actual && (
+              <>
+                : {cola.actual.nombre} <span className="text-muted-foreground">· {cola.actual.artistas}</span>
+              </>
+            )}
+          </p>
+          {cola.siguientes.length === 0 ? (
+            <p className="text-muted-foreground">La cola está vacía.</p>
+          ) : (
+            <ol className="list-decimal space-y-1 pl-5">
+              {cola.siguientes.map((c, i) => (
+                <li key={`${c.uri}-${i}`}>
+                  {c.nombre} <span className="text-muted-foreground">· {c.artistas}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
       )}
     </section>
   );

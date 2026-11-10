@@ -9,9 +9,18 @@ import { hasSecret } from "@/lib/integraciones/crypto";
 /**
  * Lo mínimo para el reproductor del navegador: streaming (Web Playback SDK, solo Premium),
  * user-read-email + user-read-private (los pide el ejemplo oficial del SDK; user-read-private
- * además lo usa la búsqueda) y user-modify-playback-state (mandar una canción a este navegador).
+ * además lo usa la búsqueda) y user-modify-playback-state (mandar una canción a este navegador y
+ * sumarla a la cola). user-read-playback-state + user-read-currently-playing: leer qué suena y la
+ * cola (GET /me/player/queue pide los dos).
  */
-export const SPOTIFY_SCOPES = ["streaming", "user-read-email", "user-read-private", "user-modify-playback-state"];
+export const SPOTIFY_SCOPES = [
+  "streaming",
+  "user-read-email",
+  "user-read-private",
+  "user-modify-playback-state",
+  "user-read-playback-state",
+  "user-read-currently-playing",
+];
 
 // SPOTIFY_ACCOUNTS_URL y SPOTIFY_API_URL solo para probar contra una API simulada; en producción no se definen.
 const ACCOUNTS = () => process.env.SPOTIFY_ACCOUNTS_URL || "https://accounts.spotify.com";
