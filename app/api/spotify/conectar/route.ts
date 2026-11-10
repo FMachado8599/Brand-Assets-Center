@@ -13,10 +13,12 @@ export function GET(request: NextRequest) {
       { status: 503 }
     );
   }
-  const redirectUri = spotifyRedirectUri(request.url);
-  if (new URL(redirectUri).hostname === "localhost") {
+  const redirectUri = spotifyRedirectUri(request);
+  const vuelta = new URL(redirectUri);
+  if (vuelta.hostname === "localhost") {
     const volver = safeNext(request.nextUrl.searchParams.get("volver"));
-    return volverCon(request, volver, "error", "Spotify no acepta localhost: abrí la app en http://127.0.0.1:3000");
+    vuelta.hostname = "127.0.0.1";
+    return volverCon(request, volver, "error", `Spotify no acepta localhost: abrí la app en ${vuelta.origin}`);
   }
   return empezarOAuth(request, (state) => spotifyAuthorizeUrl(redirectUri, state));
 }

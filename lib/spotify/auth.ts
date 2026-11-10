@@ -23,12 +23,24 @@ const clientSecret = () => process.env.SPOTIFY_CLIENT_SECRET?.trim() ?? "";
 export const hasSpotifyEnv = () => Boolean(clientId() && clientSecret() && hasSecret());
 
 /**
+ * El origen con el que la persona abrió la app. En `next dev`, request.url dice "localhost" aunque
+ * se haya entrado por 127.0.0.1; el Host (o el x-forwarded-host de Vercel) dice la verdad. Un Host
+ * inventado no lleva a ningún lado: Spotify solo vuelve a direcciones registradas.
+ */
+export function origenDe(request: Request) {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const url = new URL(request.url);
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim() ?? url.protocol.slice(0, -1);
+  return host ? `${proto}://${host}` : url.origin;
+}
+
+/**
  * La dirección de vuelta tiene que coincidir exacta con una registrada en el Dashboard de Spotify.
  * Spotify no acepta "localhost": en local hay que abrir la app en http://127.0.0.1:3000.
  */
-export function spotifyRedirectUri(requestUrl: string) {
+export function spotifyRedirectUri(request: Request) {
   const fija = process.env.SPOTIFY_REDIRECT_URI?.trim();
-  return fija || `${new URL(requestUrl).origin}/api/spotify/callback`;
+  return fija || `${origenDe(request)}/api/spotify/callback`;
 }
 
 export function spotifyAuthorizeUrl(redirectUri: string, state: string) {

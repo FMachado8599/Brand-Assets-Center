@@ -189,6 +189,8 @@ export function useSpotifyPlayer(conectado: boolean) {
           body: JSON.stringify({ uris: [uri] }),
         });
         if (res.ok) return;
+        // Spotify no reconoce el token (ej: se revocó el permiso): el próximo pedido trae uno nuevo.
+        if (res.status === 401) token.current = null;
         const data = (await res.json().catch(() => ({}))) as { error?: { message?: string; reason?: string } };
         const motivo =
           data.error?.reason === "PREMIUM_REQUIRED"

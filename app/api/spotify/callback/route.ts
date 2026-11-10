@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tokens = await canjearCodigo(code, spotifyRedirectUri(request.url));
+    const tokens = await canjearCodigo(code, spotifyRedirectUri(request));
     const cuenta = await perfilSpotify(tokens.access_token);
     await guardarSpotify(cuenta, tokens);
     return volverCon(request, volver, "conectado");

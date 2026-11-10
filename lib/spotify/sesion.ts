@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { decrypt, encrypt, randomState } from "@/lib/integraciones/crypto";
 import { createSupabaseServer, safeNext } from "@/lib/supabase-server";
-import { renovarToken, SpotifyError } from "./auth";
+import { origenDe, renovarToken, SpotifyError } from "./auth";
 import type { CuentaSpotify } from "./types";
 
 /**
@@ -120,7 +120,7 @@ export function terminarOAuth(request: NextRequest) {
 
 /** Vuelve a la pantalla de origen con el resultado en la URL (?spotify=conectado o ?spotify=error&motivo=…). */
 export function volverCon(request: NextRequest, volver: string, resultado: string, motivo?: string) {
-  const url = new URL(volver, request.url);
+  const url = new URL(volver, origenDe(request));
   url.searchParams.set("spotify", resultado);
   if (motivo) url.searchParams.set("motivo", motivo.slice(0, 200));
   const response = NextResponse.redirect(url);
