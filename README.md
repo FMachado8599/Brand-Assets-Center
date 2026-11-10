@@ -58,6 +58,7 @@ Abrí http://localhost:3000
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (prueba) | Sí, para conectar Spotify (ver "Spotify") |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -503,6 +504,32 @@ Los mockups adaptados lo dicen debajo del teléfono.
 **Descargas**: cada teléfono copia o descarga su mockup; cada fila baja todos los suyos (un `.zip` si son varios); **descargar todo** arma un `.zip` con una carpeta por pieza (`01 Post - nombre/Feed.png`, `02 Carrusel - nombre/Feed - 2 de 5.png`…). Son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes); de un video sale el cuadro que se está viendo (o, en lote, uno de adentro). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes).
 
 **Cómo está hecho**: los tipos de pieza, los mockups, qué se marca por defecto y dónde va el creativo están en `lib/ads/placements.ts`; los textos en los dos idiomas en `lib/ads/text.ts`; la zona segura (con la columna de íconos) y qué texto cae afuera, en `lib/ads/safe.ts`; la búsqueda de texto, en `lib/ads/textScan.ts`. Cada mockup se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías): en pantalla el creativo va en un `<img>`/`<video>` debajo (así los videos se reproducen) y al descargar se dibuja adentro. Las piezas y la lectura de archivos están en `components/ads/pieces.ts`; el diálogo en `AddPieceDialog.tsx`, cada fila en `PieceRow.tsx` y la configuración en `AdsSettings.tsx`. Nada se sube a ningún lado: los archivos se abren en el navegador.
+
+---
+
+## Spotify (prueba)
+
+Primer paso de la integración con Spotify: un reproductor dentro de la app y, más adelante, una cola de canciones compartida. Por ahora es una **prueba técnica** en `/spotify` (no está en la sidebar): conectar una cuenta, que este navegador aparezca como dispositivo de Spotify, buscar una canción y escucharla, con pausa y volumen. Todavía no hay globo flotante, cola ni radio.
+
+**Cómo funciona**: cada persona conecta su propia cuenta y el audio va directo de Spotify a su pestaña (Web Playback SDK). La app nunca toca ni retransmite el sonido. El client secret y el refresh token quedan en el servidor. En esta prueba, la conexión vive en una cookie httpOnly cifrada con `INTEGRACIONES_SECRET` y atada al usuario de la app; en la fase 2 pasa a una tabla de Supabase con RLS. "Desconectar" la olvida en la app. Para revocar el permiso del todo, cada uno lo hace en spotify.com/account/apps.
+
+### Activarlo (una sola vez)
+
+1. En [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), con una cuenta **Premium** (en Development Mode es obligatorio que la dueña de la app lo sea), crear una app con **Web API** y **Web Playback SDK**.
+2. Redirect URIs, exactas: `http://127.0.0.1:3000/api/spotify/callback` para local y la del entorno donde se pruebe (ej: `https://brand-assets-center-git-spotify-fmachado5899-9616s-projects.vercel.app/api/spotify/callback`). Spotify **no acepta `localhost`**: en local hay que abrir la app en `http://127.0.0.1:3000` (e iniciar sesión ahí).
+3. En **User Management**, sumar el mail de la cuenta de Spotify de cada persona que lo vaya a usar: **5 como mucho, contando la dueña**.
+4. Cargar `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` (solo servidor) y `INTEGRACIONES_SECRET` (32 caracteres o más; es la misma clave de las integraciones de Board). `SPOTIFY_REDIRECT_URI` es opcional: si no está, se usa `<origen>/api/spotify/callback`.
+
+### Límites de Spotify (revisados el 10/11/2026)
+
+- **Premium** para escuchar en el navegador. Sin Premium, el reproductor lo avisa ("account_error").
+- **Development Mode**: 5 usuarios por app. Para más hay que pedir Extended Quota, que desde mayo de 2025 es solo para empresas con 250.000 usuarios activos por mes o más. En la práctica, esto queda en 5 personas.
+- La búsqueda trae **10 resultados** como mucho, y `/me` ya no dice el mail, el país ni si la cuenta es Premium (cambios de febrero de 2026).
+- La conexión **vence a los 6 meses** de autorizar, aunque se use todos los días. Después hay que volver a conectar.
+- **iPhone/iPad**: el volumen se maneja con los botones del equipo, y el primer play tiene que salir de un toque (por eso se reproduce desde un click).
+- La **radio sincronizada** no está confirmada como permitida: la Developer Policy prohíbe transmitir "desde una sola fuente a varios oyentes a la vez", y el SDK no se puede usar en proyectos comerciales sin aprobación escrita. Antes de la fase 4 hay que consultarlo con Spotify.
+
+**Cómo está hecho**: OAuth (Authorization Code con client secret) en `lib/spotify/auth.ts`; la cookie cifrada y el `state` de OAuth en `lib/spotify/sesion.ts`; las rutas en `app/api/spotify/` (`conectar`, `callback`, `token`, `buscar`, `desconectar`). El reproductor es `hooks/useSpotifyPlayer.ts` (carga el SDK, maneja los errores y manda la canción a este navegador), y la página es `components/spotify/SpotifyPrueba.tsx`, que abajo muestra un registro de lo que pasa para probar en distintos navegadores. `SPOTIFY_ACCOUNTS_URL` y `SPOTIFY_API_URL` existen solo para probar contra una API simulada.
 
 ---
 
