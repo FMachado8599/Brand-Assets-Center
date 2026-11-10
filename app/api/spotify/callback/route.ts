@@ -12,7 +12,14 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   if (!code) {
     const motivo = request.nextUrl.searchParams.get("error");
-    return volverCon(request, volver, "error", motivo === "access_denied" ? "No autorizaste la conexión" : motivo ?? "Spotify no autorizó la conexión");
+    const detalle = request.nextUrl.searchParams.get("error_description");
+    if (motivo === "access_denied") return volverCon(request, volver, "error", "No autorizaste la conexión");
+    return volverCon(
+      request,
+      volver,
+      "error",
+      `Spotify no autorizó la conexión (${[motivo ?? "sin motivo", detalle].filter(Boolean).join(": ")}). Revisá que tu cuenta de Spotify sea la dueña de la app o esté en User Management`
+    );
   }
 
   try {

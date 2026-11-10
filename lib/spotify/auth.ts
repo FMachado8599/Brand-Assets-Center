@@ -51,6 +51,9 @@ export function spotifyAuthorizeUrl(redirectUri: string, state: string) {
     scope: SPOTIFY_SCOPES.join(" "),
     redirect_uri: redirectUri,
     state,
+    // Siempre la pantalla de permiso: muestra con qué cuenta de Spotify se entra (y deja cambiarla),
+    // y evita que una autorización a medias de antes termine en "server_error".
+    show_dialog: "true",
   }).toString();
   return url.toString();
 }
