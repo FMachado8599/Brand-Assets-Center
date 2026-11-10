@@ -31,6 +31,8 @@ export function SpotifyPrueba({ configurado, cuenta }: { configurado: boolean; c
   const { estado, actual, recibido } = player;
   const [ios, setIos] = useState(false);
   const [localhost, setLocalhost] = useState<string | null>(null);
+  /** Por qué falló la última conexión: queda a la vista (un aviso que se va solo pasaba de largo). */
+  const [errorConexion, setErrorConexion] = useState<string | null>(null);
 
   useEffect(() => {
     setIos(esIOS());
@@ -42,7 +44,7 @@ export function SpotifyPrueba({ configurado, cuenta }: { configurado: boolean; c
     const resultado = params.get("spotify");
     if (!resultado) return;
     if (resultado === "conectado") toast("Spotify conectado");
-    else toast(params.get("motivo") ?? "No se pudo conectar Spotify", "error");
+    else setErrorConexion(params.get("motivo") ?? "No se pudo conectar Spotify");
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
 
@@ -82,6 +84,8 @@ export function SpotifyPrueba({ configurado, cuenta }: { configurado: boolean; c
           (vas a tener que iniciar sesión de nuevo ahí).
         </Aviso>
       )}
+
+      {errorConexion && !cuenta && <Aviso>{errorConexion}</Aviso>}
 
       {!configurado ? (
         <Aviso>
