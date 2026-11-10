@@ -41,6 +41,8 @@ export type SyncResumen = {
   actividadDesde?: number | null;
   /** Lo que cambió la regla de activos al terminar. null si falta migracion-actividad.sql. */
   actividad?: { leidas: number; desactivados: string[]; reactivados: string[] } | null;
+  /** Gente nueva del estudio sumada al equipo (solo si quien sincroniza es admin; si no, queda para la próxima). */
+  equipoNuevos?: number;
   /** Mientras se leen las tareas en varios pedidos: por dónde seguir y desde cuándo se empezó. */
   cursor?: string | null;
   inicio?: string | null;
@@ -532,6 +534,16 @@ export async function correrPaso(
     }
 
     if (paso === "actividad") {
+      // Sumar al equipo a quien sea nuevo en Basecamp. Solo un admin puede: si quien sincroniza no
+      // lo es, se saltea sin frenar nada (la próxima vez que sincronice un admin, entra igual).
+      try {
+        const { data, error } = await db.rpc("traer_equipo_de_basecamp");
+        if (error) throw new Error(error.message);
+        resumen.equipoNuevos = Number(data ?? 0);
+      } catch (e) {
+        const message = (e as Error).message;
+        if (!sinTabla(message) && !/admin|traer_equipo_de_basecamp/i.test(message)) throw e;
+      }
       try {
         const r = await actividad(bc, db, resumen.actividadDesde ?? null, deadline);
         const leidas = (resumen.actividad?.leidas ?? 0) + r.cantidad;
@@ -556,10 +568,12 @@ export async function correrPaso(
       }
       await guardar({ ultimo: new Date().toISOString(), corriendo_desde: null });
       const a = resumen.actividad;
+      const nuevos = resumen.equipoNuevos ? `${resumen.equipoNuevos} ${resumen.equipoNuevos === 1 ? "persona nueva" : "personas nuevas"}` : null;
+      const partes = [nuevos, a && `${a.desactivados.length} inactivos nuevos, ${a.reactivados.length} reactivados`].filter(Boolean);
       return {
         paso,
         siguiente: "listo",
-        detalle: a ? `Listo · ${a.desactivados.length} inactivos nuevos, ${a.reactivados.length} reactivados` : "Listo",
+        detalle: partes.length ? `Listo · ${partes.join(" · ")}` : "Listo",
         resumen,
       };
     }
