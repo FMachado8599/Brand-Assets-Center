@@ -516,7 +516,7 @@ Primer paso de la integración con Spotify: un reproductor dentro de la app y, m
 ### Activarlo (una sola vez)
 
 1. En [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), con una cuenta **Premium** (en Development Mode es obligatorio que la dueña de la app lo sea), crear una app con **Web API** y **Web Playback SDK**.
-2. Redirect URIs, exactas: `http://127.0.0.1:3000/api/spotify/callback` para local y la del entorno donde se pruebe (ej: `https://brand-assets-center-git-spotify-fmachado5899-9616s-projects.vercel.app/api/spotify/callback`). Spotify **no acepta `localhost`**: en local hay que abrir la app en `http://127.0.0.1:3000` (e iniciar sesión ahí).
+2. Redirect URIs, exactas: `http://127.0.0.1:3000/api/spotify/callback` para local y la del entorno donde se pruebe (ej: `https://brand-assets-center-git-spotify-fmachado5899-9616s-projects.vercel.app/api/spotify/callback`). Spotify **no acepta `localhost`**: en local hay que abrir la app en `http://127.0.0.1:3000` (e iniciar sesión ahí). Después de agregarlas, apretar **Save** al pie: si la dirección no quedó guardada, Spotify no avisa "URI inválida" sino que vuelve con un `server_error` sin más datos.
 3. En **User Management**, sumar el mail de la cuenta de Spotify de cada persona que lo vaya a usar: **5 como mucho, contando la dueña**.
 4. Cargar `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` (solo servidor) y `INTEGRACIONES_SECRET` (32 caracteres o más; es la misma clave de las integraciones de Board). `SPOTIFY_REDIRECT_URI` es opcional: si no está, se usa `<origen>/api/spotify/callback`.
 
