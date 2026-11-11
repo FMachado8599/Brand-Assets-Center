@@ -6,6 +6,7 @@ import { PanelLeft } from "lucide-react";
 import { TooltipProvider, Hint } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { NewClientHost } from "@/components/clients/NewClientHost";
+import { JamBurbuja } from "@/components/spotify/jam/JamBurbuja";
 import { activeModule, LAST_MODULE_KEY, type AppModule } from "@/lib/modules";
 import { AccountPill } from "./AccountPill";
 import { AccountProvider } from "./AccountProvider";
@@ -58,6 +59,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <Sidebar open={navOpen} onOpenChange={setNavOpen} current={current} />
           {children}
           <NewClientHost />
+          <JamBurbuja />
           <Toaster />
           <VisitTracker />
         </BarTargetProvider>
