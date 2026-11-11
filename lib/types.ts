@@ -7,6 +7,21 @@ export type LogoBg = "light" | "dark" | "brand";
 export type BrandColor = { hex: string; name: string };
 
 /**
+ * El kit de voz de un cliente, a mano (sin IA): tono, palabras propias, qué evitar y frases de
+ * referencia reales. Alimenta el autocompletado de Redacción (migracion-voz-marca.sql).
+ */
+export type VozMarca = {
+  /** Cómo suena ("Cercano pero sin informalismos", "Siempre en voz activa"). */
+  tono?: string;
+  /** Palabras o giros propios del cliente. */
+  vocabulario?: string[];
+  /** Palabras o giros a evitar. */
+  evitar?: string[];
+  /** Frases o copys de referencia, tal cual se usaron: son la base del autocompletado. */
+  frases?: string[];
+};
+
+/**
  * Un cliente (en la base, `brands`: en Tarjetas se llamaban marcas).
  * Lo de la ficha (logo, paleta, tipografías y notas) llega con
  * migracion-clientes.sql: sin ella esos campos no vienen.
@@ -29,6 +44,8 @@ export type Brand = {
   socials?: BrandSocial[];
   /** Si el logo es la foto de perfil de una de sus cuentas, cuál (ver socialKey). */
   logo_from?: string | null;
+  /** Su kit de voz (migracion-voz-marca.sql). */
+  voz_marca?: VozMarca;
 };
 export type Category = { id: string; name: string; created_at: string };
 /** Modelo de un cliente. Ej: Changan → Lumin, Hunter, Eado. */

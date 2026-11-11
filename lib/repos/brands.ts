@@ -5,7 +5,10 @@ const LOGOS = "logos";
 
 /** Lo que se puede cambiar de un cliente desde su ficha. */
 export type BrandPatch = Partial<
-  Pick<Brand, "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes" | "socials" | "logo_from">
+  Pick<
+    Brand,
+    "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes" | "socials" | "logo_from" | "voz_marca"
+  >
 >;
 
 export const brandsRepo = {

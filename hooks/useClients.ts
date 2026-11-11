@@ -17,6 +17,8 @@ type State = {
   hasProfile: boolean | null;
   /** La base ya tiene las redes (migracion-redes.sql). null: no se sabe. */
   hasSocials: boolean | null;
+  /** La base ya tiene el kit de voz (migracion-voz-marca.sql). null: no se sabe. */
+  hasVozMarca: boolean | null;
 };
 
 /**
@@ -25,8 +27,8 @@ type State = {
  * fuera de React, así sobrevive al pasar de un módulo a otro y un cliente
  * creado desde cualquier lado aparece en todos al instante.
  */
-let state: State = { clients: [], loaded: !hasSupabase, hasProfile: null, hasSocials: null };
-const SERVER: State = { clients: [], loaded: false, hasProfile: null, hasSocials: null };
+let state: State = { clients: [], loaded: !hasSupabase, hasProfile: null, hasSocials: null, hasVozMarca: null };
+const SERVER: State = { clients: [], loaded: false, hasProfile: null, hasSocials: null, hasVozMarca: null };
 const listeners = new Set<() => void>();
 let started = false;
 /** Solo cuenta la respuesta del último pedido: una lectura vieja no pisa a una más nueva. */
@@ -49,6 +51,7 @@ function tidy(brand: Brand): Brand {
     notes: brand.notes ?? "",
     socials: cleanSocials(brand.socials),
     logo_from: brand.logo_from ?? null,
+    voz_marca: brand.voz_marca ?? {},
   };
 }
 
@@ -71,6 +74,7 @@ export async function refreshClients() {
         loaded: true,
         hasProfile: rows.length ? "palette" in rows[0] : null,
         hasSocials: rows.length ? "socials" in rows[0] : null,
+        hasVozMarca: rows.length ? "voz_marca" in rows[0] : null,
       });
     } else set({ loaded: true });
   }
@@ -108,5 +112,12 @@ export function useClients() {
   useEffect(() => {
     if (!started) refreshClients();
   }, []);
-  return { clients: snap.clients, loading: !snap.loaded, hasProfile: snap.hasProfile, hasSocials: snap.hasSocials, refresh: refreshClients };
+  return {
+    clients: snap.clients,
+    loading: !snap.loaded,
+    hasProfile: snap.hasProfile,
+    hasSocials: snap.hasSocials,
+    hasVozMarca: snap.hasVozMarca,
+    refresh: refreshClients,
+  };
 }
