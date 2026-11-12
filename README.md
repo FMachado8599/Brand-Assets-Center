@@ -107,7 +107,7 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 - **`main`** es producción: Vercel publica cada push.
 - **`new-feature`** junta lo que está listo para ir a producción. Su preview (`brand-assets-center-git-new-feature-…vercel.app`) es donde se revisa antes de pasarlo.
-- **Cada feature tiene su rama**, que sale de `new-feature` (hoy: `board`, `redaccion-ia`, `influencers`, `feat/planificacion`). Una feature nueva es una rama nueva.
+- **Cada feature tiene su rama**, que sale de `new-feature` (hoy: `board`, `redaccion-ia`, `influencers`, `feat/planificacion`, `gif`). Una feature nueva es una rama nueva.
 
 **El recorrido de una feature:**
 
@@ -222,19 +222,36 @@ Si te olvidás del paso 2 funciona igual: el servidor calcula el índice en memo
 
 Soltás todos los frames juntos y sale un GIF por banner. Todo pasa en el navegador: las imágenes no se suben a ningún lado.
 
-**Cómo nombrar los archivos:** `[prefijo_]ANCHOxALTO_ORDEN[-DURACIÓN].ext`
+**Cómo se agrupan:** los archivos que se llaman igual y terminan en un número son frames del mismo GIF, y el número es el orden.
 
 ```
-300x250_1.jpg           frame 1, duración por defecto
-300x250_2-1.5s.jpg      frame 2, 1,5 segundos
-728x90-1-800ms.png      guion o guion bajo, en segundos o milisegundos
-verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
+banner_1.jpg  banner_2.jpg      un GIF «banner» (separador _, -, espacio, punto o nada)
+Frame 1.png   Frame (2).png     también vale el (2) de las copias
+300x250_1.jpg 300x250_2.jpg     con la medida en el nombre, el GIF se llama «300x250»
+verano_300x600_2-1.5s.jpg       prefijo, medida y duración opcional al final (-1.5s o -800ms)
+summer_1_es.jpg                 si no termina en número se usa el último: GIF «summer_es»
 ```
 
-- Se agrupan por medida (y prefijo) y se ordenan por número. Avisa si falta un frame, si hay uno repetido o si una imagen no tiene la proporción del nombre.
-- En **Frames** de cada grupo se cambia la duración de cada uno, se reordenan o se quitan.
-- **Ajustes** (en la barra): duración por defecto, loop, calidad (cantidad de colores), **peso máximo** y **ajustar al peso máximo**.
-- **Exportar** baja todos en un ZIP; cada tarjeta también baja su GIF suelto. Una vez generado, la tarjeta muestra el **GIF final** (con su compresión real), no los frames originales.
+- Las mayúsculas y los separadores no cuentan: `Banner-1` y `banner_2` van juntos.
+- Si el nombre no dice la medida, se usa la de la imagen, y los de distinta medida van en GIF distintos (un GIF tiene una sola). Si dos GIF quedan con el mismo nombre se les suma la medida (`Frame_300x250`, `Frame_728x90`).
+- Avisa si falta un número del orden, si hay uno repetido o si una imagen no tiene la proporción del GIF.
+
+**Sueltas:** lo dudoso no se agrupa solo. Una imagen sin número, o la única con ese nombre, queda en **Sueltas**, arriba de los GIF:
+
+- Arrastrar una suelta sobre otra arma un GIF nuevo con las dos (se llama como la de abajo); soltarla sobre la tarjeta de un GIF la suma al final.
+- También se eligen con un clic, en el orden que van, y **Armar GIF con N**.
+- En los dos casos se abre **Ordenar** para acomodarlas.
+
+**Ordenar** (en cada tarjeta) es el popup del GIF:
+
+- Los frames se arrastran al lugar que van (con el teclado: ↑ ↓ sobre el elegido). Al ordenar a mano el número del nombre deja de mandar y se van los avisos de orden.
+- Las sueltas aparecen abajo: se arrastran al lugar exacto de la lista o se suman al final con **+**. Un frame arrastrado hasta ahí (o con el botón de sacar) sale del GIF y queda suelto; si el GIF queda con uno solo, ese también vuelve a sueltas.
+- El nombre de arriba se edita: es el del archivo que se descarga.
+- Cada frame tiene su duración (vacío = la de por defecto) y se puede quitar.
+
+**Ajustes** (en la barra): duración por defecto, loop, calidad (cantidad de colores), **peso máximo** y **ajustar al peso máximo**.
+
+**Exportar** baja todos en un ZIP (las sueltas no); cada tarjeta también baja su GIF suelto. Una vez generado, la tarjeta muestra el **GIF final** (con su compresión real), no los frames originales.
 
 ### Compresión
 
@@ -243,7 +260,7 @@ verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
 
 Probado con 6 banners de 2–3 frames (300x250, 300x600, 728x90, 160x600, 320x50, 970x250): GIF válidos, duraciones y loop correctos, y todos dentro de 150 KB.
 
-Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos.
+Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos. Y ya no hace falta la medida en el nombre: un archivo que no sigue el formato queda suelto en vez de descartado.
 
 ---
 

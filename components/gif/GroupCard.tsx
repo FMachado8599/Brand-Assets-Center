@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, Gauge, Loader2, Pause, Pencil, Play } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Gauge, ListOrdered, Loader2, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFramePlayer } from "@/hooks/useFramePlayer";
 import { formatKb } from "@/lib/gif/encode";
 import { formatMs, totalDuration } from "@/lib/gif/parse";
 import { QUALITY_COLORS, type GifGroup, type GifSettings } from "@/lib/gif/types";
 import { cn } from "@/lib/utils";
+import { useFrameDrop } from "./drag";
 
 type Props = {
   group: GifGroup;
@@ -17,10 +18,14 @@ type Props = {
   onEdit: () => void;
   onDownload: () => void;
   onMeasure: () => void;
+  /** Se está arrastrando una imagen suelta: la tarjeta la recibe y la suma al GIF. */
+  canDrop: boolean;
+  onDropFrame: () => void;
 };
 
-export function GroupCard({ group, settings, rendered, rendering, onEdit, onDownload, onMeasure }: Props) {
+export function GroupCard({ group, settings, rendered, rendering, onEdit, onDownload, onMeasure, canDrop, onDropFrame }: Props) {
   const [playing, setPlaying] = useState(true);
+  const drop = useFrameDrop(canDrop, onDropFrame);
   const { index } = useFramePlayer(group.frames, settings, playing);
   const frame = group.frames[index];
   const over = rendered && !rendered.fits;
@@ -30,7 +35,19 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
   const lowColors = reduced && rendered.colors <= 48;
 
   return (
-    <article className="group/card flex flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md">
+    <article
+      {...drop.handlers}
+      className={cn(
+        "group/card relative flex flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md",
+        canDrop && "ring-2 ring-primary/30",
+        drop.over && "ring-primary"
+      )}
+    >
+      {drop.over && (
+        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-primary/80 p-6 text-center text-sm font-semibold text-primary-foreground">
+          Soltala para sumarla a {group.name}.gif
+        </div>
+      )}
       <div className="relative grid aspect-[4/3] place-items-center bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-4">
         {rendered ? (
           // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
@@ -145,7 +162,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
             </button>
           )}
           <Button variant="outline" size="sm" onClick={onEdit}>
-            <Pencil /> Frames
+            <ListOrdered /> Ordenar
           </Button>
           <Button size="sm" onClick={onDownload} disabled={rendering} aria-label={`Descargar ${group.name}.gif`}>
             {rendering ? <Loader2 className="animate-spin" /> : <Download />} GIF
