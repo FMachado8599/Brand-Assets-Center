@@ -38,7 +38,8 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
     <article
       {...drop.handlers}
       className={cn(
-        "group/card relative flex flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md",
+        // Alto fijo de 300px: entran más GIF en pantalla y la grilla queda pareja.
+        "group/card relative flex h-[300px] flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md",
         canDrop && "ring-2 ring-primary/30",
         drop.over && "ring-primary"
       )}
@@ -48,9 +49,9 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
           Soltala para sumarla a {group.name}.gif
         </div>
       )}
-      <div className="relative aspect-[4/3] bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
-        {/* Caja de alto fijo: así un banner alto (160x600) se achica para entrar, en vez de estirar la tarjeta. */}
-        <div className="absolute inset-4 flex items-center justify-center">
+      <div className="relative min-h-0 flex-1 bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
+        {/* La vista previa ocupa lo que deja el texto; la imagen se achica para entrar (un 160x600 no estira la tarjeta). */}
+        <div className="absolute inset-x-3 bottom-5 top-3 flex items-center justify-center">
           {rendered ? (
             // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
             // eslint-disable-next-line @next/next/no-img-element
@@ -95,7 +96,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-3.5 pt-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="truncate font-mono text-sm font-semibold">{group.name}.gif</h3>
@@ -115,23 +116,27 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
           )}
         </div>
 
+        {/* En una línea cada uno, para no achicar la imagen: la lista completa está en Ordenar y al pasar el mouse. */}
         {group.warnings.length > 0 && (
-          <ul className="space-y-0.5 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-            {group.warnings.slice(0, 3).map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-            {group.warnings.length > 3 && <li>y {group.warnings.length - 3} más…</li>}
-          </ul>
-        )}
-
-        {lowColors && (
-          <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-            Para entrar en {settings.maxKb} KB bajó a {rendered.colors} colores: revisá que los degradés no se vean
-            escalonados. Si se ven mal, probá con menos frames o una foto más simple.
+          <p
+            className="flex min-w-0 gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900"
+            title={group.warnings.join("\n")}
+          >
+            <span className="truncate">{group.warnings[0]}</span>
+            {group.warnings.length > 1 && <span className="shrink-0 font-medium">+{group.warnings.length - 1}</span>}
           </p>
         )}
 
-        <div className="mt-auto flex items-center gap-2">
+        {lowColors && (
+          <p
+            className="truncate rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900"
+            title={`Para entrar en ${settings.maxKb} KB bajó a ${rendered.colors} colores: revisá que los degradés no se vean escalonados. Si se ven mal, probá con menos frames o una foto más simple.`}
+          >
+            Bajó a {rendered.colors} colores para entrar en {settings.maxKb} KB: revisá los degradés
+          </p>
+        )}
+
+        <div className="flex items-center gap-2">
           {rendered ? (
             <span
               className={cn(
