@@ -48,27 +48,30 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
           Soltala para sumarla a {group.name}.gif
         </div>
       )}
-      <div className="relative grid aspect-[4/3] place-items-center bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-4">
-        {rendered ? (
-          // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={rendered.url}
-            alt={`${group.name}.gif`}
-            className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
-            style={{ aspectRatio: `${group.width} / ${group.height}` }}
-          />
-        ) : (
-          frame && (
+      <div className="relative aspect-[4/3] bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
+        {/* Caja de alto fijo: así un banner alto (160x600) se achica para entrar, en vez de estirar la tarjeta. */}
+        <div className="absolute inset-4 flex items-center justify-center">
+          {rendered ? (
+            // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={frame.url}
-              alt={frame.filename}
+              src={rendered.url}
+              alt={`${group.name}.gif`}
               className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
               style={{ aspectRatio: `${group.width} / ${group.height}` }}
             />
-          )
-        )}
+          ) : (
+            frame && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={frame.url}
+                alt={frame.filename}
+                className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+                style={{ aspectRatio: `${group.width} / ${group.height}` }}
+              />
+            )
+          )}
+        </div>
         {rendered ? (
           <span className="absolute left-3 top-3 rounded-full bg-foreground/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-background">
             GIF final

@@ -95,17 +95,19 @@ export function GroupDialog({
 
             <div className="grid min-h-0 gap-5 overflow-y-auto p-0.5 sm:grid-cols-[1fr_1.2fr]">
               <div className="flex flex-col gap-2">
-                <div className="grid aspect-[4/3] place-items-center rounded-2xl bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-3">
-                  {frames[index] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={frames[index].url}
-                      alt={frames[index].filename}
-                      draggable={false}
-                      className="max-h-full max-w-full object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
-                      style={{ aspectRatio: `${group.width} / ${group.height}` }}
-                    />
-                  )}
+                <div className="relative aspect-[4/3] rounded-2xl bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
+                  <div className="absolute inset-3 flex items-center justify-center">
+                    {frames[index] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={frames[index].url}
+                        alt={frames[index].filename}
+                        draggable={false}
+                        className="max-h-full max-w-full object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+                        style={{ aspectRatio: `${group.width} / ${group.height}` }}
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <button
