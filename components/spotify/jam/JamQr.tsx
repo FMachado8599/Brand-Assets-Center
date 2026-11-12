@@ -22,8 +22,22 @@ function QR({ texto, className }: { texto: string; className?: string }) {
   );
 }
 
-/** Tarjeta aparte con el QR del Jam, para unirse desde el celular, y el link para copiar. */
-export function JamQr({ link, esquina, className }: { link: string | null; esquina?: ReactNode; className?: string }) {
+/**
+ * Tarjeta aparte con el QR del Jam, para unirse desde el celular, y el link para copiar.
+ * Con `ajustar`, en compu el QR se achica para entrar en el alto que le toque (en /spotify todo va
+ * arriba del fold).
+ */
+export function JamQr({
+  link,
+  esquina,
+  ajustar = false,
+  className,
+}: {
+  link: string | null;
+  esquina?: ReactNode;
+  ajustar?: boolean;
+  className?: string;
+}) {
   const [copiado, setCopiado] = useState(false);
   const copiar = async () => {
     if (!link) return;
@@ -37,9 +51,9 @@ export function JamQr({ link, esquina, className }: { link: string | null; esqui
   };
 
   return (
-    <section aria-label="Unirse al Jam con el celular" className={cn(vidrio, "p-4", className)}>
+    <section aria-label="Unirse al Jam con el celular" className={cn(vidrio, "p-4", ajustar && "flex min-h-0 flex-col", className)}>
       <span aria-hidden className={cn(resplandor, "-top-10 left-1/2 h-28 w-2/3 -translate-x-1/2 bg-[#1ed760]/20")} />
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#1ed760]">Unite desde el celular</p>
           <p className={cn("mt-1 text-xs", apagado)}>Escaneá con la cámara: se abre el Jam en Spotify.</p>
@@ -48,10 +62,21 @@ export function JamQr({ link, esquina, className }: { link: string | null; esqui
       </div>
       {link ? (
         <>
-          <div className="rounded-3xl bg-white p-2 shadow-[0_0_40px_-8px_rgba(30,215,96,0.55)]">
-            <QR texto={link} className="block aspect-square w-full" />
-          </div>
-          <div className="mt-3 flex items-center gap-2">
+          {ajustar ? (
+            // En compu, el cuadrado más grande que entre en el lugar libre (lo más chico entre el ancho y
+            // el alto que quedan: cqw/cqh). En el celular no hay alto fijo y va con el ancho de la tarjeta.
+            <div className="grid place-items-center lg:min-h-0 lg:flex-1 lg:[container-type:size]">
+              <QR
+                texto={link}
+                className="aspect-square w-full rounded-3xl shadow-[0_0_40px_-8px_rgba(30,215,96,0.55)] lg:h-[min(100cqw,100cqh)] lg:w-[min(100cqw,100cqh)]"
+              />
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-white p-2 shadow-[0_0_40px_-8px_rgba(30,215,96,0.55)]">
+              <QR texto={link} className="block aspect-square w-full" />
+            </div>
+          )}
+          <div className="mt-3 flex shrink-0 items-center gap-2">
             <p className={cn("min-w-0 flex-1 truncate text-xs", apagado)} title={link}>
               {link.replace(/^https:\/\//, "")}
             </p>
