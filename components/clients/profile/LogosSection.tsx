@@ -1,7 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, DatabaseZap, Download, FolderPlus, ImagePlus, Loader2, MoreHorizontal, Plus, Trash2, UploadCloud } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronUp,
+  DatabaseZap,
+  Download,
+  FolderPlus,
+  ImagePlus,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+  UploadCloud,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,12 +55,23 @@ import {
 import { brandsRepo, clientErrorMessage, type BrandPatch } from "@/lib/repos/brands";
 import type { Brand, BrandLogo, LogoFormat, LogoGroup } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { logoBackground } from "../ClientMark";
 import { useDropZone } from "./logoDrag";
 import { LogoTile, PendingTile, type LogoActions } from "./LogoTile";
 import { Section, SmallAction } from "./Section";
 
 /** Cuántos archivos se suben a la vez. */
 const PARALLEL = 4;
+
+/**
+ * Cuántos lugares ocupa un grupo cerrado (una fila en pantallas anchas). Si tiene más logos, se
+ * ven los primeros y el último lugar es «+N más», que lo abre.
+ */
+const CLOSED = 4;
+
+/** La clave de los sin grupo, para saber si están abiertos. */
+const NO_GROUP = "sin-grupo";
+const openKey = (group: string | null) => group ?? NO_GROUP;
 
 async function mapLimit<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>) {
   const out: R[] = new Array(items.length);
@@ -92,6 +116,16 @@ export function LogosSection({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState<string | null>(null);
   const [zipping, setZipping] = useState(false);
+  /** Los grupos que se abrieron para ver todos sus logos. */
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const toggle = useCallback((group: string | null, value: boolean) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (value) next.add(openKey(group));
+      else next.delete(openKey(group));
+      return next;
+    });
+  }, []);
   const fileInput = useRef<HTMLInputElement>(null);
   const target = useRef<Target>({ group: null });
 
@@ -150,6 +184,8 @@ export function LogosSection({
     const plan = planUpload(good, current.logos ?? [], { group: to.group, into: to.into?.id, brandName: current.name });
     const receiving = new Set(plan.items.map((i) => i.target).filter((id) => !plan.fresh.some((f) => f.id === id)));
     setPending((p) => [...p, ...plan.fresh]);
+    // Lo que se acaba de subir se tiene que ver: el grupo que lo recibe se abre.
+    if (plan.fresh.length) toggle(to.group, true);
     setBusy((b) => new Set([...b, ...receiving]));
 
     const errors: { message: string }[] = [];
@@ -333,6 +369,8 @@ export function LogosSection({
     only,
     actions,
     zipping,
+    open,
+    onToggle: toggle,
     onFiles: (files: File[], group: string | null) => upload(files, { group }),
     onPick: (group: string | null) => pick({ group }),
     onDownload: (list: BrandLogo[], filename: string) => downloadZip(entriesOf(list, false), filename),
@@ -474,6 +512,9 @@ type GroupProps = {
   only: LogoFormat | null;
   actions: LogoActions;
   zipping: boolean;
+  /** Los grupos abiertos (ver openKey). */
+  open: Set<string>;
+  onToggle: (group: string | null, open: boolean) => void;
   onFiles: (files: File[], group: string | null) => void;
   onPick: (group: string | null) => void;
   onDownload: (list: BrandLogo[], filename: string) => void;
@@ -587,39 +628,116 @@ function GroupBlock({
   );
 }
 
-/** Los logos de un grupo en grilla, los que se están subiendo y, al final, el lugar para sumar más. */
+/**
+ * Los logos de un grupo en grilla, los que se están subiendo y, al final, el lugar para sumar más.
+ * Cerrado, con muchos logos, ocupa una fila: los primeros y «+N más» con una muestra de los otros.
+ */
 function LogoGrid({ group, ...props }: GroupProps & { group: string | null }) {
+  const list = useRef<HTMLUListElement>(null);
   const items = logosIn(props.visible, group);
   const pending = logosIn(props.pending, group);
+  const isOpen = props.open.has(openKey(group));
+  const overflow = items.length > CLOSED;
+  const shown = overflow && !isOpen ? items.slice(0, CLOSED - 1) : items;
+  const hidden = items.slice(shown.length);
+
+  const close = () => {
+    props.onToggle(group, false);
+    // Si el principio del grupo quedó arriba, fuera de la pantalla, se vuelve a él.
+    requestAnimationFrame(() => {
+      const el = list.current;
+      if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  };
+
   return (
-    <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
-      {items.map((logo) => (
-        <LogoTile
-          key={logo.id}
-          brand={props.brand}
-          logo={logo}
-          groups={props.groups}
-          others={props.logos.filter((l) => l.id !== logo.id)}
-          busy={props.busy.has(logo.id)}
-          dragging={props.dragging === logo.id}
-          highlight={props.only}
-          actions={props.actions}
-        />
-      ))}
-      {pending.map((logo) => (
-        <PendingTile key={logo.id} name={logo.name} />
-      ))}
-      <li>
-        <button
-          type="button"
-          onClick={() => props.onPick(group)}
-          className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-foreground/15 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-        >
-          <Plus className="h-5 w-5" />
-          Sumar logos
-        </button>
-      </li>
-    </ul>
+    <>
+      <ul ref={list} className="grid scroll-mt-28 grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
+        {shown.map((logo) => (
+          <LogoTile
+            key={logo.id}
+            brand={props.brand}
+            logo={logo}
+            groups={props.groups}
+            others={props.logos.filter((l) => l.id !== logo.id)}
+            busy={props.busy.has(logo.id)}
+            dragging={props.dragging === logo.id}
+            highlight={props.only}
+            actions={props.actions}
+          />
+        ))}
+        {pending.map((logo) => (
+          <PendingTile key={logo.id} name={logo.name} />
+        ))}
+        {hidden.length > 0 ? (
+          <MoreTile brand={props.brand} hidden={hidden} onOpen={() => props.onToggle(group, true)} />
+        ) : (
+          <li>
+            <button
+              type="button"
+              onClick={() => props.onPick(group)}
+              className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-foreground/15 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            >
+              <Plus className="h-5 w-5" />
+              Sumar logos
+            </button>
+          </li>
+        )}
+      </ul>
+      {overflow && isOpen && (
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={close}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <ChevronUp className="h-3.5 w-3.5" /> Mostrar menos
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** El último lugar de un grupo cerrado: cuántos logos más tiene, con una muestra de los primeros. */
+function MoreTile({ brand, hidden, onOpen }: { brand: Brand; hidden: BrandLogo[]; onOpen: () => void }) {
+  const sample = hidden.slice(0, 4);
+  const label = `Ver ${hidden.length === 1 ? "1 logo más" : `${hidden.length} logos más`}`;
+  return (
+    <li className="flex min-w-0 flex-col gap-2">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={label}
+        className="group/more relative grid aspect-[4/3] w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl bg-secondary/70 p-1 ring-1 ring-inset ring-black/[0.06]"
+      >
+        {Array.from({ length: 4 }, (_, i) => {
+          const logo = sample[i];
+          if (!logo) return <span key={i} className="rounded-xl bg-card/50" />;
+          const preview = previewOf(logo);
+          return (
+            <span
+              key={logo.id}
+              className="grid min-h-0 min-w-0 place-items-center overflow-hidden rounded-xl"
+              style={{ background: logoBackground(brand, logo.bg) }}
+            >
+              {preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview.url} alt="" draggable={false} className="h-full w-full object-contain p-[14%]" />
+              ) : (
+                <span className="font-display text-lg leading-none opacity-70">{LOGO_FORMATS[logo.files[0].format].label}</span>
+              )}
+            </span>
+          );
+        })}
+        <span className="absolute inset-0 grid place-items-center bg-ink/50 text-cream transition-colors group-hover/more:bg-ink/60">
+          <span className="font-display text-[2.6rem] leading-none">+{hidden.length}</span>
+        </span>
+      </button>
+      <button type="button" onClick={onOpen} className="-mx-1 h-7 truncate rounded-lg px-1 text-left text-sm font-semibold hover:underline">
+        {label}
+      </button>
+    </li>
   );
 }
 
