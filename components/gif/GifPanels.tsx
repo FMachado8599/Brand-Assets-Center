@@ -121,30 +121,31 @@ export function GifSettingsPanel({ settings, onChange }: { settings: GifSettings
 export function NamingGuide() {
   return (
     <div className="space-y-3 text-xs">
-      <PanelTitle title="Cómo nombrar los frames" hint="Los archivos se agrupan solos por medida y se ordenan por número." />
-      <code className="block rounded-xl bg-secondary px-3 py-2 font-mono text-[12px]">
-        [prefijo_]ANCHOxALTO_ORDEN[-DURACIÓN].jpg
-      </code>
+      <PanelTitle
+        title="Cómo se arman los GIF"
+        hint="Los que se llaman igual y terminan en número son frames del mismo GIF, en ese orden."
+      />
+      <div className="space-y-0.5 rounded-xl border border-dashed px-3 py-2 font-mono text-[11px]">
+        <p>banner_1.jpg · banner_2.jpg</p>
+        <p>Frame 1.png · Frame 2.png</p>
+        <p>300x250_1.jpg · 300x250_2-1.5s.jpg</p>
+      </div>
       <ul className="space-y-1.5 text-muted-foreground">
         <li>
-          <b className="font-medium text-foreground">Medida</b> · 300x250, 728x90, 160x600
+          <b className="font-medium text-foreground">Número</b> · al final, separado o no: _1, -2, 3, (4)
         </li>
         <li>
-          <b className="font-medium text-foreground">Orden</b> · 1, 2, 3… separado con _ o -
+          <b className="font-medium text-foreground">Medida</b> · opcional (300x250); si no está, se usa la de la imagen
         </li>
         <li>
-          <b className="font-medium text-foreground">Duración</b> · opcional: -1.5s o -800ms
-        </li>
-        <li>
-          <b className="font-medium text-foreground">Prefijo</b> · opcional, separa campañas con la misma medida
+          <b className="font-medium text-foreground">Duración</b> · opcional, después del número: -1.5s o -800ms
         </li>
       </ul>
-      <div className="space-y-0.5 rounded-xl border border-dashed px-3 py-2 font-mono text-[11px]">
-        <p>300x250_1.jpg</p>
-        <p>300x250_2-1.5s.jpg</p>
-        <p>728x90-1-800ms.png</p>
-        <p>verano_300x600_1.jpg</p>
-      </div>
+      <p className="rounded-xl bg-secondary px-3 py-2 text-muted-foreground">
+        Lo que no se puede agrupar por el nombre queda <b className="font-medium text-foreground">suelto</b>: arrastrá una
+        imagen sobre otra para armar un GIF, o sobre un GIF para sumarla. En <b className="font-medium text-foreground">Ordenar</b>{" "}
+        se arrastran los frames al lugar que van.
+      </p>
     </div>
   );
 }

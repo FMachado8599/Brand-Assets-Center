@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, Gauge, Loader2, Pause, Pencil, Play } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Gauge, ListOrdered, Loader2, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFramePlayer } from "@/hooks/useFramePlayer";
 import { formatKb } from "@/lib/gif/encode";
 import { formatMs, totalDuration } from "@/lib/gif/parse";
 import { QUALITY_COLORS, type GifGroup, type GifSettings } from "@/lib/gif/types";
 import { cn } from "@/lib/utils";
+import { useFrameDrop } from "./drag";
 
 type Props = {
   group: GifGroup;
@@ -17,10 +18,14 @@ type Props = {
   onEdit: () => void;
   onDownload: () => void;
   onMeasure: () => void;
+  /** Se está arrastrando una imagen suelta: la tarjeta la recibe y la suma al GIF. */
+  canDrop: boolean;
+  onDropFrame: () => void;
 };
 
-export function GroupCard({ group, settings, rendered, rendering, onEdit, onDownload, onMeasure }: Props) {
+export function GroupCard({ group, settings, rendered, rendering, onEdit, onDownload, onMeasure, canDrop, onDropFrame }: Props) {
   const [playing, setPlaying] = useState(true);
+  const drop = useFrameDrop(canDrop, onDropFrame);
   const { index } = useFramePlayer(group.frames, settings, playing);
   const frame = group.frames[index];
   const over = rendered && !rendered.fits;
@@ -30,28 +35,44 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
   const lowColors = reduced && rendered.colors <= 48;
 
   return (
-    <article className="group/card flex flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md">
-      <div className="relative grid aspect-[4/3] place-items-center bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-4">
-        {rendered ? (
-          // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={rendered.url}
-            alt={`${group.name}.gif`}
-            className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
-            style={{ aspectRatio: `${group.width} / ${group.height}` }}
-          />
-        ) : (
-          frame && (
+    <article
+      {...drop.handlers}
+      className={cn(
+        // Alto fijo de 300px: entran más GIF en pantalla y la grilla queda pareja.
+        "group/card relative flex h-[300px] flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md",
+        canDrop && "ring-2 ring-primary/30",
+        drop.over && "ring-primary"
+      )}
+    >
+      {drop.over && (
+        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-primary/80 p-6 text-center text-sm font-semibold text-primary-foreground">
+          Soltala para sumarla a {group.name}.gif
+        </div>
+      )}
+      <div className="relative min-h-0 flex-1 bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
+        {/* La vista previa ocupa lo que deja el texto; la imagen se achica para entrar (un 160x600 no estira la tarjeta). */}
+        <div className="absolute inset-x-3 bottom-5 top-3 flex items-center justify-center">
+          {rendered ? (
+            // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={frame.url}
-              alt={frame.filename}
+              src={rendered.url}
+              alt={`${group.name}.gif`}
               className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
               style={{ aspectRatio: `${group.width} / ${group.height}` }}
             />
-          )
-        )}
+          ) : (
+            frame && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={frame.url}
+                alt={frame.filename}
+                className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+                style={{ aspectRatio: `${group.width} / ${group.height}` }}
+              />
+            )
+          )}
+        </div>
         {rendered ? (
           <span className="absolute left-3 top-3 rounded-full bg-foreground/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-background">
             GIF final
@@ -75,7 +96,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-3.5 pt-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="truncate font-mono text-sm font-semibold">{group.name}.gif</h3>
@@ -95,23 +116,27 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
           )}
         </div>
 
+        {/* En una línea cada uno, para no achicar la imagen: la lista completa está en Ordenar y al pasar el mouse. */}
         {group.warnings.length > 0 && (
-          <ul className="space-y-0.5 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-            {group.warnings.slice(0, 3).map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-            {group.warnings.length > 3 && <li>y {group.warnings.length - 3} más…</li>}
-          </ul>
-        )}
-
-        {lowColors && (
-          <p className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-            Para entrar en {settings.maxKb} KB bajó a {rendered.colors} colores: revisá que los degradés no se vean
-            escalonados. Si se ven mal, probá con menos frames o una foto más simple.
+          <p
+            className="flex min-w-0 gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900"
+            title={group.warnings.join("\n")}
+          >
+            <span className="truncate">{group.warnings[0]}</span>
+            {group.warnings.length > 1 && <span className="shrink-0 font-medium">+{group.warnings.length - 1}</span>}
           </p>
         )}
 
-        <div className="mt-auto flex items-center gap-2">
+        {lowColors && (
+          <p
+            className="truncate rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900"
+            title={`Para entrar en ${settings.maxKb} KB bajó a ${rendered.colors} colores: revisá que los degradés no se vean escalonados. Si se ven mal, probá con menos frames o una foto más simple.`}
+          >
+            Bajó a {rendered.colors} colores para entrar en {settings.maxKb} KB: revisá los degradés
+          </p>
+        )}
+
+        <div className="flex items-center gap-2">
           {rendered ? (
             <span
               className={cn(
@@ -145,7 +170,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
             </button>
           )}
           <Button variant="outline" size="sm" onClick={onEdit}>
-            <Pencil /> Frames
+            <ListOrdered /> Ordenar
           </Button>
           <Button size="sm" onClick={onDownload} disabled={rendering} aria-label={`Descargar ${group.name}.gif`}>
             {rendering ? <Loader2 className="animate-spin" /> : <Download />} GIF
