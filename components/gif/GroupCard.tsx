@@ -19,6 +19,12 @@ type Props = {
   onMeasure: () => void;
 };
 
+// La imagen va absoluta dentro del recuadro 4:3 (con 1rem de margen), así no lo estira: con un
+// banner alto (160x600, 300x600) el max-h-full de un hijo en flujo no se resolvía y la tarjeta
+// crecía hasta el alto del frame. m-auto la centra y los max-* la achican sin deformarla.
+const PREVIEW_IMG =
+  "absolute inset-4 m-auto max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]";
+
 export function GroupCard({ group, settings, rendered, rendering, onEdit, onDownload, onMeasure }: Props) {
   const [playing, setPlaying] = useState(true);
   const { index } = useFramePlayer(group.frames, settings, playing);
@@ -31,14 +37,14 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
 
   return (
     <article className="group/card flex flex-col overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-md">
-      <div className="relative grid aspect-[4/3] place-items-center bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-4">
+      <div className="relative aspect-[4/3] bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
         {rendered ? (
           // Ya generado: se ve el GIF real, con su compresión y sus tiempos, no los frames originales.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={rendered.url}
             alt={`${group.name}.gif`}
-            className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+            className={PREVIEW_IMG}
             style={{ aspectRatio: `${group.width} / ${group.height}` }}
           />
         ) : (
@@ -47,7 +53,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
             <img
               src={frame.url}
               alt={frame.filename}
-              className="max-h-full max-w-full rounded-sm object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+              className={PREVIEW_IMG}
               style={{ aspectRatio: `${group.width} / ${group.height}` }}
             />
           )

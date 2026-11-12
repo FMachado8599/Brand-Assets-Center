@@ -48,13 +48,14 @@ export function GroupDialog({
 
             <div className="grid min-h-0 gap-5 overflow-y-auto sm:grid-cols-[1fr_1.15fr]">
               <div className="flex flex-col gap-2">
-                <div className="grid aspect-[4/3] place-items-center rounded-2xl bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-3">
+                <div className="relative aspect-[4/3] rounded-2xl bg-[repeating-conic-gradient(hsl(var(--secondary))_0_25%,transparent_0_50%)] bg-[length:16px_16px]">
                   {frames[index] && (
+                    // Absoluta, como en GroupCard: un banner alto no estira el recuadro 4:3.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={frames[index].url}
                       alt={frames[index].filename}
-                      className="max-h-full max-w-full object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
+                      className="absolute inset-3 m-auto max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] object-contain shadow-[0_4px_16px_-6px_rgba(0,0,0,0.3)]"
                     />
                   )}
                 </div>
