@@ -140,6 +140,8 @@ export async function renderGif(group: GifGroup, settings: GifSettings): Promise
 export function renderSignature(group: GifGroup, settings: GifSettings) {
   return JSON.stringify([
     group.frames.map((f) => [f.id, frameDuration(f, settings)]),
+    group.width,
+    group.height,
     settings.loop,
     settings.quality,
     settings.fit ? settings.maxKb : 0,
