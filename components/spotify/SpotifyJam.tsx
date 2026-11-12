@@ -41,65 +41,73 @@ export function SpotifyJam({ configurado }: { configurado: boolean }) {
   const soyDJ = Boolean(estado?.dj && account?.user?.id === estado.dj.usuario);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16 pt-[6.5rem] sm:px-6">
-      <div className="mb-8 text-center">
+    <main className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+      {/* Arriba del fold: todo el Jam entra en la pantalla (en compu); abajo, la explicación y lo del DJ. */}
+      <section aria-label="El Jam" className="flex flex-col gap-4 pb-5 pt-20 lg:h-dvh">
+        {errorConexion && <Aviso>{errorConexion}</Aviso>}
+        {!configurado && (
+          <Aviso>
+            Faltan <code>SPOTIFY_CLIENT_ID</code>, <code>SPOTIFY_CLIENT_SECRET</code> o <code>INTEGRACIONES_SECRET</code> en las
+            variables del servidor (ver README → Spotify).
+          </Aviso>
+        )}
+
+        {/* El escenario: oscuro, con la luz verde de Spotify detrás. */}
+        <div className="relative isolate overflow-clip rounded-[36px] bg-[#0a0a0a] p-3 shadow-[0_40px_100px_-40px_rgba(0,0,0,0.8)] sm:p-4 lg:min-h-0 lg:flex-1">
+          <span aria-hidden className={cn(resplandor, "-left-24 -top-24 h-72 w-72 bg-[#1ed760]/20")} />
+          <span aria-hidden className={cn(resplandor, "-bottom-32 right-0 h-80 w-[28rem] bg-[#1ed760]/10")} />
+          {!estado ? (
+            <Escenario>{error ?? (configurado ? "Leyendo el Jam…" : "Spotify no está configurado.")}</Escenario>
+          ) : !estado.dj ? (
+            <Escenario>
+              <p className="text-2xl font-bold text-white">Todavía no hay Jam</p>
+              <p className={cn("mx-auto mt-2 max-w-md text-sm", apagado)}>
+                Quien lo arme tiene que tener Spotify Premium: arrancá un Jam en tu Spotify y conectá tu cuenta acá para ser el DJ.
+              </p>
+              <a href={CONECTAR} aria-disabled={!configurado} className={cn(pildoraVerde, "mt-6")}>
+                Conectar Spotify y ser el DJ
+              </a>
+            </Escenario>
+          ) : (
+            // En compu: la cola a la izquierda, de punta a punta; a la derecha lo que suena y abajo el QR.
+            // En el celular quedan en el orden del código: lo que suena, la cola y el QR.
+            <div className="grid gap-3 sm:gap-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_minmax(0,1fr)]">
+              <JamAhora
+                estado={estado}
+                posicion={posicion()}
+                className="lg:col-start-2 lg:row-start-1"
+                acciones={
+                  estado.link ? (
+                    <a href={estado.link} target="_blank" rel="noopener noreferrer" className={cn(pildoraVerde, "flex-1")}>
+                      Unirse al Jam
+                      <ExternalLink className="h-4 w-4" aria-hidden />
+                    </a>
+                  ) : (
+                    <span aria-disabled className={cn(pildoraVerde, "flex-1")} title="El DJ todavía no pegó el link del Jam">
+                      Unirse al Jam
+                    </span>
+                  )
+                }
+              />
+              <JamCola
+                estado={estado}
+                sumar={sumar}
+                className="lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full"
+                listaClassName="max-h-[28rem] lg:max-h-none"
+              />
+              <JamQr link={estado.link} ajustar className="lg:col-start-2 lg:row-start-2 lg:min-h-0" />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="mt-10 text-center">
         <p className="eyebrow">Spotify</p>
         <h1 className="mt-2 font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">El Jam del estudio</h1>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           Una sola música para todos: el DJ la pone desde su Spotify y cualquiera suma canciones desde acá o desde la burbuja,
           en cualquier parte de la app. Para escucharla, unite al Jam desde Spotify.
         </p>
-      </div>
-
-      {errorConexion && <Aviso>{errorConexion}</Aviso>}
-      {!configurado && (
-        <Aviso>
-          Faltan <code>SPOTIFY_CLIENT_ID</code>, <code>SPOTIFY_CLIENT_SECRET</code> o <code>INTEGRACIONES_SECRET</code> en las
-          variables del servidor (ver README → Spotify).
-        </Aviso>
-      )}
-
-      {/* El escenario: oscuro, con la luz verde de Spotify detrás. */}
-      <div className="relative isolate overflow-clip rounded-[36px] bg-[#0a0a0a] p-3 shadow-[0_40px_100px_-40px_rgba(0,0,0,0.8)] sm:p-5">
-        <span aria-hidden className={cn(resplandor, "-left-24 -top-24 h-72 w-72 bg-[#1ed760]/20")} />
-        <span aria-hidden className={cn(resplandor, "-bottom-32 right-0 h-80 w-[28rem] bg-[#1ed760]/10")} />
-        {!estado ? (
-          <Escenario>{error ?? (configurado ? "Leyendo el Jam…" : "Spotify no está configurado.")}</Escenario>
-        ) : !estado.dj ? (
-          <Escenario>
-            <p className="text-2xl font-bold text-white">Todavía no hay Jam</p>
-            <p className={cn("mx-auto mt-2 max-w-md text-sm", apagado)}>
-              Quien lo arme tiene que tener Spotify Premium: arrancá un Jam en tu Spotify y conectá tu cuenta acá para ser el DJ.
-            </p>
-            <a href={CONECTAR} aria-disabled={!configurado} className={cn(pildoraVerde, "mt-6")}>
-              Conectar Spotify y ser el DJ
-            </a>
-          </Escenario>
-        ) : (
-          <div className="grid gap-3 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="flex min-w-0 flex-col gap-3 sm:gap-5">
-              <JamAhora
-                estado={estado}
-                posicion={posicion()}
-                grande
-                acciones={
-                  estado.link ? (
-                    <a href={estado.link} target="_blank" rel="noopener noreferrer" className={pildoraVerde}>
-                      Unirse al Jam
-                      <ExternalLink className="h-4 w-4" aria-hidden />
-                    </a>
-                  ) : (
-                    <span aria-disabled className={pildoraVerde} title="El DJ todavía no pegó el link del Jam">
-                      Unirse al Jam
-                    </span>
-                  )
-                }
-              />
-              <JamCola estado={estado} sumar={sumar} listaClassName="max-h-[28rem]" />
-            </div>
-            <JamQr link={estado.link} className="self-start" />
-          </div>
-        )}
       </div>
 
       {estado?.dj && <PanelDJ estado={{ dj: estado.dj, link: estado.link }} soyDJ={soyDJ} configurado={configurado} alCambiar={refrescar} />}
@@ -221,9 +229,9 @@ function PanelDJ({
 }
 
 function Escenario({ children }: { children: ReactNode }) {
-  return <div className={cn("px-4 py-16 text-center text-sm", apagado)}>{children}</div>;
+  return <div className={cn("flex h-full flex-col items-center justify-center px-4 py-16 text-center text-sm", apagado)}>{children}</div>;
 }
 
 function Aviso({ children }: { children: ReactNode }) {
-  return <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">{children}</div>;
+  return <div className="shrink-0 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">{children}</div>;
 }
