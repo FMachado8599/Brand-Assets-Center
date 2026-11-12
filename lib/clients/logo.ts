@@ -83,6 +83,49 @@ export async function logoColors(src: File | string, max = 5): Promise<string[]>
   }
 }
 
+/**
+ * Lo que se puede saber de un logo antes de subirlo: su medida (si es una imagen con medida
+ * propia; un SVG no la tiene) y sobre qué fondo se ve. Un logo claro con transparencia (un
+ * negativo) no se ve sobre papel: va sobre oscuro. Si el archivo no se puede leer, no sabe nada.
+ */
+export async function inspectLogoImage(file: File, svg: boolean): Promise<{ w?: number; h?: number; bg?: "light" | "dark" }> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(url, false);
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    const size = 64;
+    const scale = Math.min(1, size / Math.max(w || size, h || size));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round((w || size) * scale));
+    canvas.height = Math.max(1, Math.round((h || size) * scale));
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const out = svg || !w || !h ? {} : { w, h };
+    if (!ctx) return out;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let clear = 0;
+    let solid = 0;
+    let light = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 128) {
+        clear++;
+        continue;
+      }
+      solid++;
+      const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+      if (lum > 0.82) light++;
+    }
+    const pixels = data.length / 4;
+    const dark = solid > 0 && clear / pixels > 0.05 && light / solid > 0.7;
+    return { ...out, bg: dark ? "dark" : "light" };
+  } catch {
+    return {};
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** Saturación y luminosidad (HSL, de 0 a 1) de un color hex. */
 function satLight(hex: string) {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
