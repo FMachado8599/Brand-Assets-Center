@@ -127,9 +127,9 @@ export function IconsShell({ configured }: { configured: boolean }) {
                 key={icon.id}
                 icon={icon}
                 busy={busy?.id === icon.id}
+                size={size}
                 onOpen={() => setOpen(icon)}
-                onCopy={() => run(icon, { kind: "copy", format: "svg" })}
-                onDownload={() => run(icon, { kind: "download", format: "svg" })}
+                onAction={(action) => run(icon, action)}
               />
             ))}
           </ul>
