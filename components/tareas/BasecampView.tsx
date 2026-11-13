@@ -198,6 +198,13 @@ export function BasecampView() {
                           {data.sync.resumen?.requests ? ` · ${numero(data.sync.resumen.requests)} pedidos a Basecamp` : ""}
                         </span>
                       )}
+                      {data.sync?.ultimo && (
+                        <span className="mt-1 block text-muted-foreground">
+                          {data.sync.resumen?.webhooks != null
+                            ? `Avisos al instante (notificaciones y Board al día) en ${numero(data.sync.resumen.webhooks)} proyectos.`
+                            : (data.sync.resumen?.webhooksAviso ?? "Avisos al instante: todavía no se activaron.")}
+                        </span>
+                      )}
                       {(sync.error || data.sync?.ultimo_error) && (
                         <span className="mt-1 block text-destructive">Último error: {sync.error ?? data.sync?.ultimo_error}</span>
                       )}

@@ -15,6 +15,7 @@ type State = { corriendo: boolean; paso: Paso | null; detalle: string; error: st
 const NOMBRES: Record<Paso, string> = {
   personas: "Gente",
   proyectos: "Proyectos y clientes",
+  webhooks: "Avisos al instante",
   miembros: "Gente por proyecto",
   tareas: "Tareas",
   columnas: "Tableros",

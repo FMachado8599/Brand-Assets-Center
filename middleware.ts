@@ -9,9 +9,10 @@ import { studioSession } from "@/lib/access";
  * que las APIs pagas (Conversor, búsqueda de emojis) se usen de afuera.
  */
 // /api/sugerencias es pública a propósito: "no puedo entrar" también hay que poder avisarlo (tiene su propio límite).
+// /api/basecamp/webhook también: la llama Basecamp, sin sesión (se valida con la llave de la URL).
 // Inicio también es público, pero pasa por acá: con sesión del estudio muestra el panel (app/page.tsx),
 // y la sesión tiene que llegar renovada, porque desde la página no se pueden guardar las cookies nuevas.
-const PUBLIC = new Set(["/privacidad", "/auth/callback", "/api/visits", "/api/sugerencias"]);
+const PUBLIC = new Set(["/privacidad", "/auth/callback", "/api/visits", "/api/sugerencias", "/api/basecamp/webhook"]);
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

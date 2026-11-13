@@ -157,23 +157,38 @@ export class Basecamp {
     this.stamps.push(now);
   }
 
-  private async get(url: string, renovado = false, intento = 0): Promise<Response> {
+  private async get(url: string): Promise<Response> {
+    return this.pedir(url);
+  }
+
+  /**
+   * Un pedido a la API. Un GET se reintenta en 429 y en los 5xx; un POST o un PUT solo en 429 (con
+   * un 5xx no se sabe si se hizo, y repetirlo podría duplicar, ej: dos webhooks).
+   */
+  private async pedir(url: string, envio?: { method: "POST" | "PUT"; body: unknown }, renovado = false, intento = 0): Promise<Response> {
     await this.throttle();
     this.requests++;
     const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.conexion.accessToken}`, "User-Agent": userAgent() },
+      method: envio?.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${this.conexion.accessToken}`,
+        "User-Agent": userAgent(),
+        ...(envio ? { "Content-Type": "application/json; charset=utf-8" } : {}),
+      },
+      body: envio ? JSON.stringify(envio.body) : undefined,
       cache: "no-store",
     });
-    if ((r.status === 429 || REINTENTAR.has(r.status)) && intento < MAX_REINTENTOS) {
+    const reintentable = r.status === 429 || (!envio && REINTENTAR.has(r.status));
+    if (reintentable && intento < MAX_REINTENTOS) {
       // 429: lo que diga Retry-After (en segundos). 5xx: 1 s, 2 s, 4 s, 8 s.
       const retryAfter = Number(r.headers.get("Retry-After"));
       const segundos = r.status === 429 ? (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 10) : 2 ** intento;
       await esperar(Math.min(segundos, 30) * 1000);
-      return this.get(url, renovado, intento + 1);
+      return this.pedir(url, envio, renovado, intento + 1);
     }
     if (r.status === 401 && !renovado) {
       await this.renovar();
-      return this.get(url, true, intento);
+      return this.pedir(url, envio, true, intento);
     }
     if (!r.ok) {
       // Una cuenta vencida o suspendida responde 404 con el header Reason: dicho así se entiende.
@@ -187,6 +202,14 @@ export class Basecamp {
 
   async one<T>(url: string): Promise<T> {
     return (await this.get(url)).json();
+  }
+
+  async post<T>(url: string, body: unknown): Promise<T> {
+    return (await this.pedir(url, { method: "POST", body })).json();
+  }
+
+  async put<T>(url: string, body: unknown): Promise<T> {
+    return (await this.pedir(url, { method: "PUT", body })).json();
   }
 
   /** Todas las páginas, siguiendo el header Link (las páginas crecen: 15, 30, 50, 100). */

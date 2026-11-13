@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRESET_COLORS } from "@/lib/clients/color";
 import { fold } from "@/lib/redaccion/text";
 import type { Basecamp } from "./basecamp";
+import { WEBHOOK_PATH, WEBHOOK_TIPOS, webhookHash, webhookLlave, webhookOrigen, webhookUrl } from "./basecamp-webhook";
+import { hasSecret } from "./crypto";
 
 /**
  * Sincronización con Basecamp, en pasos cortos: cada pedido al servidor hace uno (o un pedazo de
@@ -11,6 +13,9 @@ import type { Basecamp } from "./basecamp";
  *  personas  → la gente de la cuenta (para ver quién está asignado a qué).
  *  proyectos → cada proyecto activo es un cliente: se vincula al que ya existe con ese nombre o se
  *              crea. Los internos se marcan "no es cliente" (ignorado) y no se tocan más.
+ *  webhooks  → que cada proyecto avise al instante lo que pasa (las notificaciones y el Board al
+ *              día). Solo desde la app publicada (https) y con migracion-notificaciones.sql; si no, se
+ *              saltea. Cada proyecto se revisa una vez por día (Basecamp apaga un webhook que falla).
  *  miembros  → quién está en cada proyecto (para "mis marcas"). Si falta migracion-board.sql se
  *              saltea sin frenar lo demás.
  *  tareas    → las cards que cambiaron desde la última vez (la primera vez, las de los últimos
@@ -21,13 +26,19 @@ import type { Basecamp } from "./basecamp";
  *              esa migración se saltea).
  */
 
-export type SyncPaso = "personas" | "proyectos" | "miembros" | "tareas" | "columnas" | "actividad" | "listo";
+export type SyncPaso = "personas" | "proyectos" | "webhooks" | "miembros" | "tareas" | "columnas" | "actividad" | "listo";
 
 export type SyncResumen = {
   personas?: number;
   proyectos?: number;
   clientesNuevos?: string[];
   vinculados?: string[];
+  /** Proyectos con el webhook al día; null si se salteó (ver webhooksAviso). */
+  webhooks?: number | null;
+  /** Por qué no se registraron los webhooks (falta https, la migración, el límite de Basecamp…). */
+  webhooksAviso?: string | null;
+  /** Mientras se revisan los webhooks en varios pedidos: el último proyecto revisado. */
+  webhooksDesde?: number | null;
   /** Cuántas personas-en-proyecto; null si falta la tabla (migracion-board.sql). */
   miembros?: number | null;
   tareas?: number;
@@ -71,6 +82,8 @@ type BcPerson = {
   admin?: boolean;
   client?: boolean;
   personable_type?: string;
+  /** Con lo que Basecamp la nombra en un texto (<bc-attachment sgid="…">): para reconocer menciones. */
+  attachable_sgid?: string | null;
 };
 
 type BcDock = { id: number; name: string; title: string; enabled: boolean; url: string };
@@ -165,9 +178,22 @@ async function personas(bc: Basecamp, db: SupabaseClient) {
     empresa: p.company?.name ?? null,
     admin: p.admin ?? false,
     cliente: p.client ?? p.personable_type === "Client",
+    attachable_sgid: p.attachable_sgid ?? null,
     sincronizado: new Date().toISOString(),
   }));
-  for (let i = 0; i < rows.length; i += 500) await check(db.from("bc_personas").upsert(rows.slice(i, i + 500)));
+  let conSgid = true;
+  for (let i = 0; i < rows.length; i += 500) {
+    const pagina = rows.slice(i, i + 500);
+    const { error } = await db.from("bc_personas").upsert(conSgid ? pagina : pagina.map(({ attachable_sgid: _, ...r }) => r));
+    if (!error) continue;
+    // Sin migracion-notificaciones.sql no está la columna: se guarda lo demás igual.
+    if (conSgid && /attachable_sgid/.test(error.message)) {
+      conSgid = false;
+      i -= 500;
+      continue;
+    }
+    throw new Error(error.message);
+  }
   return rows.length;
 }
 
@@ -247,6 +273,77 @@ async function vincularClientes(db: SupabaseClient) {
 
 /** Falta una tabla (no se corrió la migración que la crea). */
 const sinTabla = (message: string) => /does not exist|schema cache|42P01/i.test(message);
+
+type BcWebhook = { id: number; active: boolean; payload_url: string; types?: string[] };
+
+/** Cada cuánto se vuelve a mirar que el webhook de un proyecto siga prendido (un pedido por proyecto). */
+const WEBHOOK_CADA_MS = 24 * 3_600_000;
+
+/**
+ * Que cada proyecto activo tenga su webhook apuntando a esta app y prendido. Se reconoce el nuestro
+ * por la ruta (/api/basecamp/webhook), así si cambia el dominio o la llave se actualiza en vez de
+ * duplicarse. En orden de id, para seguir desde el último si se acaba el tiempo.
+ */
+async function webhooks(
+  bc: Basecamp,
+  db: SupabaseClient,
+  desde: number | null,
+  deadline: number
+): Promise<{ cantidad: number | null; complete: boolean; ultimo: number | null; aviso: string | null }> {
+  const saltear = (aviso: string) => ({ cantidad: null, complete: true, ultimo: null, aviso });
+  const origen = webhookOrigen();
+  if (!origen) return saltear("Los avisos al instante se activan al sincronizar desde la app publicada (https)");
+  if (!hasSecret()) return saltear("Falta INTEGRACIONES_SECRET");
+
+  // El hash de la llave, para que la base pueda validar cada aviso.
+  const { error: hashError } = await db.from("bc_sync").update({ webhook_hash: webhookHash(webhookLlave()) }).eq("id", "basecamp");
+  if (hashError) {
+    if (sinTabla(hashError.message) || /webhook_hash/.test(hashError.message)) return saltear("Falta correr supabase/migracion-notificaciones.sql");
+    throw new Error(hashError.message);
+  }
+  const url = webhookUrl(origen);
+
+  const [proyectos, registrados] = await Promise.all([
+    check(db.from("bc_proyectos").select("id").eq("estado", "active").gt("id", desde ?? 0).order("id")) as Promise<{ id: number }[]>,
+    check(db.from("bc_webhooks").select("proyecto_id, activo, revisado")) as Promise<{ proyecto_id: number; activo: boolean; revisado: string }[]>,
+  ]);
+  const revisado = new Map(registrados.map((w) => [Number(w.proyecto_id), w]));
+  const reciente = Date.now() - WEBHOOK_CADA_MS;
+  let cantidad = 0;
+  let ultimo = desde;
+
+  for (const { id } of proyectos) {
+    const previo = revisado.get(Number(id));
+    if (previo?.activo && new Date(previo.revisado).getTime() > reciente) {
+      cantidad++;
+      ultimo = id;
+      continue;
+    }
+    if (Date.now() > deadline) return { cantidad, complete: false, ultimo, aviso: null };
+    try {
+      const lista = await bc.all<BcWebhook>(`${bc.base()}/buckets/${id}/webhooks.json`);
+      const nuestro = lista.find((w) => w.payload_url?.includes(WEBHOOK_PATH));
+      let hook = nuestro;
+      if (!nuestro) {
+        hook = await bc.post<BcWebhook>(`${bc.base()}/buckets/${id}/webhooks.json`, { payload_url: url, types: WEBHOOK_TIPOS });
+      } else if (!nuestro.active || nuestro.payload_url !== url) {
+        hook = await bc.put<BcWebhook>(`${bc.base()}/buckets/${id}/webhooks/${nuestro.id}.json`, { payload_url: url, types: WEBHOOK_TIPOS, active: true });
+      }
+      await check(
+        db.from("bc_webhooks").upsert({ proyecto_id: id, webhook_id: hook!.id, activo: true, revisado: new Date().toISOString() })
+      );
+      cantidad++;
+    } catch (e) {
+      const message = (e as Error).message;
+      // 507: la cuenta llegó al máximo de webhooks que deja Basecamp. Los demás proyectos, igual.
+      if (/respondió 507/.test(message)) return { cantidad, complete: true, ultimo: null, aviso: "Basecamp no deja crear más webhooks en esta cuenta" };
+      if (sinTabla(message)) return saltear("Falta correr supabase/migracion-notificaciones.sql");
+      // Un proyecto sin permiso (o borrado recién) no frena a los demás.
+    }
+    ultimo = id;
+  }
+  return { cantidad, complete: true, ultimo, aviso: null };
+}
 
 /**
  * Quién está en cada proyecto activo. Se lee proyecto por proyecto (un pedido cada uno) en orden
@@ -483,7 +580,22 @@ export async function correrPaso(
       resumen.clientesNuevos = r.clientesNuevos;
       resumen.vinculados = r.vinculados;
       await guardar();
-      return { paso, siguiente: "miembros", detalle: `${r.proyectos} proyectos`, resumen };
+      return { paso, siguiente: "webhooks", detalle: `${r.proyectos} proyectos`, resumen };
+    }
+
+    if (paso === "webhooks") {
+      const r = await webhooks(bc, db, resumen.webhooksDesde ?? null, deadline);
+      if (!r.complete) {
+        resumen.webhooksDesde = r.ultimo;
+        resumen.webhooks = (resumen.webhooks ?? 0) + (r.cantidad ?? 0);
+        await guardar();
+        return { paso, siguiente: "webhooks", detalle: `${resumen.webhooks} proyectos con avisos…`, resumen };
+      }
+      resumen.webhooks = r.cantidad === null ? null : (resumen.webhooks ?? 0) + r.cantidad;
+      resumen.webhooksAviso = r.aviso;
+      resumen.webhooksDesde = null;
+      await guardar();
+      return { paso, siguiente: "miembros", detalle: r.aviso ?? `${resumen.webhooks} proyectos con avisos al instante`, resumen };
     }
 
     if (paso === "miembros") {
