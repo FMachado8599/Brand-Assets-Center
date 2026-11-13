@@ -32,7 +32,7 @@ export function createSupabaseServer() {
   });
 }
 
-/** Solo rutas internas ("/emojis?c=…"), nunca "//otro-sitio.com": evita redirecciones abiertas. */
+/** Solo rutas internas ("/library/emojis?c=…"), nunca "//otro-sitio.com": evita redirecciones abiertas. */
 export function safeNext(next: string | null) {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 }

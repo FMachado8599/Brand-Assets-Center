@@ -6,13 +6,17 @@ Un solo lugar para las herramientas del día a día del estudio:
 | --- | --- | --- |
 | Inicio | `/` | Portada con todas las herramientas y el ingreso con Google |
 | **Tarjetas** | `/tarjetas` | Textos con su formato y su tipografía, listos para pegar |
-| **Emojis** | `/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
+| **Librerías** | `/library` | Emojis, GIFs e íconos para copiar o bajar, cada uno en su sección. `/library` abre la última que usaste |
+| ↳ **Emojis** | `/library/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
+| ↳ **GIFs** | `/library/gifs` | GIFs y stickers de GIPHY: copiarlos para pegar en un chat, un mail o una presentación, o bajarlos en GIF, MP4 o WEBP |
+| ↳ **Íconos** | `/library/iconos` | Íconos de Magnific: copiar el SVG (Figma e Illustrator lo pegan en vectores) o el PNG, o bajarlos |
 | **GIF** | `/gif` | Banners animados a partir de frames (lo que antes era Programática) |
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 | **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
+| **Retoque** | `/retoque` | Quitarle el fondo a una imagen con Magnific: sale en PNG transparente, del mismo tamaño |
 | **Rest** | `/rest` | Un recreo: el juego del dino y el buscaminas, con ranking semanal del estudio |
 | **Spotify** | `/spotify` | El Jam del estudio: qué suena, la cola y sumar canciones, también desde la burbuja flotante en toda la app |
 
@@ -22,7 +26,7 @@ La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su
 
 ## Cómo se usa: sidebar + barra contextual
 
-- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra.
+- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra. Las librerías (Emojis, GIFs, Íconos) van aparte, al final, bajo **Librerías**.
 - **La barra flotante del centro** cambia según el módulo: es desde donde se hace todo (buscar, filtrar, agregar, exportar, configurar). Al pasar de un módulo a otro se transforma en lugar de recargarse.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
@@ -61,6 +65,8 @@ Abrí http://localhost:3000
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
+| `MAGNIFIC_API_KEY` | Retoque y Librerías → Íconos | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") y para buscar íconos |
+| `GIPHY_API_KEY` | Librerías → GIFs | Sí, para buscar GIFs (ver "Librerías") |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -128,7 +134,7 @@ Para correr lo mismo en local: `pnpm exec tsc --noEmit`, `NEXT_DIST_DIR=.next-bu
 Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
 
 - Favoritos y recientes de emojis.
-- Ajustes de Emojis, GIF y Conversor.
+- Ajustes de Emojis, GIFs, Íconos, GIF y Conversor.
 - Redacciones, y los emojis y hashtags de cada cliente.
 - Las tarjetas que creás quedan a tu nombre y en Filtros aparece **Solo mis tarjetas**. El tablero sigue siendo compartido: todos ven y editan todo, como antes.
 
@@ -180,13 +186,50 @@ select * from visitas_por_usuario;  -- quién entra y cuándo fue la última vez
 
 ---
 
+## Librerías
+
+Los assets de todos los días, cada uno en su sección: **Emojis**, **GIFs** e **Íconos**. En la sidebar van juntos, aparte de las herramientas, y en Inicio son una sola tarjeta.
+
+- **Cada librería tiene su ruta** (`/library/emojis`, `/library/gifs`, `/library/iconos`). `/library` abre la última que usaste en ese navegador (la primera vez, Emojis). `/emojis` sigue andando: lleva a `/library/emojis`.
+- **Lo primero de la barra** es el selector de librería (`components/library/LibrarySwitcher.tsx`): pasa de una a otra sin abrir la sidebar. Después vienen el buscador y los controles de cada una.
+- **Pensadas para usarse desde otras herramientas**: la búsqueda de cada librería es una función (`fetchGifs` en `lib/library/gifs.client.ts`, `fetchIcons` en `lib/library/iconos.client.ts`) y `hooks/usePagedSearch.ts` arma la búsqueda paginada con cualquiera de las dos. Copiar y bajar también son funciones sueltas (`copyGif`, `downloadGif`, `copySvg`, `copyPng`, `downloadIcon`). Un selector de GIFs dentro de Ads o de íconos dentro de Tarjetas se arma con eso, sin tocar la librería. En el registro (`lib/modules.ts`) las librerías son los módulos con `group: "librerias"`.
+
+### GIFs
+
+GIFs y stickers de [GIPHY](https://developers.giphy.com/). Sin búsqueda se ven las tendencias.
+
+- **GIFs / Stickers** en la barra (se recuerda): los stickers tienen el fondo transparente y se ven sobre un cuadriculado.
+- **Al pasar el mouse**: copiar o bajar el GIF. **Tocándolo** se abre en grande, con cada formato y lo que pesa:
+  - **GIF**: el de siempre. **MP4**: para presentaciones (pesa mucho menos y anda en Keynote, PowerPoint y Slides; los stickers no tienen, porque el MP4 no tiene transparencia). **WEBP**: animado y liviano, para la web.
+  - **Copiar GIF**: el portapapeles solo acepta imágenes quietas (PNG), así que se copia como HTML (una imagen que apunta a GIPHY) más su link. Gmail, Docs, Slides y Notion pegan el GIF animado; Slack y los chats pegan el link y lo muestran. También se puede copiar el link de la página de GIPHY.
+- Las descargas pasan por `/api/library/gifs/archivo` (edge) para salir con su nombre; solo baja archivos de GIPHY (`media*.giphy.com`, `i.giphy.com`).
+- La búsqueda la hace el servidor (`lib/library/giphy.server.ts`, con la key) y cada búsqueda queda una hora en la caché de datos de Next (las tendencias, diez minutos): si dos personas buscan lo mismo, GIPHY recibe un solo pedido. Se filtra hasta la clasificación PG-13 y se busca en español.
+- **GIPHY pide que se vea "Powered by GIPHY"** donde se usa su API: está arriba de los resultados y en el detalle (`components/library/gifs/PoweredByGiphy.tsx`; si se suma el logo oficial, va ahí).
+
+**Activarlo**: crear una app (tipo *API*) en [developers.giphy.com/dashboard](https://developers.giphy.com/dashboard) y cargar su key como `GIPHY_API_KEY` en `.env.local` y en Vercel. La key de prueba (*beta*) es gratis pero deja pocos pedidos por hora; para el uso de todo el estudio conviene pedir la de producción desde el mismo panel (GIPHY revisa la app y pide ver la atribución).
+
+### Íconos
+
+Los íconos de [Magnific](https://www.magnific.com/api) (los de Flaticon). Sin búsqueda se ven los destacados.
+
+- **Estilo y tamaño** en la barra (se recuerda): todos, contorno, relleno, contorno a color o a mano; y el tamaño de los PNG (64, 128, 256 o 512 px).
+- **Al pasar el mouse**: copiar o bajar el SVG. **Tocándolo** se abre el detalle: SVG (copiar o bajar) y PNG transparente del tamaño elegido (copiar o bajar).
+- **Copiar SVG** copia el código: Figma e Illustrator lo pegan en vectores. **Copiar PNG** copia la imagen.
+- **Buscar no gasta nada**: las miniaturas son públicas. **Copiar o bajar sí**: cada formato de cada ícono cuenta como una descarga del plan de Magnific. Por eso se pide solo al usarlo, y una sola vez por página abierta (copiar el SVG y después bajarlo es una sola descarga).
+- Cómo funciona: `GET /api/library/iconos` busca (`GET /v1/icons` de Magnific, con la búsqueda guardada una hora en la caché) y `POST /api/library/iconos/descarga` pide el archivo (`GET /v1/icons/{id}/download`). Magnific devuelve un link que vence en minutos; la página lo baja por `/api/magnific/archivo`, la misma ruta firmada de Retoque (ver ahí). Un SVG servido desde nuestro dominio podría traer scripts: esa ruta lo manda con una CSP que no deja correr nada.
+- **A confirmar con la key real**: el filtro de estilo usa `filters[shape]` (como la API de Freepik). Si Magnific lo nombra distinto, "Todos" sigue andando y el resto devuelve un error que se ve en la página; se corrige en `lib/library/iconos.ts`.
+
+**Activarlo**: usa la misma `MAGNIFIC_API_KEY` de Retoque. Revisá que el plan incluya la API de íconos (*Icons API*).
+
+---
+
 ## Emojis
 
 Cerca de 1850 emojis de Apple, con nombres y etiquetas **en español y en inglés**, agrupados por categoría.
 
 **Al entrar** se ven tus **favoritos**, los **recientes** (los últimos 16 que copiaste o bajaste) y las **categorías** (cada una con su primer emoji de portada). No se carga ningún listado hasta que elegís una categoría o buscás.
 
-- **Categoría** (`/emojis?c=…`): trae los emojis de a 60 con **Cargar más**. Mientras llegan se ve un esqueleto y la página aparece entera, de una, cuando cargaron todas sus imágenes. El botón "atrás" del navegador vuelve al inicio.
+- **Categoría** (`/library/emojis?c=…`): trae los emojis de a 60 con **Cargar más**. Mientras llegan se ve un esqueleto y la página aparece entera, de una, cuando cargaron todas sus imágenes. El botón "atrás" del navegador vuelve al inicio.
 - **Búsqueda**: el esqueleto aparece en cascada y los emojis lo van reemplazando **en orden** (izquierda a derecha, arriba a abajo), a medida que cargan.
 - **Click** en un emoji → copia el PNG al portapapeles (o el carácter, si lo cambiás en ajustes).
 - **Buscar + Enter** → copia el primer resultado sin tocar el mouse (si la búsqueda todavía no llegó, lo copia apenas llega).
@@ -292,7 +335,7 @@ El botón amarillo de la barra (o `Ctrl + Enter`) copia con formato: donde se en
 
 Las dos burbujas al costado del texto (☺ y #) abren un panel. Arriba del panel se elige de qué cliente mostrar: arranca en el del texto, pero se puede cambiar para ver o cargar los de otro sin tocar el texto (un aviso indica que no es el del texto, con **Volver**).
 
-- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
+- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/library/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
 - **Hashtags**: los del cliente (uno o todos de un click: inserta solo los que faltan), los que ya escribiste en este texto (con un botón para guardarlos en el cliente) y los recientes de tus otras redacciones.
 
 ### Atajos
@@ -330,6 +373,13 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
 - **La ficha** (`/clientes/<id>`), donde se edita todo y se guarda solo:
   - **Logo**: se suelta o se elige (SVG, PNG, JPG, WEBP o GIF, hasta 5 MB). Se elige sobre qué fondo se ve (claro, oscuro o su color: un logo blanco no se ve sobre papel), y se descarga o se cambia desde ahí.
   - **Foto de perfil como logo**: debajo del logo aparece cada una de sus redes con su foto de perfil; marcar una (como un checkbox) la sube como logo, y desmarcarla lo quita. Una foto de perfil se muestra redonda en toda la app, como en la red. Cada red la da de un tamaño: Facebook 720 px, YouTube 900, X 400, LinkedIn 200, Instagram y TikTok solo 100 (sin iniciar sesión no la dan más grande: se avisa que se puede ver borrosa).
+  - **Logos** (todos los del cliente, cada uno con sus formatos): se sueltan o se eligen muchos archivos de una vez (SVG, AI, EPS, PDF, PNG, JPG, WEBP o GIF, hasta 50 MB cada uno).
+    - **Los que se llaman igual son el mismo logo**: `horizontal.svg`, `horizontal.png` y `horizontal.ai` quedan como un logo «Horizontal» con tres formatos. Sin importar mayúsculas, tildes ni separadores (`Logo_Horizontal` = `logo-horizontal`), y sin el nombre del cliente adelante (`Changan_Isotipo.pdf` → «Isotipo»). Un archivo que se llama como un logo que ya estaba se le suma; si ese logo ya tenía ese formato, lo reemplaza.
+    - **Los formatos son etiquetas**: cada una descarga ese archivo (al pasar el mouse dice su medida y su peso). Los vectoriales (SVG, AI, EPS, PDF) van primero y en negro. El **+** suma otro formato al logo, se llame como se llame el archivo (también se le puede soltar encima). Arriba se filtra por formato («solo los SVG») y **Descargar** baja lo que se ve en un .zip, con una carpeta por grupo.
+    - **Cada grupo ocupa una fila**: si tiene más de 4 logos, se ven los primeros 3 y en el cuarto lugar **+N más**, con una muestra de los que faltan; un click lo abre entero y **Mostrar menos** lo vuelve a cerrar. El grupo que recibe logos nuevos se abre solo, para verlos.
+    - **Grupos**: se crean con **Nuevo grupo** (un nombre o uno de los de siempre: Principal, Horizontal, Isotipo, Negativo…), se renombran en el lugar y se suben o bajan desde su menú. Los logos se arrastran de un grupo a otro, o antes de otro logo para ordenarlos; también con **Mover a** en el menú de cada logo. Archivos soltados en un grupo entran en ese grupo. Eliminar un grupo deja sus logos sin grupo (o los borra, si se elige así).
+    - **Cada logo**: nombre editable, el fondo sobre el que se ve (claro, oscuro o su color; al subirlo se elige solo: un logo blanco con transparencia va sobre oscuro), **Usar como logo del cliente** (pasa a ser el de arriba, su cara en toda la app; lo marca la estrella), **Juntar con** otro logo (para dos archivos con nombres distintos que son el mismo logo), **Quitar un formato**, descargar todos sus formatos en un .zip y eliminarlo.
+    - Si el cliente no tenía logo arriba, el primero que se sube con vista previa pasa a serlo. Un logo que se había subido solo arriba se suma a la lista con **Sumarlo**. AI, EPS y PDF no tienen vista previa: se ve el nombre del formato.
   - **Nombre, color y notas**: el color es el que lo identifica en las listas. Las notas son libres (tono, contactos, links).
   - **Redes**: Instagram, TikTok, Facebook, YouTube, X y LinkedIn. Se pega el link al perfil (la red sale sola del link) o se escribe el usuario y se elige la red. Cada una abre su perfil. En Ads, elegir el cliente pone su usuario de Instagram.
   - **Colores**: la paleta, con nombre para cada color. Un click copia el HEX (o el RGB). Si hay logo, sugiere sus colores para sumarlos de un click. La estrella marca el color del cliente.
@@ -337,11 +387,13 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
   - **Productos**: se agregan y se quitan ahí.
   - **Tarjetas** y **Redacciones**: las suyas, con atajos para crear una nueva para el cliente. Las redacciones son las tuyas (las de los demás no se ven).
   - **Emojis y hashtags**: los que guardaste para el cliente desde los paneles de Redacción. Un click copia.
-  - **Eliminar cliente**: borra su ficha, su logo y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
+  - **Eliminar cliente**: borra su ficha, sus logos y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
 
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+Para los **logos** (varios por cliente, en grupos y con sus formatos), corré `supabase/migracion-logos.sql`: suma a `brands` los logos (`logos`) y sus grupos (`logo_groups`), y deja que el bucket `logos` acepte PDF, AI y EPS de hasta 50 MB. Se puede repetir. Sin ella, la ficha avisa en Logos y todo lo demás (incluido el logo de arriba) anda igual. Cada logo y cada archivo están en `lib/types.ts` (`BrandLogo`, `LogoFile`); cómo se juntan los archivos por nombre, se mueven y se borran los que quedan sin usar, en `lib/clients/logos.ts`; la pantalla, en `components/clients/profile/LogosSection.tsx` y `LogoTile.tsx`.
 
 Para las **redes**, después corré `supabase/migracion-redes.sql`: suma a `brands` las cuentas (`socials`) y de cuál salió el logo (`logo_from`). Se puede repetir. Sin ella, la ficha avisa en Redes y todo lo demás (incluido subir un logo a mano) anda igual. La foto de perfil la busca `GET /api/clientes/foto?red=…&cuenta=…` (solo con sesión del estudio): lee la página pública de cada red y devuelve la imagen, solo si viene del CDN de esa red.
 
@@ -526,6 +578,32 @@ Los mockups adaptados lo dicen debajo del teléfono.
 
 ---
 
+## Retoque
+
+Quitarle el fondo a una imagen con la API de [Magnific](https://www.magnific.com/api) (lo que antes era la API de Freepik). Sale un PNG con el fondo transparente, del mismo tamaño que la original (hasta 25 MP). Es el primer retoque: el módulo está pensado para sumar más (agrandar, cambiar la luz, ampliar el formato…).
+
+- **Agregar**: elegir, arrastrar o pegar (Ctrl+V, desde cualquier parte de la página) una o varias imágenes. Se procesan solas apenas entran, de a dos (Magnific limita los pedidos simultáneos). Cada imagen gasta créditos de Magnific.
+- **Cada tarjeta** muestra en qué paso va (preparando, subiendo, quitando el fondo, bajando el PNG) y, al terminar, el resultado. **Pasando el mouse** (o el dedo) por la imagen se ve la original de un lado de la línea, para comparar los bordes. Se copia (para pegar en Figma, Illustrator o un chat) o se descarga como `nombre (sin fondo).png`. Si falla dice por qué y se puede reintentar.
+- **La barra**: agregar imágenes; sobre qué ver el resultado (cuadriculado para ver la transparencia, blanco o negro para ver los bordes; se recuerda en la cuenta); vaciar la lista; y **Descargar** (con varias, un ZIP `Sin fondo.zip`).
+- **Lo que acepta Magnific**: JPG o PNG de hasta 20 MB y 25 MP. Lo demás (WEBP, GIF, AVIF, una foto enorme) la página lo pasa a JPG, y si hace falta lo achica, antes de subirlo; la tarjeta lo avisa con un ícono ámbar. HEIC solo si el navegador lo abre (Safari sí, Chrome no): si no, pasarla a JPG en el Conversor.
+
+### Cómo funciona
+
+Magnific solo recibe imágenes **por URL**, así que la imagen tiene que estar un rato en internet:
+
+1. La página la prepara (`lib/retoque/prepare.client.ts`) y la sube al bucket **privado** `retoque` de Supabase, en la carpeta de la cuenta de quien la sube (`<id de la cuenta>/<uuid>.jpg`).
+2. `POST /api/retoque/fondo` (`app/api/retoque/fondo/route.ts`) firma un link a esa imagen que vence a los 10 minutos y se lo pasa a Magnific (`POST /v1/ai/beta/remove-background`, que contesta al toque, sin tarea para consultar después). Al terminar, salga bien o mal, **borra la imagen subida** (y lo que haya quedado de más de una hora, por si alguien cerró la pestaña a mitad de camino).
+3. Magnific devuelve la URL del PNG, que vence a los 5 minutos. El servidor no la baja: le da a la página un link firmado a `/api/magnific/archivo` (edge), que lo trae de Magnific y se lo pasa a la página, que lo guarda en memoria para mostrarlo, copiarlo o meterlo en el ZIP. Esa ruta solo baja URLs que firmó una ruta nuestra (con la key de Magnific como clave, `lib/magnific/firma.ts`), así que no es un proxy abierto, y solo les manda la key a los dominios de Magnific. La usan también los íconos de Librerías.
+
+La key vive solo en el servidor (`lib/magnific/api.ts`, header `x-magnific-api-key`; el pedido de quitar fondo está en `lib/retoque/fondo.ts`). Los errores de Magnific se traducen ahí (key inválida, sin créditos, plan sin la función, demasiados pedidos). La cola de cada página está en `hooks/useRetoqueQueue.ts` y la pantalla en `components/retoque/`.
+
+### Activarlo (una sola vez)
+
+1. Sacar una API key en [magnific.com/api](https://www.magnific.com/api) y cargarla como `MAGNIFIC_API_KEY` en `.env.local` y en Vercel (**Settings → Environment Variables**, sin `NEXT_PUBLIC_`). Después, *Redeploy*.
+2. En Supabase → SQL Editor, correr `supabase/migracion-retoque.sql` (después de `migracion-acceso.sql`). Crea el bucket privado `retoque` (JPG y PNG, hasta 20 MB) con la regla de que cada uno solo sube, lee y borra en su carpeta. Se puede correr más de una vez. Sin ella, las tarjetas avisan que falta correrla.
+
+---
+
 ## Rest
 
 Un recreo: juegos cortos para cortar un rato, con ranking del estudio. `/rest` muestra los juegos y quién va primero esta semana en cada uno; cada juego tiene su página, con el ranking al costado. El ranking es **de esta semana** (arranca de cero cada lunes, hora de Montevideo: siempre hay revancha) o **de siempre**, y cuenta la mejor partida de cada uno, con su nombre y su foto de Google.
@@ -593,4 +671,4 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 
 ## Stack
 
-Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional)
+Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional) · Magnific (Retoque e Íconos) · GIPHY (GIFs)
