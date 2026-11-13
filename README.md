@@ -13,6 +13,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 | **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
+| **Retoque** | `/retoque` | Quitarle el fondo a una imagen con Magnific: sale en PNG transparente, del mismo tamaño |
 | **Rest** | `/rest` | Un recreo: el juego del dino y el buscaminas, con ranking semanal del estudio |
 | **Spotify** | `/spotify` | El Jam del estudio: qué suena, la cola y sumar canciones, también desde la burbuja flotante en toda la app |
 
@@ -61,6 +62,7 @@ Abrí http://localhost:3000
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
+| `MAGNIFIC_API_KEY` | Retoque | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -526,6 +528,32 @@ Los mockups adaptados lo dicen debajo del teléfono.
 
 ---
 
+## Retoque
+
+Quitarle el fondo a una imagen con la API de [Magnific](https://www.magnific.com/api) (lo que antes era la API de Freepik). Sale un PNG con el fondo transparente, del mismo tamaño que la original (hasta 25 MP). Es el primer retoque: el módulo está pensado para sumar más (agrandar, cambiar la luz, ampliar el formato…).
+
+- **Agregar**: elegir, arrastrar o pegar (Ctrl+V, desde cualquier parte de la página) una o varias imágenes. Se procesan solas apenas entran, de a dos (Magnific limita los pedidos simultáneos). Cada imagen gasta créditos de Magnific.
+- **Cada tarjeta** muestra en qué paso va (preparando, subiendo, quitando el fondo, bajando el PNG) y, al terminar, el resultado. **Pasando el mouse** (o el dedo) por la imagen se ve la original de un lado de la línea, para comparar los bordes. Se copia (para pegar en Figma, Illustrator o un chat) o se descarga como `nombre (sin fondo).png`. Si falla dice por qué y se puede reintentar.
+- **La barra**: agregar imágenes; sobre qué ver el resultado (cuadriculado para ver la transparencia, blanco o negro para ver los bordes; se recuerda en la cuenta); vaciar la lista; y **Descargar** (con varias, un ZIP `Sin fondo.zip`).
+- **Lo que acepta Magnific**: JPG o PNG de hasta 20 MB y 25 MP. Lo demás (WEBP, GIF, AVIF, una foto enorme) la página lo pasa a JPG, y si hace falta lo achica, antes de subirlo; la tarjeta lo avisa con un ícono ámbar. HEIC solo si el navegador lo abre (Safari sí, Chrome no): si no, pasarla a JPG en el Conversor.
+
+### Cómo funciona
+
+Magnific solo recibe imágenes **por URL**, así que la imagen tiene que estar un rato en internet:
+
+1. La página la prepara (`lib/retoque/prepare.client.ts`) y la sube al bucket **privado** `retoque` de Supabase, en la carpeta de la cuenta de quien la sube (`<id de la cuenta>/<uuid>.jpg`).
+2. `POST /api/retoque/fondo` (`app/api/retoque/fondo/route.ts`) firma un link a esa imagen que vence a los 10 minutos y se lo pasa a Magnific (`POST /v1/ai/beta/remove-background`, que contesta al toque, sin tarea para consultar después). Al terminar, salga bien o mal, **borra la imagen subida** (y lo que haya quedado de más de una hora, por si alguien cerró la pestaña a mitad de camino).
+3. Magnific devuelve la URL del PNG, que vence a los 5 minutos. El servidor no la baja: le da a la página un link firmado a `/api/retoque/archivo` (edge), que lo trae de Magnific y se lo pasa a la página, que lo guarda en memoria para mostrarlo, copiarlo o meterlo en el ZIP. Esa ruta solo baja URLs que firmó el servidor (con la key de Magnific como clave, `lib/retoque/firma.ts`), así que no es un proxy abierto, y solo les manda la key a los dominios de Magnific.
+
+La key vive solo en el servidor (`lib/retoque/magnific.ts`, header `x-magnific-api-key`). Los errores de Magnific se traducen ahí (key inválida, sin créditos, plan sin la función, demasiados pedidos). La cola de cada página está en `hooks/useRetoqueQueue.ts` y la pantalla en `components/retoque/`.
+
+### Activarlo (una sola vez)
+
+1. Sacar una API key en [magnific.com/api](https://www.magnific.com/api) y cargarla como `MAGNIFIC_API_KEY` en `.env.local` y en Vercel (**Settings → Environment Variables**, sin `NEXT_PUBLIC_`). Después, *Redeploy*.
+2. En Supabase → SQL Editor, correr `supabase/migracion-retoque.sql` (después de `migracion-acceso.sql`). Crea el bucket privado `retoque` (JPG y PNG, hasta 20 MB) con la regla de que cada uno solo sube, lee y borra en su carpeta. Se puede correr más de una vez. Sin ella, las tarjetas avisan que falta correrla.
+
+---
+
 ## Rest
 
 Un recreo: juegos cortos para cortar un rato, con ranking del estudio. `/rest` muestra los juegos y quién va primero esta semana en cada uno; cada juego tiene su página, con el ranking al costado. El ranking es **de esta semana** (arranca de cero cada lunes, hora de Montevideo: siempre hay revancha) o **de siempre**, y cuenta la mejor partida de cada uno, con su nombre y su foto de Google.
@@ -593,4 +621,4 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 
 ## Stack
 
-Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional)
+Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional) · Magnific (Retoque)

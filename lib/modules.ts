@@ -1,4 +1,4 @@
-import { ArrowDownToLine, Briefcase, Disc3, Film, Gamepad2, House, Megaphone, PenLine, RefreshCw, Smile, StickyNote, type LucideIcon } from "lucide-react";
+import { ArrowDownToLine, Briefcase, Disc3, Film, Gamepad2, House, Megaphone, PenLine, RefreshCw, Smile, StickyNote, WandSparkles, type LucideIcon } from "lucide-react";
 
 export type AppModule = {
   href: string;
@@ -20,6 +20,7 @@ export const MODULES: AppModule[] = [
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine },
   { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone },
+  { href: "/retoque", label: "Retoque", description: "Quitale el fondo a una imagen con Magnific", icon: WandSparkles },
   { href: "/rest", label: "Rest", description: "Un recreo: juegos cortos con ranking del estudio", icon: Gamepad2 },
   { href: "/spotify", label: "Spotify", description: "El Jam del estudio: qué suena y sumá canciones", icon: Disc3 },
 ];
