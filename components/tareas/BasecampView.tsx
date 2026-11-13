@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, History, Link2, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUpRight, History, Loader2, RefreshCw } from "lucide-react";
 import { BarAction, BarButton, BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
 import { useBasecampSync } from "@/hooks/useBasecampSync";
@@ -9,7 +9,7 @@ import { conectarUrl, useIntegraciones } from "@/hooks/useIntegraciones";
 import type { BoardResumen } from "@/lib/board/tipos";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
-import { BasecampMark, BoardNav, hace } from "./comun";
+import { BasecampGlyph, BasecampMark, BoardNav, hace } from "./comun";
 
 const numero = (n: number) => n.toLocaleString("es-UY");
 
@@ -66,8 +66,8 @@ export function BasecampView() {
   }, []);
 
   const bc = data?.basecamp ?? null;
-  const persona = typeof bc?.datos?.persona === "string" ? bc.datos.persona : null;
-  const email = typeof bc?.datos?.email === "string" ? bc.datos.email : null;
+  const persona = bc?.datos?.persona ?? null;
+  const email = bc?.datos?.email ?? null;
   const configurado = Boolean(data?.listo.basecamp && data?.listo.secreto);
   const conectar = () => {
     window.location.href = conectarUrl("basecamp");
@@ -101,7 +101,7 @@ export function BasecampView() {
         {!bc && configurado && (
           <>
             <BarDivider />
-            <BarAction label="Conectar Basecamp" icon={Link2} onClick={conectar} compact={false}>
+            <BarAction label="Conectar Basecamp" icon={BasecampGlyph} onClick={conectar} compact={false}>
               Conectar Basecamp
             </BarAction>
           </>
@@ -151,7 +151,7 @@ export function BasecampView() {
                 Todavía no hay ninguna cuenta conectada. Conectá una que esté en todos los proyectos (una admin): la app ve lo mismo que esa persona.
               </p>
               <button type="button" onClick={conectar} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:brightness-95">
-                <Link2 className="h-4 w-4" /> Conectar Basecamp
+                <BasecampGlyph className="h-4 w-4" /> Conectar Basecamp
               </button>
             </div>
           ) : (

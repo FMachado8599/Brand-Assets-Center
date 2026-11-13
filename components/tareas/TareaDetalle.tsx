@@ -26,7 +26,7 @@ import {
 } from "@/lib/board/flujo";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Avatar } from "./comun";
+import { Avatar, BasecampGlyph } from "./comun";
 import { SelectSimple } from "./equipo/piezas";
 import { fechaCorta } from "./TareaCard";
 
@@ -180,8 +180,9 @@ export function TareaDetalle({
             <DialogDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <span>En Basecamp: {t.columna ?? "—"}</span>
               {t.app_url && (
-                <a href={t.app_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-medium text-foreground underline-offset-2 hover:underline">
-                  Abrir en Basecamp <ArrowUpRight className="h-3.5 w-3.5" />
+                <a href={t.app_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-2 hover:underline">
+                  <BasecampGlyph className="h-3.5 w-3.5" />
+                  Abrir en Basecamp <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5" />
                 </a>
               )}
             </DialogDescription>

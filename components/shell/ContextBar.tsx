@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type ComponentType,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -17,6 +18,9 @@ import { Loader2, Search, X, type LucideIcon } from "lucide-react";
 import { Hint } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+
+/** Un ícono de lucide o uno propio (ej: el logo de Basecamp) que acepte className. */
+export type BarIcon = LucideIcon | ComponentType<{ className?: string }>;
 
 /**
  * Barra contextual: una sola píldora flotante que vive en el layout y cada
@@ -104,7 +108,7 @@ export function ContextBarHost({ onTarget }: { onTarget: (el: HTMLElement | null
 
 type BarButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
-  icon?: LucideIcon;
+  icon?: BarIcon;
   /** Reemplaza al ícono cuando hace falta algo propio (ej: una muestra de color). */
   glyph?: ReactNode;
   /** Estado de un toggle: pinta el botón activo y expone aria-pressed. */
@@ -144,7 +148,7 @@ BarButton.displayName = "BarButton";
 
 type BarActionProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
-  icon: LucideIcon;
+  icon: BarIcon;
   /** En pantallas chicas la etiqueta se oculta y queda solo el ícono. */
   compact?: boolean;
 };
@@ -199,7 +203,7 @@ type BarSearchProps = {
   /** Atajo "/" para enfocar el buscador desde cualquier lado. */
   shortcut?: boolean;
   /** Reemplaza la lupa cuando el campo no es para buscar (ej: pegar un link). */
-  icon?: LucideIcon;
+  icon?: BarIcon;
   className?: string;
 };
 
@@ -264,7 +268,7 @@ export const BarSearch = forwardRef<HTMLInputElement, BarSearchProps>(
 );
 BarSearch.displayName = "BarSearch";
 
-type SegmentOption<T extends string> = { value: T; label: string; icon?: LucideIcon };
+type SegmentOption<T extends string> = { value: T; label: string; icon?: BarIcon };
 
 /** Selector de dos o tres opciones con una píldora amarilla que se desliza a la elegida. */
 export function BarSegmented<T extends string>({
@@ -349,7 +353,7 @@ export function BarPopover({
   focusPanel,
 }: {
   label: string;
-  icon?: LucideIcon;
+  icon?: BarIcon;
   glyph?: ReactNode;
   badge?: number | string;
   highlight?: boolean;
