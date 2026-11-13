@@ -4,8 +4,11 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { toast } from "@/components/ui/toaster";
 import { refreshClients } from "@/hooks/useClients";
 import { refreshIntegraciones, useIntegraciones } from "@/hooks/useIntegraciones";
+// Solo tipos (se borran al compilar): los mismos que devuelve /api/basecamp/sync.
+import type { SyncPaso as Paso, SyncRespuesta } from "@/lib/integraciones/basecamp-sync";
 
-type Paso = "personas" | "proyectos" | "miembros" | "tareas" | "columnas" | "actividad" | "listo";
+/** Lo que responde /api/basecamp/sync: un paso hecho, o un error (ocupado si otro ya sincroniza). */
+type Respuesta = Partial<SyncRespuesta> & { error?: string; ocupado?: boolean };
 
 type State = { corriendo: boolean; paso: Paso | null; detalle: string; error: string | null };
 
@@ -50,17 +53,18 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(paso === "personas" ? { paso, completa } : { paso }),
       });
-      const body = await r.json().catch(() => ({}));
+      const body = (await r.json().catch(() => ({}))) as Respuesta;
       if (!r.ok) {
         if (body.ocupado) {
-          if (!silencioso) toast(body.error, "error");
+          if (!silencioso) toast(body.error ?? "Alguien ya está sincronizando Basecamp", "error");
           break;
         }
         throw new Error(body.error ?? `Error ${r.status}`);
       }
+      if (!body.siguiente) throw new Error("Basecamp: respuesta inesperada del servidor");
       if (body.paso === "proyectos") nuevos = body.resumen?.clientesNuevos ?? [];
       if (body.paso === "actividad" && body.siguiente === "listo") cambiosEquipo = body.resumen?.actividad ?? null;
-      paso = body.siguiente as Paso;
+      paso = body.siguiente;
       set({ paso, detalle: body.detalle ?? "" });
     }
     if (paso === "listo") {

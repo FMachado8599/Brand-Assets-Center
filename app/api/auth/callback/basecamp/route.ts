@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { studioSession } from "@/lib/access";
-import { basecampExchangeCode, basecampIdentity, expiraDesde } from "@/lib/integraciones/basecamp";
+import { basecampExchangeCode, basecampIdentity, expiraDesde, type BasecampDatos } from "@/lib/integraciones/basecamp";
 import { terminarOAuth, volverCon } from "@/lib/integraciones/oauth-state";
 import { appOrigin, guardarConexion, leerPublicas } from "@/lib/integraciones/store";
 import { createSupabaseServer } from "@/lib/supabase-server";
@@ -11,9 +11,12 @@ export const dynamic = "force-dynamic";
  * Vuelta de 37signals: se canjea el código, se elige la cuenta de Basecamp (bc3) y se guardan los
  * tokens cifrados. La ruta es la misma que ya está registrada para el panel de STATUS.
  */
+/** La pantalla que muestra el resultado (?basecamp=…) cuando no se sabe de dónde se vino. */
+const PANTALLA = "/board/basecamp";
+
 export async function GET(request: NextRequest) {
   const volver = terminarOAuth(request, "basecamp");
-  if (!volver) return volverCon(request, "basecamp", "/clientes", "error", "El pedido venció o no coincide. Probá de nuevo.");
+  if (!volver) return volverCon(request, "basecamp", PANTALLA, "error", "El pedido venció o no coincide. Probá de nuevo.");
 
   const code = request.nextUrl.searchParams.get("code");
   if (!code) return volverCon(request, "basecamp", volver, "error", request.nextUrl.searchParams.get("error") ?? "Basecamp no autorizó la conexión");
@@ -32,19 +35,20 @@ export async function GET(request: NextRequest) {
     if (!cuenta) return volverCon(request, "basecamp", volver, "error", "Esa cuenta de Basecamp no tiene ninguna cuenta Basecamp 3/4 asociada");
 
     const session = await studioSession(db);
+    const datos: BasecampDatos = {
+      persona_id: identity.identity.id,
+      persona: `${identity.identity.first_name} ${identity.identity.last_name}`.trim(),
+      email: identity.identity.email_address,
+    };
     await guardarConexion(db, {
       proveedor: "basecamp",
       cuenta_id: String(cuenta.id),
       cuenta_nombre: cuenta.name,
-      conectada_por: session?.email ?? `${identity.identity.first_name} ${identity.identity.last_name}`.trim(),
+      conectada_por: session?.email ?? datos.persona ?? null,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token ?? null,
       expira: expiraDesde(tokens.expires_in),
-      datos: {
-        persona_id: identity.identity.id,
-        persona: `${identity.identity.first_name} ${identity.identity.last_name}`.trim(),
-        email: identity.identity.email_address,
-      },
+      datos,
     });
     return volverCon(request, "basecamp", volver, "conectado");
   } catch (e) {
