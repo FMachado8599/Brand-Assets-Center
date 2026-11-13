@@ -114,6 +114,7 @@ export function ClientsShell() {
                 key={client.id}
                 client={client}
                 stats={[
+                  [client.logos?.length ?? 0, "logo", "logos"],
                   [counts.cards.get(client.id) ?? 0, "tarjeta", "tarjetas"],
                   [counts.products.get(client.id) ?? 0, "producto", "productos"],
                   [client.font_families?.length ?? 0, "tipografía", "tipografías"],

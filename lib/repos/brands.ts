@@ -7,7 +7,19 @@ const LOGOS = "logos";
 export type BrandPatch = Partial<
   Pick<
     Brand,
-    "name" | "color" | "logo_url" | "logo_path" | "logo_bg" | "palette" | "font_families" | "notes" | "socials" | "logo_from" | "voz_marca"
+    | "name"
+    | "color"
+    | "logo_url"
+    | "logo_path"
+    | "logo_bg"
+    | "palette"
+    | "font_families"
+    | "notes"
+    | "socials"
+    | "logo_from"
+    | "voz_marca"
+    | "logos"
+    | "logo_groups"
   >
 >;
 
@@ -19,11 +31,16 @@ export const brandsRepo = {
   update: (id: string, patch: BrandPatch) => supabase.from("brands").update(patch).eq("id", id).select().single(),
   remove: (id: string) => supabase.from("brands").delete().eq("id", id),
 
-  /** Sube un logo y devuelve su ruta y su URL pública. */
-  async uploadLogo(file: File) {
+  /**
+   * Sube un logo y devuelve su ruta y su URL pública. `contentType`: con qué tipo se guarda (un .ai
+   * o un .eps suele llegar sin tipo, y el bucket solo acepta los que conoce).
+   */
+  async uploadLogo(file: File, contentType?: string) {
     const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "");
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage.from(LOGOS).upload(path, file, { contentType: file.type || undefined });
+    const { error } = await supabase.storage
+      .from(LOGOS)
+      .upload(path, file, { contentType: contentType || file.type || undefined });
     if (error) return { error, path: "", url: "" };
     const { data } = supabase.storage.from(LOGOS).getPublicUrl(path);
     return { error: null, path, url: data.publicUrl };
@@ -32,6 +49,9 @@ export const brandsRepo = {
   /** Borra el archivo de un logo que ya no se usa. Si falla no pasa nada: queda un archivo huérfano. */
   removeLogoFile: (path: string | null | undefined) =>
     path ? supabase.storage.from(LOGOS).remove([path]) : Promise.resolve(null),
+
+  /** Lo mismo con varios archivos de una vez. */
+  removeLogoFiles: (paths: string[]) => (paths.length ? supabase.storage.from(LOGOS).remove(paths) : Promise.resolve(null)),
 };
 
 /** En la base el nombre del cliente es único. */
@@ -44,10 +64,18 @@ export const isMissingClientsMigration = (message: string) =>
 /** Falta correr supabase/migracion-redes.sql: las columnas de las redes no existen. */
 export const isMissingSocialsMigration = (message: string) => /socials|logo_from/i.test(message);
 
+/**
+ * Falta correr supabase/migracion-logos.sql: no existen las columnas de los logos, o el bucket
+ * todavía no acepta PDF, AI ni EPS (o no los acepta de ese tamaño).
+ */
+export const isMissingLogosMigration = (message: string) =>
+  /'logos'|"logos"|logo_groups|mime type|exceeded the maximum allowed size/i.test(message);
+
 /** El error de guardar algo de un cliente, en palabras de la app. */
 export function clientErrorMessage(error: { message: string }) {
   if (isDuplicateName(error.message)) return "Ya hay un cliente con ese nombre";
   if (isMissingSocialsMigration(error.message)) return "Falta correr supabase/migracion-redes.sql en Supabase";
+  if (isMissingLogosMigration(error.message)) return "Falta correr supabase/migracion-logos.sql en Supabase";
   if (isMissingClientsMigration(error.message)) return "Falta correr supabase/migracion-clientes.sql en Supabase";
   return error.message;
 }
