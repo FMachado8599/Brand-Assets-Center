@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { RetoqueShell } from "@/components/retoque/RetoqueShell";
-import { hasMagnificKey } from "@/lib/retoque/magnific";
+import { hasMagnificKey } from "@/lib/magnific/api";
 
 export const dynamic = "force-dynamic";
 

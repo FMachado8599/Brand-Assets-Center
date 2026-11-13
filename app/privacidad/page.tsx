@@ -106,7 +106,11 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
         </li>
         <li>
           <strong>Magnific:</strong> las imágenes a las que les quitás el fondo en Retoque se mandan a Magnific para
-          procesarse.
+          procesarse. Lo que buscás en Íconos también se le manda, para encontrar los íconos.
+        </li>
+        <li>
+          <strong>GIPHY:</strong> lo que buscás en GIFs se manda a GIPHY para encontrar los GIFs, y los GIFs se ven
+          desde GIPHY. Solo viaja la búsqueda.
         </li>
       </ul>
     ),

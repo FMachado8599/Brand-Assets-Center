@@ -19,5 +19,9 @@ const nextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Emojis pasó a ser una de las librerías: los links viejos (con ?c=categoría) siguen andando.
+  async redirects() {
+    return [{ source: "/emojis", destination: "/library/emojis", permanent: false }];
+  },
 };
 export default nextConfig;

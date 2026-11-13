@@ -2,7 +2,7 @@
 -- Retoque: donde espera cada imagen mientras Magnific le quita el fondo
 --  - Magnific solo recibe imágenes por URL: el navegador sube la imagen a este bucket privado, el
 --    servidor le pasa a Magnific un link firmado que vence a los 10 minutos y la borra apenas termina.
---  - El resultado no se guarda acá: la página lo baja directo (a través de /api/retoque/archivo).
+--  - El resultado no se guarda acá: la página lo baja directo (a través de /api/magnific/archivo).
 --  - Cada persona solo puede subir, leer y borrar en su carpeta (<id de su cuenta>/…).
 -- Correr DESPUÉS de migracion-acceso.sql (usa has_access()).
 -- Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez.

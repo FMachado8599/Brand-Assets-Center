@@ -1,19 +1,20 @@
 /**
- * Links firmados a /api/retoque/archivo. El resultado de Magnific se baja a través de este servidor (no se
- * sabe si su CDN habilita CORS, y la página lo necesita en memoria para copiarlo o ponerlo en un ZIP), pero
- * esa ruta no puede ser un proxy abierto: solo baja URLs que firmó /api/retoque/fondo, y por pocos minutos.
+ * Links firmados a /api/magnific/archivo. Lo que devuelve Magnific (un PNG sin fondo, un ícono) se baja a
+ * través de este servidor: no se sabe si su CDN habilita CORS, y la página lo necesita en memoria para
+ * copiarlo o meterlo en un ZIP. Pero esa ruta no puede ser un proxy abierto: solo baja URLs que firmó una
+ * ruta nuestra (/api/retoque/fondo, /api/library/iconos/descarga), y por pocos minutos.
  *
- * Usa Web Crypto, así anda igual en Node (fondo) y en edge (archivo). La clave es la de Magnific: si se
- * cambia, los links que estaban dando vueltas dejan de valer.
+ * Usa Web Crypto, así anda igual en Node (quien firma) y en edge (archivo). La clave es la de Magnific: si
+ * se cambia, los links que estaban dando vueltas dejan de valer.
  */
 
 const encoder = new TextEncoder();
 
-/** Magnific deja los resultados 5 minutos: el link no tiene sentido después. */
+/** Magnific deja los resultados 5 minutos: el link no tiene sentido después (y se usa al toque). */
 const TTL_SECONDS = 5 * 60;
 
 function hmacKey(secret: string, usage: "sign" | "verify") {
-  return crypto.subtle.importKey("raw", encoder.encode(`retoque:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, [usage]);
+  return crypto.subtle.importKey("raw", encoder.encode(`magnific:${secret}`), { name: "HMAC", hash: "SHA-256" }, false, [usage]);
 }
 
 function toBase64Url(bytes: Uint8Array) {
@@ -32,7 +33,7 @@ export async function signedFilePath(url: string, secret: string) {
   const exp = Math.floor(Date.now() / 1000) + TTL_SECONDS;
   const sig = await crypto.subtle.sign("HMAC", await hmacKey(secret, "sign"), encoder.encode(`${exp}.${url}`));
   const params = new URLSearchParams({ u: url, e: String(exp), s: toBase64Url(new Uint8Array(sig)) });
-  return `/api/retoque/archivo?${params}`;
+  return `/api/magnific/archivo?${params}`;
 }
 
 export type Verdict = "ok" | "expired" | "invalid";

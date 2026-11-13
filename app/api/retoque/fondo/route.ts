@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { signedFilePath } from "@/lib/retoque/firma";
-import { errorResponse, MagnificError, magnificKey, removeBackground } from "@/lib/retoque/magnific";
+import { errorResponse, MagnificError, magnificKey } from "@/lib/magnific/api";
+import { signedFilePath } from "@/lib/magnific/firma";
+import { removeBackground } from "@/lib/retoque/fondo";
 import { isOwnPath, RETOQUE_BUCKET, storageMessage } from "@/lib/retoque/storage";
 import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
@@ -13,7 +14,7 @@ const STALE_MS = 60 * 60 * 1000;
 
 /**
  * Quita el fondo de una imagen que el navegador ya subió a Storage (lib/retoque/storage.ts):
- *   { path: "<id de la cuenta>/<uuid>.jpg" } → { file: "/api/retoque/archivo?…" }
+ *   { path: "<id de la cuenta>/<uuid>.jpg" } → { file: "/api/magnific/archivo?…" }
  * La imagen subida se borra al terminar, salga bien o mal. El resultado no se guarda: la página lo baja
  * con el link firmado de `file`, que vence a los 5 minutos.
  */
