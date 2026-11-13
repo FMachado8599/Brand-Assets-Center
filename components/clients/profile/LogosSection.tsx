@@ -676,7 +676,7 @@ function LogoGrid({ group, ...props }: GroupProps & { group: string | null }) {
             <button
               type="button"
               onClick={() => props.onPick(group)}
-              className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-foreground/15 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+              className="flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-foreground/15 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
             >
               <Plus className="h-5 w-5" />
               Sumar logos
@@ -709,7 +709,7 @@ function MoreTile({ brand, hidden, onOpen }: { brand: Brand; hidden: BrandLogo[]
         type="button"
         onClick={onOpen}
         aria-label={label}
-        className="group/more relative grid aspect-[4/3] w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl bg-secondary/70 p-1 ring-1 ring-inset ring-black/[0.06]"
+        className="group/more relative grid aspect-square w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl bg-secondary/70 p-1 ring-1 ring-inset ring-black/[0.06]"
       >
         {Array.from({ length: 4 }, (_, i) => {
           const logo = sample[i];

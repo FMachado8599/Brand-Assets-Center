@@ -95,7 +95,7 @@ export function LogoTile({
         }}
         onDragEnd={actions.dragEnd}
         className={cn(
-          "relative aspect-[4/3] cursor-grab overflow-hidden rounded-2xl ring-1 ring-inset ring-black/[0.08] transition-shadow active:cursor-grabbing",
+          "relative aspect-square cursor-grab overflow-hidden rounded-2xl ring-1 ring-inset ring-black/[0.08] transition-shadow active:cursor-grabbing",
           over && "ring-2 ring-ring ring-offset-2 ring-offset-card"
         )}
         style={{ background: bg, color: ink }}
@@ -207,7 +207,7 @@ export function LogoTile({
 export function PendingTile({ name }: { name: string }) {
   return (
     <li className="flex min-w-0 flex-col gap-2" aria-busy>
-      <div className="skeleton grid aspect-[4/3] place-items-center rounded-2xl">
+      <div className="skeleton grid aspect-square place-items-center rounded-2xl">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
       <p className="truncate px-1 text-sm font-semibold text-muted-foreground">{name}</p>

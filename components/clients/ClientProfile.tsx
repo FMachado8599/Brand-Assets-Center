@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, PenLine, StickyNote, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Download, PenLine, Star, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { useData } from "@/components/data/DataProvider";
 import { BarButton, BarDivider, ContextBar } from "@/components/shell/ContextBar";
@@ -12,6 +12,7 @@ import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { useBrandKits } from "@/hooks/useBrandKits";
 import { forgetClient, getClient, refreshClients, rememberClient, useClients } from "@/hooks/useClients";
+import { useFavoriteClients } from "@/hooks/useFavoriteClients";
 import { useRedacciones } from "@/hooks/useRedacciones";
 import { brandsRepo, clientErrorMessage, type BrandPatch } from "@/lib/repos/brands";
 import { LOGO_ACCEPT, logoProblem } from "@/lib/clients/logo";
@@ -46,6 +47,7 @@ export function ClientProfile({ id }: { id: string }) {
   const { cards, products, fonts, reload, loading: dataLoading } = useData();
   const redacciones = useRedacciones();
   const kits = useBrandKits();
+  const favorites = useFavoriteClients();
   const brand = clients.find((c) => c.id === id) ?? null;
   const leaving = useRef(false);
 
@@ -159,6 +161,17 @@ export function ClientProfile({ id }: { id: string }) {
             <ClientMark brand={brand} className="h-7 w-7 rounded-full text-xs" pad="p-[18%]" />
             <span className="hidden truncate text-sm font-semibold tracking-tight text-cream sm:inline">{brand.name}</span>
           </span>
+          <BarButton
+            label={favorites.has(id) ? "Quitar de favoritos" : "Agregar a favoritos (va primero en Clientes)"}
+            icon={Star}
+            glyph={<Star className={cn("h-[18px] w-[18px]", favorites.has(id) && "fill-current")} />}
+            pressed={favorites.has(id)}
+            onClick={() => {
+              const was = favorites.has(id);
+              favorites.toggle(id);
+              toast(was ? `${brand.name} ya no está en favoritos` : `${brand.name} está en favoritos`);
+            }}
+          />
           <BarDivider />
           <BarButton label="Nueva tarjeta" icon={StickyNote} onClick={() => router.push(`/tarjetas?nueva=${id}`)} />
           <BarButton label="Nueva redacción" icon={PenLine} onClick={() => router.push(`/redaccion?cliente=${id}`)} />
@@ -332,8 +345,9 @@ function ProfileHeader({
     "grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
 
   return (
-    <header className="grid gap-6 md:grid-cols-[minmax(0,22rem)_1fr] md:gap-10">
-      <div>
+    <header className="grid gap-6 md:grid-cols-[minmax(0,17rem)_1fr] md:gap-10">
+      {/* El logo va cuadrado (como casi todos los logos y las fotos de perfil); en el celular, sin ocupar todo el ancho. */}
+      <div className="w-full max-w-[17rem] md:max-w-none">
         <LogoDrop
           preview={brand.logo_url ?? null}
           photo={!!brand.logo_from}
@@ -341,7 +355,7 @@ function ProfileHeader({
           onFile={(file) => changeLogo(file)}
           busy={logoBusy}
           hint="Soltá el logo acá o hacé click · SVG, PNG o JPG"
-          className="aspect-[4/3] w-full rounded-[1.75rem]"
+          className="aspect-square w-full rounded-[1.75rem]"
         />
         {brand.logo_url && (
           <div className="mt-2 flex items-center gap-1">
