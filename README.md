@@ -574,6 +574,31 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 
 ---
 
+## Board: notificaciones de Basecamp
+
+La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en el Board) y muestra **primero lo que es para vos**. Veinte comentarios de algo que no es tuyo nunca tapan una mención o una tarea tuya que vence mañana.
+
+- **A quién le llega.** Cada aviso se reparte solo a quien le importa, con un motivo: **te nombraron** (@vos), **te la asignaron** (en Basecamp, o te la pasaron en el Board), **tu tarea** (asignada, tomada o sos el designado de esa etapa), **tu conversación** (la creaste, comentaste o te nombraron ahí) o **tu marca** (algo de una marca tuya, en tu sector: una card de Medios de Amstel no le llega a la redactora de Amstel; Cuentas sigue todos los tableros de sus marcas). A quien no le corresponde nada de eso, no le llega nada. Lo que hace uno mismo no le avisa.
+- **Cómo se ordena.** Se agrupa por conversación ("5 comentarios" es una fila). Arriba, **Para vos, ahora**: menciones, asignaciones y novedades en algo tuyo vencido o que vence hoy o mañana. Después **tus tareas y conversaciones**. Lo de **tus marcas** que no es tuyo no aparece en "Para mí" (ni suma al número de la campanita): está en **Todo**, plegado. Dentro de cada grupo manda un puntaje: el motivo (mención 5, asignación 4, tu tarea 3, tu conversación 2, tu marca 1) más lo urgente de la tarea (vencida +4, vence pronto +2).
+- **Filtros**: Para mí · Menciones · Todo, y el orden: **Prioridad** o **Recientes**. Se recuerdan en la cuenta de cada uno.
+- Tocar una fila la abre en Basecamp (en la respuesta exacta) y la marca como leída; si es una card, **Ver en el Board** abre la tarea. Con la app abierta, solo lo de "Para vos, ahora" muestra además un aviso.
+- Los avisos llegan al instante por **webhooks** de Basecamp, que además dejan la card al día en el Board (columna, asignados, comentarios) sin esperar a la sincronización.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-notificaciones.sql`, después de `migracion-integraciones.sql`, `migracion-board.sql`, `migracion-equipo.sql` y `migracion-flujo.sql`. Se puede repetir.
+2. Que la app publicada sepa su dirección: en Vercel alcanza con el dominio de producción; si no, `APP_URL=https://…` (tiene que ser https: Basecamp no avisa a otra cosa).
+3. Sincronizar Basecamp desde la app publicada (Board → Basecamp → Actualizar). El paso **Avisos al instante** registra un webhook en cada proyecto activo y guarda el hash de la llave. Abajo de la sincronización dice en cuántos proyectos quedaron.
+
+Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
+
+### Cómo funciona por dentro
+
+- Basecamp no firma los avisos: la URL (`/api/basecamp/webhook?llave=…`) lleva una llave que sale de `INTEGRACIONES_SECRET`. En la base queda solo su hash, y `bc_recibir_evento` (la única puerta, sin sesión) valida cada aviso contra él. Cambiar `INTEGRACIONES_SECRET` invalida la llave hasta la próxima sincronización, que la actualiza en cada webhook.
+- Basecamp reintenta hasta 10 veces un aviso que no conteste 2xx y después **apaga el webhook**. La sincronización revisa cada proyecto una vez por día y lo vuelve a prender.
+- Las menciones se reconocen por el `<bc-attachment sgid="…">` de Basecamp (adentro viene el id de la persona).
+- Cada uno ve solo sus notificaciones (RLS). Se guardan 45 días; los eventos, 90.
+
 ## Stack
 
 Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional)

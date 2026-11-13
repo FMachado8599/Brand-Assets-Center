@@ -22,6 +22,7 @@ import {
   type Etapa,
   type TareaFlujo,
 } from "@/lib/board/flujo";
+import { ABRIR_TAREA } from "@/lib/notificaciones/prioridad";
 import { fold } from "@/lib/redaccion/text";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,21 @@ export function MiTablero() {
   const [ocultas, setOcultas] = useStoredState<number[]>("board:ocultas", []);
   const [verOcultas, setVerOcultas] = useState(false);
   const [validaciones, setValidaciones] = useState<Map<number, Set<string>>>(new Map());
+
+  // Desde la campanita: /board?tarea=123 al entrar, o el evento si ya se está en el Board.
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("tarea"));
+    if (id) {
+      setAbierta(id);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    const abrir = (e: Event) => {
+      const tarea = Number((e as CustomEvent<number>).detail);
+      if (tarea) setAbierta(tarea);
+    };
+    window.addEventListener(ABRIR_TAREA, abrir);
+    return () => window.removeEventListener(ABRIR_TAREA, abrir);
+  }, []);
 
   const ctx: Contexto | null = useMemo(() => (equipo ? armarContexto(equipo) : null), [equipo]);
   const marcaPorId = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);

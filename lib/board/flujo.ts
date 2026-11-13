@@ -65,7 +65,10 @@ export type TareaFlujo = TareaBoard & {
   vigencia: string | null;
 };
 
-export const etapaDe = (t: TareaFlujo): Etapa => t.etapa ?? etapaDesdeBasecamp(t);
+/** Lo que hace falta de una tarea para saber su etapa y qué tan urgente es (ej: desde una notificación). */
+export type TareaTono = Pick<TareaFlujo, "etapa" | "estado" | "columna" | "tablero" | "completada" | "pausada" | "vence">;
+
+export const etapaDe = (t: Omit<TareaTono, "pausada" | "vence">): Etapa => t.etapa ?? etapaDesdeBasecamp(t);
 
 export type Movimiento = {
   id: number;
@@ -253,7 +256,7 @@ export const TONOS_LEYENDA: Tono[] = ["vencida", "pronto", "curso", "esperando",
 const diaISO = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Terminada > en pausa > vencida > vence hoy o mañana > esperando a otro > en curso > por empezar. */
-export function tonoDe(t: TareaFlujo, hoy = new Date()): Tono {
+export function tonoDe(t: TareaTono, hoy = new Date()): Tono {
   const etapa = etapaDe(t);
   if (etapa === "finalizada") return "finalizada";
   if (t.pausada) return "pausada";

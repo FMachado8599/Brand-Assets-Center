@@ -10,6 +10,7 @@ import { JamBurbuja } from "@/components/spotify/jam/JamBurbuja";
 import { activeModule, LAST_MODULE_KEY, type AppModule } from "@/lib/modules";
 import { AccountPill } from "./AccountPill";
 import { AccountProvider } from "./AccountProvider";
+import { NotificacionesPill, useNotificacionesVisibles } from "./Notificaciones";
 import { BarTargetProvider, ContextBarHost } from "./ContextBar";
 import { Sidebar } from "./Sidebar";
 import { VisitTracker } from "./VisitTracker";
@@ -52,7 +53,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
               <ContextBarHost onTarget={setTarget} />
             </div>
             <div className="flex shrink-0 justify-end lg:w-48">
-              <AccountPill />
+              <CuentaYAvisos />
             </div>
           </div>
 
@@ -65,6 +66,17 @@ export function AppFrame({ children }: { children: ReactNode }) {
         </BarTargetProvider>
       </AccountProvider>
     </TooltipProvider>
+  );
+}
+
+/** La campanita y la cuenta, arriba a la derecha. Con la campanita, la cuenta muestra solo la foto. */
+function CuentaYAvisos() {
+  const conAvisos = useNotificacionesVisibles();
+  return (
+    <div className="flex items-start gap-1.5">
+      <NotificacionesPill />
+      <AccountPill compact={conAvisos} />
+    </div>
   );
 }
 
