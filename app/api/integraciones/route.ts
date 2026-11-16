@@ -3,7 +3,7 @@ import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supab
 import { hasBasecampEnv } from "@/lib/integraciones/basecamp";
 import { hasSecret } from "@/lib/integraciones/crypto";
 import { hasGoogleEnv } from "@/lib/integraciones/google";
-import { borrarConexion, leerPublicas, type Proveedor } from "@/lib/integraciones/store";
+import { borrarConexion, esAdminApp, leerPublicas, type Proveedor } from "@/lib/integraciones/store";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Proveedor desconocido" }, { status: 400 });
   }
   try {
-    await borrarConexion(createSupabaseServer(), proveedor as Proveedor);
+    const db = createSupabaseServer();
+    if (proveedor === "basecamp" && !(await esAdminApp(db))) {
+      return NextResponse.json({ error: "Solo un admin de la app puede desconectar Basecamp" }, { status: 403 });
+    }
+    await borrarConexion(db, proveedor as Proveedor);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

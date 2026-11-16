@@ -687,6 +687,19 @@ La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en el Board
 
 Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
 
+### La conexión con Basecamp (solo admins)
+
+Hay dos cuentas de Basecamp distintas:
+
+- **La del estudio**: una sola, la autoriza un **admin de Basecamp** y trae todo (proyectos, tareas, gente y los avisos al instante). La ven y la manejan solo los admins de la app, en Board → Basecamp.
+- **La personal de cada uno**: su persona de Basecamp, que se vincula sola por el mail. De ahí salen sus tareas y sus notificaciones. No hay que conectar nada.
+
+Si quien administra la app no es admin de Basecamp, en Board → Basecamp genera un **link para un admin de Basecamp**. Se lo manda (ej: a Milena), ella lo abre, autoriza con su cuenta y listo: no necesita entrar a la app. El link vale 24 h y una sola vez; generar otro invalida el anterior. Después la conexión se renueva sola. Si la cuenta que autorizó no es admin de Basecamp, la página lo avisa: la app solo ve los proyectos donde está esa persona.
+
+- **Roles**: los admins de Basecamp pasan a ser admins de la app al sincronizar. Si un admin le cambia el rol a alguien a mano, queda fijo y la sincronización no lo vuelve a tocar.
+- **Organización y Basecamp** son solo para admins (la base también lo frena: solo un admin lee la conexión, sincroniza o genera el link). Las designaciones de marcas ahora las carga un admin.
+- Activarlo: correr `supabase/migracion-basecamp-conexion.sql` después de `migracion-notificaciones.sql`. En un preview, el link solo lo puede abrir quien tenga acceso al preview en Vercel: para mandárselo a alguien de afuera, usar **Share** en el deploy.
+
 ### Cómo funciona por dentro
 
 - Basecamp no firma los avisos: la URL (`/api/basecamp/webhook?llave=…`) lleva una llave que sale de `INTEGRACIONES_SECRET`. En la base queda solo su hash, y `bc_recibir_evento` (la única puerta, sin sesión) valida cada aviso contra él. Cambiar `INTEGRACIONES_SECRET` invalida la llave hasta la próxima sincronización, que la actualiza en cada webhook.

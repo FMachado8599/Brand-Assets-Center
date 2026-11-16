@@ -128,6 +128,12 @@ export async function borrarConexion(db: SupabaseClient, proveedor: Proveedor) {
   if (error) throw new Error(error.message);
 }
 
+/** Si quien hace el pedido es admin de la app (equipo.rol). false si todavía no existe la función. */
+export async function esAdminApp(db: SupabaseClient) {
+  const { data, error } = await db.rpc("es_admin");
+  return !error && data === true;
+}
+
 /** El origen público de la app (para armar las URLs de vuelta de OAuth). */
 export function appOrigin(requestUrl: string) {
   return process.env.APP_URL?.replace(/\/$/, "") || new URL(requestUrl).origin;

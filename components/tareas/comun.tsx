@@ -1,17 +1,19 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Columns3, Network, Rows3 } from "lucide-react";
-import { BarSegmented } from "@/components/shell/ContextBar";
+import { Columns3, Lock, Network, Rows3 } from "lucide-react";
+import { BarSegmented, ContextBar } from "@/components/shell/ContextBar";
+import { useEquipo } from "@/hooks/useEquipo";
 import { initials } from "@/lib/clients/color";
 import { cn } from "@/lib/utils";
 
-/** Las pestañas del Board, en la barra de arriba. */
+/** Las pestañas del Board, en la barra de arriba. Organización y Basecamp son solo de admins. */
 const PESTANAS = [
-  { value: "/board", label: "Mi tablero", icon: Columns3 },
-  { value: "/board/equipo", label: "Equipo", icon: Rows3 },
-  { value: "/board/organizacion", label: "Organización", icon: Network },
-  { value: "/board/basecamp", label: "Basecamp", icon: BasecampGlyph },
+  { value: "/board", label: "Mi tablero", icon: Columns3, soloAdmins: false },
+  { value: "/board/equipo", label: "Equipo", icon: Rows3, soloAdmins: false },
+  { value: "/board/organizacion", label: "Organización", icon: Network, soloAdmins: true },
+  { value: "/board/basecamp", label: "Basecamp", icon: BasecampGlyph, soloAdmins: true },
 ] as const;
 
 type Pestana = (typeof PESTANAS)[number]["value"];
@@ -19,14 +21,45 @@ type Pestana = (typeof PESTANAS)[number]["value"];
 export function BoardNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { admin } = useEquipo();
   const actual = (PESTANAS.find((p) => p.value !== "/board" && pathname.startsWith(p.value))?.value ?? "/board") as Pestana;
   return (
     <BarSegmented<Pestana>
       label="Secciones del Board"
       value={actual}
       onChange={(v) => router.push(v)}
-      options={PESTANAS.map((p) => ({ ...p }))}
+      options={PESTANAS.filter((p) => admin || !p.soloAdmins || p.value === actual).map(({ soloAdmins: _, ...p }) => p)}
     />
+  );
+}
+
+/**
+ * Lo que es solo de admins de la app (Organización, la conexión con Basecamp). La base igual lo
+ * protege; esto evita mostrar una pantalla a medias.
+ */
+export function SoloAdmins({ children, titulo }: { children: ReactNode; titulo: string }) {
+  const { admin, loaded, data } = useEquipo();
+  if (admin) return <>{children}</>;
+  return (
+    <div className="min-h-screen">
+      <ContextBar>
+        <BoardNav />
+      </ContextBar>
+      <main className="mx-auto max-w-lg px-4 pb-16 pt-[6.5rem] text-center">
+        {!loaded ? (
+          <div className="skeleton mx-auto h-40 rounded-3xl" />
+        ) : (
+          <section className="rounded-3xl border bg-card p-6 shadow-sm">
+            <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
+            <h1 className="mt-3 font-display text-3xl leading-none">{titulo}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Esta sección es solo para admins de la app.{" "}
+              {data?.yo ? "Si la necesitás, pedile a un admin que te dé el rol." : "Iniciá sesión con tu cuenta del estudio."}
+            </p>
+          </section>
+        )}
+      </main>
+    </div>
   );
 }
 

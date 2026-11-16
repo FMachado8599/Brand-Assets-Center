@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { llaveValida } from "@/lib/integraciones/basecamp-webhook";
-import { faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
+import { createSupabaseAnon, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +23,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, resultado: "ignorado" });
   }
 
-  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data, error } = await db.rpc("bc_recibir_evento", { p_llave: llave, p_evento: evento });
+  const { data, error } = await createSupabaseAnon().rpc("bc_recibir_evento", { p_llave: llave, p_evento: evento });
   if (error) {
     // La llave no coincide con el hash guardado (cambió INTEGRACIONES_SECRET): la próxima
     // sincronización guarda el nuevo y actualiza los webhooks.

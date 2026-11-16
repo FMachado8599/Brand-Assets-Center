@@ -52,6 +52,8 @@ export type SyncResumen = {
   actividadDesde?: number | null;
   /** Lo que cambió la regla de activos al terminar. null si falta migracion-actividad.sql. */
   actividad?: { leidas: number; desactivados: string[]; reactivados: string[] } | null;
+  /** Los admins de Basecamp que pasaron a ser admins de la app en esta sincronización. */
+  adminsNuevos?: string[];
   /** Gente nueva del estudio sumada al equipo (solo si quien sincroniza es admin; si no, queda para la próxima). */
   equipoNuevos?: number;
   /** Mientras se leen las tareas en varios pedidos: por dónde seguir y desde cuándo se empezó. */
@@ -570,6 +572,10 @@ export async function correrPaso(
   try {
     if (paso === "personas") {
       resumen.personas = await personas(bc, db);
+      // Los admins de Basecamp son admins de la app (salvo que un admin les haya cambiado el rol a mano).
+      // Sin migracion-basecamp-conexion.sql la función no existe y se saltea.
+      const { data: admins } = await db.rpc("equipo_admins_de_basecamp");
+      resumen.adminsNuevos = Array.isArray(admins) ? (admins as string[]) : [];
       await guardar();
       return { paso, siguiente: "proyectos", detalle: `${resumen.personas} personas`, resumen };
     }

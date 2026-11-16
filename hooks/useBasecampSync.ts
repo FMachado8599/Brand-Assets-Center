@@ -46,6 +46,7 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
   set({ corriendo: true, paso: "personas", detalle: "", error: null });
   let paso: Paso = "personas";
   let nuevos: string[] = [];
+  let admins: string[] = [];
   let cambiosEquipo: { desactivados: string[]; reactivados: string[] } | null = null;
   try {
     for (let vuelta = 0; vuelta < 80 && paso !== "listo"; vuelta++) {
@@ -63,6 +64,7 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
         throw new Error(body.error ?? `Error ${r.status}`);
       }
       if (!body.siguiente) throw new Error("Basecamp: respuesta inesperada del servidor");
+      if (body.paso === "personas") admins = body.resumen?.adminsNuevos ?? [];
       if (body.paso === "proyectos") nuevos = body.resumen?.clientesNuevos ?? [];
       if (body.paso === "actividad" && body.siguiente === "listo") cambiosEquipo = body.resumen?.actividad ?? null;
       paso = body.siguiente;
@@ -78,6 +80,7 @@ export async function sincronizarBasecamp({ silencioso = false, completa = false
         );
       } else if (!silencioso) toast("Basecamp al día");
       const lista = (nombres: string[]) => `${nombres.slice(0, 4).join(", ")}${nombres.length > 4 ? "…" : ""}`;
+      if (admins.length) toast(`${admins.length === 1 ? "Ahora es admin de la app" : "Ahora son admins de la app"} (lo ${admins.length === 1 ? "es" : "son"} en Basecamp): ${lista(admins)}`);
       if (cambiosEquipo?.desactivados.length) toast(`Sin actividad en 30 días, quedaron inactivos: ${lista(cambiosEquipo.desactivados)}`);
       if (cambiosEquipo?.reactivados.length) toast(`Volvieron a tener actividad: ${lista(cambiosEquipo.reactivados)}`);
     }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Basecamp } from "@/lib/integraciones/basecamp";
 import { ReconectarError } from "@/lib/integraciones/reconectar";
+import { esAdminApp } from "@/lib/integraciones/store";
 import { correrPaso, type SyncPaso } from "@/lib/integraciones/basecamp-sync";
 import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
@@ -19,6 +20,10 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { paso?: string; completa?: boolean };
   const paso = (PASOS.includes(body.paso as SyncPaso) ? body.paso : "personas") as SyncPaso;
   const db = createSupabaseServer();
+  // Traer los datos de Basecamp es cosa de admins (la conexión del estudio solo la ven ellos).
+  if (!(await esAdminApp(db))) {
+    return NextResponse.json({ error: "Solo un admin de la app sincroniza Basecamp", soloAdmins: true }, { status: 403 });
+  }
   let conTurno = false;
 
   try {

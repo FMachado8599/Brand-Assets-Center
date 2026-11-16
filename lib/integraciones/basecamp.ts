@@ -86,7 +86,15 @@ export type BasecampIdentity = {
 };
 
 /** Lo que se guarda en integraciones.datos de la conexión con Basecamp: quién la conectó. */
-export type BasecampDatos = { persona_id?: number; persona?: string; email?: string };
+export type BasecampDatos = {
+  persona_id?: number;
+  persona?: string;
+  email?: string;
+  /** Si quien autorizó es admin de Basecamp (si no, faltan los proyectos donde no está). null: no se pudo saber. */
+  admin_basecamp?: boolean | null;
+  /** Se autorizó con el link que generó un admin de la app (quien autorizó no entró a la app). */
+  por_link?: boolean;
+};
 
 export async function basecampIdentity(accessToken: string): Promise<BasecampIdentity> {
   const r = await fetch(`${LAUNCHPAD}/authorization.json`, {
@@ -95,6 +103,24 @@ export async function basecampIdentity(accessToken: string): Promise<BasecampIde
   });
   if (!r.ok) throw new Error(`Basecamp no devolvió la cuenta (${r.status})`);
   return r.json();
+}
+
+/**
+ * Si la persona que autorizó es admin (o dueña) de esa cuenta de Basecamp. Una que no lo es solo ve
+ * los proyectos donde está: la app avisa que van a faltar datos. null si no se pudo saber.
+ */
+export async function basecampEsAdmin(accessToken: string, accountId: string | number): Promise<boolean | null> {
+  try {
+    const r = await fetch(`${leer("BASECAMP_API_URL") || "https://3.basecampapi.com"}/${accountId}/my/profile.json`, {
+      headers: { Authorization: `Bearer ${accessToken}`, "User-Agent": userAgent() },
+      cache: "no-store",
+    });
+    if (!r.ok) return null;
+    const p = (await r.json()) as { admin?: boolean; owner?: boolean };
+    return Boolean(p.admin || p.owner);
+  } catch {
+    return null;
+  }
 }
 
 /** Los tokens de Basecamp duran 2 semanas. */
