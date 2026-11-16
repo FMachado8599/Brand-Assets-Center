@@ -161,6 +161,21 @@ const colorPara = (nombre: string) => {
   return PRESET_COLORS[h % PRESET_COLORS.length];
 };
 
+/**
+ * Sin repetidos por id. Basecamp pagina listas que pueden moverse mientras se leen (alguien edita una
+ * tarea y cambia de página): la misma fila puede venir dos veces, y un upsert con dos filas iguales
+ * falla ("ON CONFLICT DO UPDATE command cannot affect row a second time"). Se queda con la última.
+ */
+function sinRepetidos<T>(lista: T[], clave: (item: T) => number | string, preferir?: (a: T, b: T) => T) {
+  const porClave = new Map<number | string, T>();
+  for (const item of lista) {
+    const k = clave(item);
+    const previo = porClave.get(k);
+    porClave.set(k, previo !== undefined && preferir ? preferir(previo, item) : item);
+  }
+  return [...porClave.values()];
+}
+
 async function check<T>(p: PromiseLike<{ data: T; error: { message: string } | null }>) {
   const { data, error } = await p;
   if (error) throw new Error(error.message);
@@ -170,7 +185,7 @@ async function check<T>(p: PromiseLike<{ data: T; error: { message: string } | n
 /* ───────────── Pasos ───────────── */
 
 async function personas(bc: Basecamp, db: SupabaseClient) {
-  const people = await bc.all<BcPerson>(`${bc.base()}/people.json`);
+  const people = sinRepetidos(await bc.all<BcPerson>(`${bc.base()}/people.json`), (p) => p.id);
   const rows = people.map((p) => ({
     id: p.id,
     nombre: p.name,
@@ -200,7 +215,9 @@ async function personas(bc: Basecamp, db: SupabaseClient) {
 }
 
 async function proyectos(bc: Basecamp, db: SupabaseClient) {
-  const projects = (await bc.all<BcProject>(`${bc.base()}/projects.json`)).filter((p) => !p.status || p.status === "active");
+  const projects = sinRepetidos(await bc.all<BcProject>(`${bc.base()}/projects.json`), (p) => p.id).filter(
+    (p) => !p.status || p.status === "active"
+  );
   const ahora = new Date().toISOString();
 
   await check(
@@ -362,7 +379,7 @@ async function miembros(bc: Basecamp, db: SupabaseClient, desde: number | null, 
     if (Date.now() > deadline) return { cantidad, complete: false, ultimo };
     let people: BcPerson[];
     try {
-      people = await bc.all<BcPerson>(`${bc.base()}/projects/${p.id}/people.json`);
+      people = sinRepetidos(await bc.all<BcPerson>(`${bc.base()}/projects/${p.id}/people.json`), (person) => person.id);
     } catch {
       // Un proyecto que no se puede leer (sin permiso, borrado recién) no frena a los demás.
       ultimo = p.id;
@@ -438,9 +455,15 @@ async function tareas(bc: Basecamp, db: SupabaseClient, estado: { tareas_hasta: 
     : estado.tareas_hasta
       ? new Date(estado.tareas_hasta).getTime()
       : Date.now() - PRIMERA_VEZ_DIAS * 86_400_000;
-  const desde = estado.resumen.cursor ?? `${bc.base()}/projects/recordings.json?type=Kanban::Card&sort=updated_at&direction=desc`;
+  // Traer todo: por fecha de creación, que no cambia si alguien edita una tarea mientras se lee (por
+  // fecha de modificación, la tarea editada salta al principio y otra se puede saltear, y al final se
+  // borraría). Lo que cambió: por fecha de modificación, cortando en lo ya visto.
+  const orden = estado.resumen.completa ? "created_at" : "updated_at";
+  const desde = estado.resumen.cursor ?? `${bc.base()}/projects/recordings.json?type=Kanban::Card&sort=${orden}&direction=desc`;
 
-  const { items, complete, next } = await bc.until<BcCard>(desde, (c) => new Date(c.updated_at).getTime() <= corte, deadline);
+  const leidas = await bc.until<BcCard>(desde, (c) => new Date(c.updated_at).getTime() <= corte, deadline);
+  const { complete, next } = leidas;
+  const items = sinRepetidos(leidas.items, (c) => c.id, (a, b) => (b.updated_at > a.updated_at ? b : a));
 
   // Proyectos que todavía no conocemos (creados recién): un registro mínimo, el próximo paso de
   // proyectos lo completa y le busca cliente.
