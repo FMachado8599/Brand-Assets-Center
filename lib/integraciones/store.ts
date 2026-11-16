@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "./crypto";
+import { ReconectarError } from "./reconectar";
 
 export type Proveedor = "basecamp" | "google" | "influencity";
 
@@ -41,13 +42,24 @@ export async function leerConexion(db: SupabaseClient, proveedor: Proveedor): Pr
   const { data, error } = await db.from("integraciones").select("*").eq("proveedor", proveedor).maybeSingle<Row>();
   if (error) throw new Error(error.message);
   if (!data) return null;
+  let accessToken: string;
+  let refreshToken: string | null;
+  try {
+    accessToken = decrypt(data.access_token);
+    refreshToken = data.refresh_token ? decrypt(data.refresh_token) : null;
+  } catch {
+    const nombre = proveedor === "basecamp" ? "Basecamp" : proveedor === "google" ? "Google Drive" : proveedor;
+    throw new ReconectarError(
+      `La conexión guardada con ${nombre} no se puede abrir en este entorno (se guardó con otra INTEGRACIONES_SECRET). Volvé a conectar ${nombre}.`
+    );
+  }
   return {
     proveedor: data.proveedor,
     cuenta_id: data.cuenta_id,
     cuenta_nombre: data.cuenta_nombre,
     conectada_por: data.conectada_por,
-    accessToken: decrypt(data.access_token),
-    refreshToken: data.refresh_token ? decrypt(data.refresh_token) : null,
+    accessToken,
+    refreshToken,
     expira: data.expira ? new Date(data.expira) : null,
     datos: data.datos ?? {},
     conectada: data.conectada,

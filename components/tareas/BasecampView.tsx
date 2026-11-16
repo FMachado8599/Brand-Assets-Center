@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toaster";
 import { useBasecampSync } from "@/hooks/useBasecampSync";
 import { conectarUrl, useIntegraciones } from "@/hooks/useIntegraciones";
 import type { BoardResumen } from "@/lib/board/tipos";
+import { pideReconectar } from "@/lib/integraciones/reconectar";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { BasecampGlyph, BasecampMark, BoardNav, hace } from "./comun";
@@ -174,6 +175,19 @@ export function BasecampView() {
                 </div>
               </dl>
 
+              {!sync.corriendo && pideReconectar(sync.error ?? data.sync?.ultimo_error) && (
+                <div className="flex flex-wrap items-center gap-3 rounded-xl bg-destructive/10 p-3">
+                  <p className="min-w-0 flex-1">{sync.error ?? data.sync?.ultimo_error}</p>
+                  <button
+                    type="button"
+                    onClick={conectar}
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:brightness-95"
+                  >
+                    <BasecampGlyph className="h-4 w-4" /> Volver a conectar
+                  </button>
+                </div>
+              )}
+
               {recienConectado && !sync.corriendo && (
                 <p className="rounded-xl bg-primary/25 p-3">
                   Revisá que arriba diga el nombre de la persona correcta y apretá <strong>Traer todo</strong>.
@@ -205,7 +219,7 @@ export function BasecampView() {
                             : (data.sync.resumen?.webhooksAviso ?? "Avisos al instante: todavía no se activaron.")}
                         </span>
                       )}
-                      {(sync.error || data.sync?.ultimo_error) && (
+                      {(sync.error || data.sync?.ultimo_error) && !pideReconectar(sync.error ?? data.sync?.ultimo_error) && (
                         <span className="mt-1 block text-destructive">Último error: {sync.error ?? data.sync?.ultimo_error}</span>
                       )}
                     </>

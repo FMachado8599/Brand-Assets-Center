@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
       expira: expiraDesde(tokens.expires_in),
       datos,
     });
+    // El error de la conexión anterior ("volvé a conectar…") ya no corre.
+    await db.from("bc_sync").update({ ultimo_error: null }).eq("id", "basecamp").then(() => undefined, () => undefined);
     return volverCon(request, "basecamp", volver, "conectado");
   } catch (e) {
     return volverCon(request, "basecamp", volver, "error", (e as Error).message);

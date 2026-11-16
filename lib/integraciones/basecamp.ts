@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ReconectarError } from "./reconectar";
 import { leerConexion, renovarTokens, type Conexion } from "./store";
 
 /**
@@ -75,7 +76,7 @@ async function refresh(refreshToken: string): Promise<TokenResponse> {
   const modern = await postToken({ grant_type: "refresh_token", ...shared });
   if (modern.ok) return modern.json();
   const legacy = await postToken({ type: "refresh", ...shared });
-  if (!legacy.ok) throw new Error(`No se pudo renovar el acceso a Basecamp (${legacy.status}). Hay que volver a conectarlo.`);
+  if (!legacy.ok) throw new ReconectarError(`Basecamp no dejó renovar el acceso (${legacy.status}). Volvé a conectar Basecamp.`);
   return legacy.json();
 }
 
@@ -140,7 +141,7 @@ export class Basecamp {
   }
 
   private async renovar() {
-    if (!this.conexion.refreshToken) throw new Error("La conexión con Basecamp venció. Hay que volver a conectarla.");
+    if (!this.conexion.refreshToken) throw new ReconectarError("La conexión con Basecamp venció. Volvé a conectar Basecamp.");
     const t = await refresh(this.conexion.refreshToken);
     const expira = expiraDesde(t.expires_in);
     this.conexion = { ...this.conexion, accessToken: t.access_token, refreshToken: t.refresh_token ?? this.conexion.refreshToken, expira };
