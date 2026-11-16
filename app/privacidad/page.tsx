@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Qué datos guarda Herramientas, para qué los usa y cómo pedir que se borren.",
 };
 
-const UPDATED = "21 de octubre de 2026";
+const UPDATED = "13 de noviembre de 2026";
 
 const contact = CONTACT_EMAIL ? (
   <>
@@ -86,7 +86,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
       <ul>
         <li>
           <strong>Supabase:</strong> la base de datos y el inicio de sesión. Ahí se guardan tu cuenta, tus preferencias,
-          tus redacciones, las visitas y el registro de descargas.
+          tus redacciones, las visitas y el registro de descargas. Las imágenes de Retoque pasan por ahí solo mientras
+          se procesan: se borran apenas termina.
         </li>
         <li>
           <strong>Vercel:</strong> donde está alojada la app.
@@ -102,6 +103,14 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
         <li>
           <strong>FreeConvert:</strong> los archivos que convertís o comprimís en el Conversor van directo a FreeConvert
           para procesarse.
+        </li>
+        <li>
+          <strong>Magnific:</strong> las imágenes a las que les quitás el fondo en Retoque se mandan a Magnific para
+          procesarse. Lo que buscás en Íconos también se le manda, para encontrar los íconos.
+        </li>
+        <li>
+          <strong>GIPHY:</strong> lo que buscás en GIFs se manda a GIPHY para encontrar los GIFs, y los GIFs se ven
+          desde GIPHY. Solo viaja la búsqueda.
         </li>
       </ul>
     ),

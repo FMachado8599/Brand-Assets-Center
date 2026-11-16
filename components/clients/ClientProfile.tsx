@@ -15,6 +15,7 @@ import { forgetClient, getClient, refreshClients, rememberClient, useClients } f
 import { useRedacciones } from "@/hooks/useRedacciones";
 import { brandsRepo, clientErrorMessage, type BrandPatch } from "@/lib/repos/brands";
 import { LOGO_ACCEPT, logoProblem } from "@/lib/clients/logo";
+import { inLibrary, logoPaths } from "@/lib/clients/logos";
 import { socialKey, socialLabel, socialName, type BrandSocial } from "@/lib/clients/socials";
 import { hasSupabase } from "@/lib/supabase";
 import type { Brand, LogoBg } from "@/lib/types";
@@ -23,6 +24,7 @@ import { ClientMark, logoBackground } from "./ClientMark";
 import { ColorChoice } from "./ColorChoice";
 import { LogoDrop } from "./LogoDrop";
 import { FontsSection } from "./profile/FontsSection";
+import { LogosSection } from "./profile/LogosSection";
 import { PaletteSection } from "./profile/PaletteSection";
 import { VozMarcaSection } from "./profile/VozMarca";
 import { MigrationNotice } from "./profile/Section";
@@ -40,7 +42,7 @@ const SAVE_DELAY = 600;
 export function ClientProfile({ id }: { id: string }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { clients, loading, hasProfile, hasSocials, hasVozMarca } = useClients();
+  const { clients, loading, hasProfile, hasSocials, hasVozMarca, hasLogos } = useClients();
   const { cards, products, fonts, reload, loading: dataLoading } = useData();
   const redacciones = useRedacciones();
   const kits = useBrandKits();
@@ -129,14 +131,14 @@ export function ClientProfile({ id }: { id: string }) {
     const sure = await confirm({
       title: `¿Eliminar ${brand.name}?`,
       description:
-        "Se borran su ficha, su logo y sus productos. Las tarjetas y las redacciones no se borran: quedan sin cliente. No se puede deshacer.",
+        "Se borran su ficha, sus logos y sus productos. Las tarjetas y las redacciones no se borran: quedan sin cliente. No se puede deshacer.",
       confirmLabel: "Eliminar",
       destructive: true,
     });
     if (!sure) return;
     const { error } = await brandsRepo.remove(id);
     if (error) return toast(clientErrorMessage(error), "error");
-    brandsRepo.removeLogoFile(brand.logo_path);
+    brandsRepo.removeLogoFiles([...logoPaths(brand)]);
     leaving.current = true;
     pending.current = {};
     router.push("/clientes");
@@ -203,6 +205,7 @@ export function ClientProfile({ id }: { id: string }) {
           saveSoon={saveSoon}
           socialsMissing={hasSocials === false}
           stats={[
+            ["#logos", brand.logos?.length ?? 0, "logo", "logos"],
             ["#tarjetas", own.cards.length, "tarjeta", "tarjetas"],
             ["#productos", own.products.length, "producto", "productos"],
             ["#tipografias", brand.font_families?.length ?? 0, "tipografía", "tipografías"],
@@ -211,6 +214,7 @@ export function ClientProfile({ id }: { id: string }) {
         />
 
         <div className="mt-8 grid gap-4">
+          <LogosSection brand={brand} save={save} missing={hasLogos === false} />
           <PaletteSection brand={brand} saveSoon={saveSoon} />
           <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
@@ -283,13 +287,15 @@ function ProfileHeader({
         ? "Logo cambiado"
         : "Logo agregado";
     const ok = await save({ logo_url: up.url, logo_path: up.path, ...fromPatch(from && socialKey(from)) }, done);
-    brandsRepo.removeLogoFile(ok ? old : up.path);
+    // El de antes se borra, salvo que sea uno de sus logos (sigue en la lista).
+    brandsRepo.removeLogoFile(ok ? (inLibrary(getClient(brand.id) ?? brand, old) ? null : old) : up.path);
     setLogoBusy(false);
   };
 
   const removeLogo = async () => {
     const old = brand.logo_path;
-    if (await save({ logo_url: null, logo_path: null, ...fromPatch(null) }, "Logo quitado")) brandsRepo.removeLogoFile(old);
+    if (await save({ logo_url: null, logo_path: null, ...fromPatch(null) }, "Logo quitado") && !inLibrary(getClient(brand.id) ?? brand, old))
+      brandsRepo.removeLogoFile(old);
   };
 
   const logoFromSocial = async (account: BrandSocial) => {

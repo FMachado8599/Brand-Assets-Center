@@ -7,11 +7,10 @@ import { ArrowDown, ArrowUpRight, MessageSquare } from "lucide-react";
 import { useAccount } from "@/components/shell/AccountProvider";
 import { FeedbackSection } from "@/components/site/FeedbackSection";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { LAST_MODULE_KEY, MODULES, type AppModule } from "@/lib/modules";
+import { LAST_MODULE_KEY, LIBRARY_HUB, TOOLS, type AppModule } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-const TOOLS = MODULES.filter((m) => m.href !== "/" && !m.soon);
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -79,7 +78,7 @@ export function Dashboard({ name }: { name: string | null }) {
         <ul className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
           {TOOLS.map((tool, i) => (
             <li key={tool.href} className="duration-700 animate-in fade-in-0 slide-in-from-bottom-3 fill-mode-backwards" style={enter(i)}>
-              <ToolCard tool={tool} shortcut={i + 1} last={tool.href === last} />
+              <ToolCard tool={tool} shortcut={i + 1} last={tool.href === last || (tool === LIBRARY_HUB && !!last?.startsWith(`${LIBRARY_HUB.href}/`))} />
             </li>
           ))}
           <li className="duration-700 animate-in fade-in-0 slide-in-from-bottom-3 fill-mode-backwards" style={enter(TOOLS.length)}>

@@ -7,7 +7,7 @@ import { FeedbackSection } from "@/components/site/FeedbackSection";
 import { InicioMotion } from "@/components/site/InicioMotion";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { studioSession } from "@/lib/access";
-import { MODULES } from "@/lib/modules";
+import { TOOLS } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { createSupabaseServer, hasSupabaseEnv } from "@/lib/supabase-server";
 
@@ -15,8 +15,6 @@ export const metadata: Metadata = {
   title: { absolute: `Herramientas · ${STUDIO}` },
   description: "Las herramientas internas del estudio: tarjetas con tipografía, emojis, GIFs, conversor de archivos y redacción.",
 };
-
-const TOOLS = MODULES.filter((m) => m.href !== "/" && !m.soon);
 
 const SYNCED = [
   "Favoritos y recientes de emojis",

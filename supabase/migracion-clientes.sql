@@ -36,9 +36,14 @@ begin
 end $$;
 
 -- 2. Logos ----------------------------------------------------
--- Público como el de tipografías: los logos se muestran por su URL. Hasta 5 MB y solo imágenes.
+-- Público como el de tipografías: los logos se muestran por su URL. Hasta 50 MB por archivo:
+-- imágenes, y también PDF, AI y EPS para los logos con todos sus formatos (migracion-logos.sql
+-- deja lo mismo, así correr una después de la otra no achica nada).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('logos', 'logos', true, 5242880, array['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+values (
+  'logos', 'logos', true, 52428800,
+  array['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf', 'application/postscript']
+)
 on conflict (id) do update
   set public = excluded.public,
       file_size_limit = excluded.file_size_limit,
