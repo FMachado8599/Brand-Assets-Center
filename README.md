@@ -687,6 +687,12 @@ La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en el Board
 
 Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
 
+**Modo de prueba en un preview.** Para probar los avisos antes de producción, en una sola rama:
+
+1. Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: crear el secreto. Vercel lo pasa a los deploys como `VERCEL_AUTOMATION_BYPASS_SECRET`, y Basecamp lo manda en la URL para pasar la protección del preview.
+2. Agregar `BASECAMP_WEBHOOKS_EN_PREVIEW=1` en el entorno Preview, solo para esa rama.
+3. Volver a hacer el deploy de la rama y sincronizar desde su link fijo. Los webhooks quedan apuntando a ese link (`VERCEL_BRANCH_URL`) hasta que se sincronice desde producción, que los vuelve a apuntar a la app publicada.
+
 ### La conexión con Basecamp (solo admins)
 
 Hay dos cuentas de Basecamp distintas:

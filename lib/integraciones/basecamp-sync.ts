@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRESET_COLORS } from "@/lib/clients/color";
 import { fold } from "@/lib/redaccion/text";
 import type { Basecamp } from "./basecamp";
-import { WEBHOOK_PATH, WEBHOOK_TIPOS, webhookHash, webhookLlave, webhookOrigen, webhookUrl } from "./basecamp-webhook";
+import { WEBHOOK_PATH, WEBHOOK_TIPOS, webhookDestino, webhookHash, webhookLlave, webhookUrl } from "./basecamp-webhook";
 import { hasSecret } from "./crypto";
 
 /**
@@ -310,8 +310,8 @@ async function webhooks(
   deadline: number
 ): Promise<{ cantidad: number | null; complete: boolean; ultimo: number | null; aviso: string | null }> {
   const saltear = (aviso: string) => ({ cantidad: null, complete: true, ultimo: null, aviso });
-  const origen = webhookOrigen();
-  if (!origen) return saltear("Los avisos al instante se activan al sincronizar desde la app publicada (https)");
+  const destino = webhookDestino();
+  if ("aviso" in destino) return saltear(destino.aviso);
   if (!hasSecret()) return saltear("Falta INTEGRACIONES_SECRET");
 
   // El hash de la llave, para que la base pueda validar cada aviso.
@@ -320,7 +320,7 @@ async function webhooks(
     if (sinTabla(hashError.message) || /webhook_hash/.test(hashError.message)) return saltear("Falta correr supabase/migracion-notificaciones.sql");
     throw new Error(hashError.message);
   }
-  const url = webhookUrl(origen);
+  const url = webhookUrl(destino);
 
   const [proyectos, registrados] = await Promise.all([
     check(db.from("bc_proyectos").select("id").eq("estado", "active").gt("id", desde ?? 0).order("id")) as Promise<{ id: number }[]>,
