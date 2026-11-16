@@ -22,6 +22,7 @@ export function MarcasDialog({
   marcas,
   editable,
   admin,
+  propia = false,
   onClose,
 }: {
   persona: Persona | null;
@@ -29,6 +30,8 @@ export function MarcasDialog({
   marcas: Brand[];
   editable: boolean;
   admin: boolean;
+  /** Las de quien mira ("Mis marcas"): el texto le habla a esa persona. */
+  propia?: boolean;
   onClose: () => void;
 }) {
   const confirm = useConfirm();
@@ -95,9 +98,11 @@ export function MarcasDialog({
     <Dialog open={Boolean(persona)} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[85vh] max-w-lg flex-col gap-3">
         <DialogHeader>
-          <DialogTitle>Marcas de {persona?.nombre}</DialogTitle>
+          <DialogTitle>{propia ? "Mis marcas" : `Marcas de ${persona?.nombre ?? ""}`}</DialogTitle>
           <DialogDescription>
-            Las marcas de las que es designado: sus tareas son prioridad suya, aunque cualquiera del sector las puede tomar.
+            {propia
+              ? "Marcá de qué marcas sos el designado en tu sector: las tareas nuevas que nadie tomó te llegan a vos. Cualquiera del sector las puede tomar igual."
+              : "Las marcas de las que es designado: sus tareas son prioridad suya, aunque cualquiera del sector las puede tomar."}
           </DialogDescription>
         </DialogHeader>
 
@@ -138,7 +143,7 @@ export function MarcasDialog({
                 aria-pressed={soloElegidas}
                 className={cn("h-9 rounded-full border px-3 text-[13px] font-medium", soloElegidas && "border-foreground bg-foreground text-background")}
               >
-                Solo las suyas
+                {propia ? "Solo las mías" : "Solo las suyas"}
               </button>
             </div>
             <ul className="-mx-2 min-h-0 flex-1 overflow-y-auto">

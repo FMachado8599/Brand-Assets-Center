@@ -2,6 +2,8 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { Columns3, Table2, Tags } from "lucide-react";
+import { ClientMark } from "@/components/clients/ClientMark";
 import { BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar";
 import { useClients } from "@/hooks/useClients";
 import { useEquipo } from "@/hooks/useEquipo";
@@ -16,7 +18,9 @@ import {
   ordenarPorPrioridad,
   ordenEntre,
   responsableDe,
+  TONO,
   TONOS_LEYENDA,
+  tonoDe,
   validadoresDe,
   type Contexto,
   type Etapa,
@@ -27,9 +31,10 @@ import { fold } from "@/lib/redaccion/text";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useArrastre, type Destino } from "./arrastre";
-import { BoardNav } from "./comun";
+import { BoardNav, InfoBoton, PILDORA } from "./comun";
+import { MarcasDialog } from "./equipo/MarcasDialog";
 import { SelectSimple } from "./equipo/piezas";
-import { LeyendaTonos, TareaCard } from "./TareaCard";
+import { fechaCorta, LeyendaTonos, TareaCard } from "./TareaCard";
 import { TareaDetalle } from "./TareaDetalle";
 
 const TODO = "__todo";
@@ -55,6 +60,9 @@ export function MiTablero() {
   const [ocultas, setOcultas] = useStoredState<number[]>("board:ocultas", []);
   const [verOcultas, setVerOcultas] = useState(false);
   const [validaciones, setValidaciones] = useState<Map<number, Set<string>>>(new Map());
+  // Tablero (columnas por etapa) o tabla (todas en una lista, en el mismo orden). Se recuerda.
+  const [vista, setVista] = useStoredState<"tablero" | "tabla">("board:vista", "tablero");
+  const [misMarcas, setMisMarcas] = useState(false);
 
   // Desde la campanita: /board?tarea=123 al entrar, o el evento si ya se está en el Board.
   useEffect(() => {
@@ -175,7 +183,8 @@ export function MiTablero() {
     [equipo, yo?.equipo_id]
   );
   const falta = sinEquipo ? "supabase/migracion-equipo.sql" : sinMigracion ? "supabase/migracion-flujo.sql" : null;
-  const titulo = quien === TODO ? "Todo el estudio" : quien === yo?.equipo_id ? "Mi tablero" : `Tablero de ${quienPersona?.nombre.split(" ")[0] ?? "…"}`;
+  const visiblesN = suyas.length - nEscondidas;
+  const yoPersona = yo?.equipo_id ? (ctx?.porId.get(yo.equipo_id) ?? null) : null;
 
   return (
     <div className="min-h-screen">
@@ -186,32 +195,71 @@ export function MiTablero() {
       </ContextBar>
 
       <main className="pb-4 pt-[6.5rem]">
-        <div className="mb-3 flex flex-wrap items-end gap-x-4 gap-y-2 px-4 sm:px-6">
-          <div className="min-w-0">
-            <h1 className="font-display text-4xl leading-none tracking-[-0.01em]">{titulo}</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {suyas.length - nEscondidas} {suyas.length - nEscondidas === 1 ? "tarea" : "tareas"} · arriba de cada columna, lo más prioritario
-            </p>
+        <div className="mb-3 flex flex-wrap items-center gap-2 px-4 sm:px-6">
+          <div role="tablist" aria-label="Cómo ver las tareas" className="flex rounded-full border bg-card p-0.5">
+            {(
+              [
+                { value: "tablero", label: "Tablero", icon: Columns3 },
+                { value: "tabla", label: "Tabla", icon: Table2 },
+              ] as const
+            ).map((v) => (
+              <button
+                key={v.value}
+                type="button"
+                role="tab"
+                aria-selected={vista === v.value}
+                onClick={() => setVista(v.value)}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors",
+                  vista === v.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <v.icon className="h-3.5 w-3.5" /> {v.label}
+              </button>
+            ))}
           </div>
-          {nEscondidas > 0 && (
-            <button
-              type="button"
-              onClick={() => setVerOcultas((v) => !v)}
-              aria-pressed={verOcultas}
-              title="Las que ocultaste y las pausadas que todavía no empezaron"
-              className={cn(
-                "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                verOcultas ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:border-foreground/30"
-              )}
-            >
-              Ocultas · {nEscondidas}
-            </button>
-          )}
-          <div className="w-56">
-            <SelectSimple value={quien} onChange={(v) => setPersona(v)} opciones={opcionesPersona} />
-          </div>
-          <div className="ml-auto">
-            <LeyendaTonos tonos={TONOS_LEYENDA} />
+
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {yoPersona && (
+              <button
+                type="button"
+                onClick={() => setMisMarcas(true)}
+                title="De qué marcas sos el designado en tu sector: sus tareas nuevas te llegan a vos"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+              >
+                <Tags className="h-3.5 w-3.5" /> Mis marcas
+              </button>
+            )}
+            {nEscondidas > 0 && (
+              <button
+                type="button"
+                onClick={() => setVerOcultas((v) => !v)}
+                aria-pressed={verOcultas}
+                title="Las que ocultaste y las pausadas que todavía no empezaron"
+                className={cn(
+                  "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
+                  verOcultas ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:border-foreground/30"
+                )}
+              >
+                Ocultas · {nEscondidas}
+              </button>
+            )}
+            <SelectSimple value={quien} onChange={(v) => setPersona(v)} opciones={opcionesPersona} className={PILDORA} />
+            <InfoBoton>
+              <p>
+                <strong className="font-medium text-foreground">
+                  {visiblesN} {visiblesN === 1 ? "tarea" : "tareas"}
+                </strong>
+                . {vista === "tablero" ? "Arriba de cada columna, lo más prioritario." : "En el orden de las etapas y, dentro de cada una, lo más prioritario primero."}
+              </p>
+              <div>
+                <p className="mb-1.5 font-medium text-foreground">Colores</p>
+                <LeyendaTonos tonos={TONOS_LEYENDA} />
+              </div>
+              <p className="text-muted-foreground">
+                Las más tenues son las que tenés asignadas en Basecamp pero hoy están en manos de otra persona (te van a llegar), o las que ocultaste.
+              </p>
+            </InfoBoton>
           </div>
         </div>
 
@@ -229,8 +277,15 @@ export function MiTablero() {
           </div>
         ) : quien !== TODO && !quienPersona ? (
           <Aviso>Todavía no estás en el equipo. Un admin te puede sumar desde Organización.</Aviso>
+        ) : vista === "tabla" ? (
+          <TablaTareas
+            filas={columnas.flatMap((c) => c.tareas.map((t) => ({ t, tenue: c.deOtro.get(t.id) ?? false })))}
+            ctx={ctx}
+            marcaPorId={marcaPorId}
+            onAbrir={setAbierta}
+          />
         ) : (
-          <div data-scroll-x className="flex gap-3 overflow-x-auto px-4 pb-3 sm:px-6" style={{ height: "calc(100dvh - 11rem)" }}>
+          <div data-scroll-x className="flex gap-3 overflow-x-auto px-4 pb-3 sm:px-6" style={{ height: "calc(100dvh - 9.5rem)" }}>
             {columnas.map((c) => {
               const otras = c.tareas.filter((t) => String(t.id) !== arrastre?.id);
               const aca = arrastre && destino?.lista === c.etapa;
@@ -288,6 +343,18 @@ export function MiTablero() {
           document.body
         )}
 
+      {equipo && (
+        <MarcasDialog
+          persona={misMarcas ? yoPersona : null}
+          data={equipo}
+          marcas={clients}
+          editable
+          propia
+          admin={Boolean(yo?.admin)}
+          onClose={() => setMisMarcas(false)}
+        />
+      )}
+
       <TareaDetalle
         tarea={abiertaTarea}
         ctx={ctx}
@@ -318,5 +385,84 @@ export function Indicador({ eje = "y" }: { eje?: "x" | "y" }) {
     <div className="w-1 shrink-0 self-stretch rounded-full bg-primary shadow-[0_0_0_3px_rgba(255,209,0,0.25)]" />
   ) : (
     <div className="h-1 rounded-full bg-primary shadow-[0_0_0_3px_rgba(255,209,0,0.25)]" />
+  );
+}
+
+/**
+ * La vista de tabla de Mi tablero: las mismas tareas que el tablero, en una lista. En el orden de
+ * las etapas y, dentro de cada una, por prioridad. Tocar una fila abre la tarea.
+ */
+function TablaTareas({
+  filas,
+  ctx,
+  marcaPorId,
+  onAbrir,
+}: {
+  filas: { t: TareaFlujo; tenue: boolean }[];
+  ctx: Contexto;
+  marcaPorId: Map<string, unknown>;
+  onAbrir: (id: number) => void;
+}) {
+  if (!filas.length) return <p className="mx-4 rounded-3xl border bg-card p-8 text-center text-sm text-muted-foreground sm:mx-6">Nada acá.</p>;
+  return (
+    <div className="mx-4 overflow-hidden rounded-3xl border bg-card shadow-sm sm:mx-6">
+      <div className="max-h-[calc(100dvh-10.5rem)] overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10 border-b bg-secondary/80 text-left backdrop-blur">
+            <tr className="eyebrow text-muted-foreground">
+              <th className="px-4 py-2.5 font-medium">Tarea</th>
+              <th className="hidden px-3 py-2.5 font-medium md:table-cell">Etapa</th>
+              <th className="hidden px-3 py-2.5 font-medium lg:table-cell">La tiene</th>
+              <th className="hidden px-3 py-2.5 font-medium sm:table-cell">Entrega</th>
+              <th className="px-4 py-2.5 text-right font-medium">Estado</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {filas.map(({ t, tenue }) => {
+              const marca = t.brand_id ? (marcaPorId.get(t.brand_id) as Brand | undefined) : undefined;
+              const tono = TONO[tonoDe(t)];
+              const etapa = etapaDe(t);
+              const quien = responsableDe(t, ctx).persona;
+              return (
+                <tr
+                  key={t.id}
+                  tabIndex={0}
+                  onClick={() => onAbrir(t.id)}
+                  onKeyDown={(e) => e.key === "Enter" && onAbrir(t.id)}
+                  className={cn("cursor-pointer outline-none transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50", tenue && "opacity-55")}
+                >
+                  <td className="px-4 py-2.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <ClientMark
+                        brand={marca ?? { name: t.proyecto, color: "#52525B", logo_url: null, logo_bg: "light" }}
+                        className="h-7 w-7 shrink-0 rounded-md text-[9px]"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{t.titulo || "Sin título"}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {marca?.name ?? t.proyecto}
+                          {t.tablero ? ` · ${t.tablero}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">{TITULO[etapa] ?? ETAPA_LABEL[etapa]}</td>
+                  <td className="hidden max-w-[10rem] truncate px-3 py-2.5 text-muted-foreground lg:table-cell">{quien?.nombre ?? "—"}</td>
+                  <td className="hidden whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground sm:table-cell">{t.vence ? fechaCorta(t.vence) : "—"}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <span
+                      className="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                      style={{ color: tono.fg, background: tono.bg === "transparent" ? "rgba(32,32,32,0.06)" : tono.bg }}
+                    >
+                      {tono.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

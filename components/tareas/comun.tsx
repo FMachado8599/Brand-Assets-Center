@@ -2,8 +2,9 @@
 
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Columns3, Lock, Network, Rows3 } from "lucide-react";
+import { Columns3, Info, Lock, Network, Rows3 } from "lucide-react";
 import { BarSegmented, ContextBar } from "@/components/shell/ContextBar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useEquipo } from "@/hooks/useEquipo";
 import { initials } from "@/lib/clients/color";
 import { cn } from "@/lib/utils";
@@ -119,5 +120,29 @@ export function Avatar({ nombre, url, className }: { nombre: string; url?: strin
     >
       {initials(nombre)}
     </span>
+  );
+}
+
+/** Los selectores de la fila de arriba de Mi tablero y Equipo: píldoras, como el botón de Ocultas. */
+export const PILDORA = "h-8 w-auto gap-1.5 rounded-full border-border bg-card px-3 text-[13px] font-medium hover:border-foreground/30";
+
+/** Un botón "i" que abre las leyendas y las explicaciones, para no ocupar lugar en la pantalla. */
+export function InfoBoton({ children, label = "Qué significa cada cosa" }: { children: ReactNode; label?: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          title={label}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-card text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground data-[state=open]:border-foreground data-[state=open]:text-foreground"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 space-y-3 text-xs">
+        {children}
+      </PopoverContent>
+    </Popover>
   );
 }
