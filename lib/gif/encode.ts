@@ -1,11 +1,12 @@
 import { GIFEncoder, applyPalette, quantize } from "gifenc";
-import { frameDuration } from "./parse";
+import { fitImage, frameDuration } from "./parse";
 import { QUALITY_COLORS, type GifGroup, type GifSettings } from "./types";
 
 /**
  * Arma el GIF en el navegador: cada frame se dibuja a la medida del grupo
- * (encajado, sin deformar, con fondo blanco), se reduce a una paleta propia y
- * se agrega con su duración. Nada sale de la computadora.
+ * (sin deformar: si sobra un poco se recorta, si es otra proporción se encaja
+ * con fondo blanco), se reduce a una paleta propia y se agrega con su duración.
+ * Nada sale de la computadora.
  *
  * Para que pese poco:
  *  - Desde el segundo frame, los píxeles idénticos al frame anterior se
@@ -46,10 +47,8 @@ async function drawFrames(group: GifGroup, settings: GifSettings): Promise<Drawn
       // Fondo blanco: un PNG con transparencia quedaría negro en el GIF.
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
-      const scale = Math.min(width / bitmap.width, height / bitmap.height);
-      const w = Math.round(bitmap.width * scale);
-      const h = Math.round(bitmap.height * scale);
-      ctx.drawImage(bitmap, Math.floor((width - w) / 2), Math.floor((height - h) / 2), w, h);
+      const { x, y, w, h } = fitImage(bitmap.width, bitmap.height, width, height);
+      ctx.drawImage(bitmap, x, y, w, h);
     } finally {
       bitmap.close();
     }
