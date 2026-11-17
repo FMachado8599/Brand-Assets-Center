@@ -218,7 +218,7 @@ function iconoDe(g: Grupo): ComponentType<{ className?: string }> {
   if (g.motivo === "asignacion") return UserPlus;
   const kind = g.principal.kind ?? "";
   if (kind === "comment_created") return MessageCircle;
-  if (/moved/.test(kind)) return ArrowRightLeft;
+  if (/_(moved|adopted)$/.test(kind)) return ArrowRightLeft;
   if (/_created$/.test(kind)) return Plus;
   return g.principal.origen === "basecamp" ? BasecampGlyph : Columns3;
 }

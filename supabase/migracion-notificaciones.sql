@@ -158,6 +158,20 @@ returns text language sql immutable set search_path = '' as $$
            '\s+', ' ', 'g')), 240), '');
 $$;
 
+-- Quiénes del equipo están nombrados en un texto: por el id que trae la mención o, si no se puede
+-- leer, por su sgid de Basecamp.
+create or replace function public.bc_nombrados(p_html text)
+returns uuid[] language sql stable set search_path = '' as $$
+  select coalesce(array_agg(e.id), '{}')
+    from public.equipo e
+    left join public.bc_personas bp on bp.id = e.bc_persona_id
+   where p_html is not null and position('sgid' in p_html) > 0
+     and (e.bc_persona_id = any(public.bc_mencionados(p_html))
+          or (bp.attachable_sgid is not null and position(bp.attachable_sgid in p_html) > 0));
+$$;
+
+revoke execute on function public.bc_nombrados(text) from public, anon, authenticated;
+
 -- 6. Recibir un aviso de Basecamp ---------------------------------------
 -- La llama /api/basecamp/webhook (sin sesión: Basecamp no tiene una). Valida la llave, guarda el
 -- evento, actualiza la card y reparte las notificaciones. Devuelve 'ok', 'repetido' o 'ignorado'.
@@ -183,7 +197,8 @@ declare
   v_marca uuid;
   v_agregados bigint[];
   v_sacados bigint[];
-  v_mencionados bigint[];
+  v_antes text;
+  v_texto text;
   v_n integer;
 begin
   select s.webhook_hash into v_hash from public.bc_sync s where s.id = 'basecamp';
@@ -218,11 +233,20 @@ begin
     v_tarea := v_hilo;
   end if;
 
+  -- Lo que se ve en la notificación: el texto o, si la movieron o la terminaron, qué pasó. (Una card
+  -- que cambia de columna llega como "adopted": la columna nueva la adopta.)
+  v_texto := case
+    when v_kind ~ '_(moved|adopted)$' and nullif(btrim(v_padre ->> 'title'), '') is not null then 'Pasó a ' || btrim(v_padre ->> 'title')
+    when v_kind ~ '_uncompleted$' then 'La volvieron a abrir'
+    when v_kind ~ '_completed$' then 'La terminaron'
+    else public.bc_extracto(v_contenido)
+  end;
+
   insert into public.bc_eventos (id, kind, proyecto_id, recording_id, recording_tipo, hilo_id, hilo_tipo, hilo_titulo, tarea_id,
                                  autor_bc_id, autor_nombre, texto, app_url, detalles, creado)
   values (v_ev_id, v_kind, v_proyecto, v_rec_id, v_rec_tipo, v_hilo, v_hilo_tipo, v_hilo_titulo, v_tarea,
           v_autor, coalesce(p_evento -> 'creator' ->> 'name', v_rec -> 'creator' ->> 'name'),
-          public.bc_extracto(v_contenido), v_rec ->> 'app_url', v_det, v_creado)
+          v_texto, v_rec ->> 'app_url', v_det, v_creado)
   on conflict (id) do nothing;
   get diagnostics v_n = row_count;
   if v_n = 0 then
@@ -235,7 +259,11 @@ begin
   on conflict (id) do nothing;
   update public.bc_webhooks set ultimo_evento = now() where proyecto_id = v_proyecto;
 
-  -- La copia de la card, al día sin esperar a la sincronización.
+  -- La copia de la card, al día sin esperar a la sincronización. Antes, el brief como estaba: en una
+  -- edición, solo avisa a quien no estaba nombrado.
+  if v_rec_tipo = 'Kanban::Card' and v_kind ~ '_content_(changed|updated)$' then
+    select t.contenido into v_antes from public.bc_tareas t where t.id = v_rec_id;
+  end if;
   if v_rec_tipo = 'Kanban::Card' then
     if v_kind ~ '_(trashed|archived|deleted)$' then
       delete from public.bc_tareas where id = v_rec_id;
@@ -286,11 +314,6 @@ begin
     return 'ok';
   end if;
 
-  if v_kind ~ '_(created|content_updated)$' then
-    v_mencionados := public.bc_mencionados(v_contenido);
-  else
-    v_mencionados := '{}';
-  end if;
   select p.brand_id into v_marca from public.bc_proyectos p where p.id = v_proyecto;
 
   with
@@ -346,23 +369,31 @@ begin
     select n.persona_id from public.notificaciones n where n.hilo_id = v_hilo and n.motivo = 'mencion'
   ),
   cand(persona_id, motivo, rango) as (
-    -- Te nombraron (en una edición, solo si no te habían nombrado ya en ese texto).
+    -- Te nombraron: en algo nuevo o, en una edición, si antes no estabas. Lo demás que le pasa a
+    -- algo (moverlo, asignar, terminarlo) trae el mismo texto, pero no es que te nombraron de nuevo.
     select e.id, 'mencion', 5
       from public.equipo e
-      left join public.bc_personas bp on bp.id = e.bc_persona_id
-     where (e.bc_persona_id = any(v_mencionados)
-            or (bp.attachable_sgid is not null and v_contenido is not null and position(bp.attachable_sgid in v_contenido) > 0))
-       and (v_kind !~ '_content_updated$' or not exists (
-             select 1 from public.notificaciones n join public.bc_eventos ev on ev.id = n.evento_id
-              where n.persona_id = e.id and n.motivo = 'mencion' and ev.recording_id = v_rec_id))
+     where e.id = any(public.bc_nombrados(v_contenido))
+       and (
+         v_kind ~ '_created$'
+         or (v_kind ~ '_content_(changed|updated)$' and (
+               -- Una card: contra el brief de antes.
+               (v_rec_tipo = 'Kanban::Card' and v_antes is not null and not (e.id = any(public.bc_nombrados(v_antes))))
+               -- Lo demás (un comentario): si se lo vio nacer y no te había avisado ya.
+               or (v_rec_tipo is distinct from 'Kanban::Card'
+                   and exists (select 1 from public.bc_eventos ev where ev.recording_id = v_rec_id and ev.id <> v_ev_id and ev.kind ~ '_created$')
+                   and not exists (
+                     select 1 from public.notificaciones n join public.bc_eventos ev on ev.id = n.evento_id
+                      where n.persona_id = e.id and n.motivo = 'mencion' and ev.recording_id = v_rec_id))))
+       )
     union all
     -- Te asignaron.
     select e.id, 'asignacion', 4 from public.equipo e where e.bc_persona_id = any(v_agregados)
     union all
-    -- Algo en una tarea tuya: un comentario, se movió o se terminó (no cada edición del brief).
+    -- Algo en una tarea tuya: un comentario, se movió de columna o se terminó (no cada edición del brief).
     select d.persona_id, 'tuya', 3
       from duenos d
-     where v_kind = 'comment_created' or v_kind ~ '(moved|_completed|_uncompleted|kanban_card_created)'
+     where v_kind = 'comment_created' or v_kind ~ '(_moved|_adopted|_completed|_uncompleted|^kanban_card_created)$'
     union all
     -- Un comentario en una conversación tuya.
     select h.persona_id, 'hilo', 2 from en_hilo h where v_kind = 'comment_created'
