@@ -2,11 +2,13 @@
 
 import { useMemo, useState, type ComponentType } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowDownWideNarrow, ArrowRightLeft, AtSign, Bell, Clock, Columns3, MessageCircle, Plus, UserPlus } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowRightLeft, AtSign, Bell, BellOff, Clock, Columns3, MessageCircle, Plus, UserPlus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
 import { Avatar, BasecampGlyph, hace } from "@/components/tareas/comun";
-import { marcarLeidas, useEstadoNotificaciones, useNotificaciones } from "@/hooks/useNotificaciones";
+import { marcarLeidas, refreshNotificaciones, useEstadoNotificaciones, useNotificaciones } from "@/hooks/useNotificaciones";
+import { ponerPreferencia, usePreferenciasTareas } from "@/hooks/usePreferenciasTareas";
+import { toast } from "@/components/ui/toaster";
 import { useStoredState } from "@/hooks/useStoredState";
 import { TONO } from "@/lib/board/flujo";
 import { hasSupabase } from "@/lib/supabase";
@@ -232,6 +234,21 @@ function Fila({ g, onAbrir, onBoard }: { g: Grupo; onAbrir: () => void; onBoard?
   const titulo = n.titulo ?? n.proyecto ?? "Basecamp";
   const esRespuesta = n.kind === "comment_created";
   const otros = g.autores.length > 1 ? ` y ${g.autores.length - 1} más` : "";
+  // La tarea (o la conversación) de la fila: se puede silenciar para que solo avise si te citan.
+  const hilo = n.hilo_id ?? n.tarea_id;
+  const { de } = usePreferenciasTareas();
+  const silenciada = hilo != null && de(hilo).avisos === "citas";
+  async function silenciar() {
+    if (hilo == null) return;
+    try {
+      await ponerPreferencia(hilo, { avisos: "citas" });
+      marcarLeidas(g.motivo === "mencion" || g.motivo === "asignacion" ? [] : g.idsNoLeidas);
+      refreshNotificaciones();
+      toast("De esta tarea solo te llega si te citan o te la pasan");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo guardar", "error");
+    }
+  }
 
   return (
     <li>
@@ -294,6 +311,21 @@ function Fila({ g, onAbrir, onBoard }: { g: Grupo; onAbrir: () => void; onBoard?
             </span>
           ) : (
             <span />
+          )}
+          {hilo != null && !silenciada && (
+            <Hint label="Solo avisarme si me citan">
+              <button
+                type="button"
+                aria-label="Solo avisarme si me citan"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  silenciar();
+                }}
+                className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-secondary hover:text-foreground focus:opacity-100 group-hover/fila:opacity-100"
+              >
+                <BellOff className="h-3.5 w-3.5" />
+              </button>
+            </Hint>
           )}
           {onBoard && n.origen === "basecamp" && (
             <Hint label="Ver en el Board">

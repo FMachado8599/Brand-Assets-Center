@@ -14,6 +14,7 @@ import {
   claveOrden,
   ETAPA_LABEL,
   etapaDe,
+  fechaDe,
   flujoRepo,
   ordenarPorPrioridad,
   ordenEntre,
@@ -26,6 +27,7 @@ import {
   type Etapa,
   type TareaFlujo,
 } from "@/lib/board/flujo";
+import { ponerPreferencia, usePreferenciasTareas } from "@/hooks/usePreferenciasTareas";
 import { ABRIR_TAREA } from "@/lib/notificaciones/prioridad";
 import { fold } from "@/lib/redaccion/text";
 import type { Brand } from "@/lib/types";
@@ -56,9 +58,18 @@ export function MiTablero() {
   const [persona, setPersona] = useState<string | null>(null);
   const [buscar, setBuscar] = useState("");
   const [abierta, setAbierta] = useState<number | null>(null);
-  // Las que cada uno sacó de su tablero (se guardan en su cuenta) y si se están mostrando igual.
-  const [ocultas, setOcultas] = useStoredState<number[]>("board:ocultas", []);
+  // Las que cada uno sacó de su tablero (en la base: tampoco avisan) y si se están mostrando igual.
+  const preferencias = usePreferenciasTareas();
   const [verOcultas, setVerOcultas] = useState(false);
+  // Antes se guardaban solo en la cuenta: se pasan a la base una vez y se borran de ahí.
+  const [ocultasViejas, setOcultasViejas] = useStoredState<number[]>("board:ocultas", []);
+  useEffect(() => {
+    if (!preferencias.loaded || !ocultasViejas.length) return;
+    const ids = ocultasViejas;
+    setOcultasViejas([]);
+    for (const id of ids) if (!preferencias.ocultas.has(id)) ponerPreferencia(id, { oculta: true }).catch(() => undefined);
+  }, [preferencias.loaded, preferencias.ocultas, ocultasViejas, setOcultasViejas]);
+  const [soloViejas, setSoloViejas] = useState(false);
   const [validaciones, setValidaciones] = useState<Map<number, Set<string>>>(new Map());
   // Tablero (columnas por etapa) o tabla (todas en una lista, en el mismo orden). Se recuerda.
   const [vista, setVista] = useStoredState<"tablero" | "tabla">("board:vista", "tablero");
@@ -106,12 +117,16 @@ export function MiTablero() {
   }, [tareas, ctx, quien, quienPersona, buscar]);
 
   // Fuera de la vista: las que cada uno ocultó y las pausadas que todavía no empezaron (confunden).
-  const ocultasSet = useMemo(() => new Set(ocultas), [ocultas]);
+  const ocultasSet = preferencias.ocultas;
   const escondida = (t: TareaFlujo) => ocultasSet.has(t.id) || (t.pausada && etapaDe(t) === "entrada");
   const nEscondidas = suyas.filter((x) => escondida(x.t)).length;
+  // Las suyas con la fecha de Basecamp vieja: para ponerles una fecha nueva de una.
+  const vieja = (x: { t: TareaFlujo; deOtro: boolean }) => !x.deOtro && !escondida(x.t) && tonoDe(x.t) === "vieja";
+  const nViejas = suyas.filter(vieja).length;
+  const filtrarViejas = soloViejas && nViejas > 0;
 
   const columnas = useMemo(() => {
-    const visibles = verOcultas ? suyas : suyas.filter((x) => !escondida(x.t));
+    const visibles = filtrarViejas ? suyas.filter(vieja) : verOcultas ? suyas : suyas.filter((x) => !escondida(x.t));
     // Las que están en manos de otro o escondidas (cuando se muestran igual) se ven más tenues.
     const deOtro = new Map(visibles.map((x) => [x.t.id, x.deOtro || escondida(x.t)]));
     return COLUMNAS.map((e) => ({
@@ -121,7 +136,7 @@ export function MiTablero() {
       .filter((c) => c.etapa !== "en_proceso" || c.tareas.length)
       .map((c) => ({ ...c, deOtro }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suyas, verOcultas, ocultasSet]);
+  }, [suyas, verOcultas, ocultasSet, filtrarViejas]);
 
   // Quién validó cada tarea que está en Validación.
   const enValidacion = useMemo(() => suyas.filter((x) => etapaDe(x.t) === "validacion").map((x) => x.t.id), [suyas]);
@@ -228,6 +243,20 @@ export function MiTablero() {
                 className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
               >
                 <Tags className="h-3.5 w-3.5" /> Mis marcas
+              </button>
+            )}
+            {nViejas > 0 && (
+              <button
+                type="button"
+                onClick={() => setSoloViejas((v) => !v)}
+                aria-pressed={filtrarViejas}
+                title="Tuyas con la fecha de Basecamp vencida hace más de dos semanas: abrilas y poneles una fecha nueva"
+                className={cn(
+                  "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
+                  filtrarViejas ? "border-[#8A6A3B] bg-[#8A6A3B] text-white" : "bg-card text-[#8A6A3B] hover:border-[#8A6A3B]/40"
+                )}
+              >
+                Fecha vieja · {nViejas}
               </button>
             )}
             {nEscondidas > 0 && (
@@ -362,15 +391,6 @@ export function MiTablero() {
         validaron={abiertaTarea ? (validaciones.get(abiertaTarea.id) ?? new Set()) : new Set()}
         onClose={() => setAbierta(null)}
         onValidado={recargarValidaciones}
-        ocultar={
-          abiertaTarea
-            ? {
-                oculta: ocultasSet.has(abiertaTarea.id),
-                alternar: () =>
-                  setOcultas(ocultasSet.has(abiertaTarea.id) ? ocultas.filter((id) => id !== abiertaTarea.id) : [...ocultas, abiertaTarea.id]),
-              }
-            : undefined
-        }
       />
     </div>
   );
@@ -423,6 +443,7 @@ function TablaTareas({
               const tono = TONO[tonoDe(t)];
               const etapa = etapaDe(t);
               const quien = responsableDe(t, ctx).persona;
+              const fecha = fechaDe(t);
               return (
                 <tr
                   key={t.id}
@@ -448,7 +469,9 @@ function TablaTareas({
                   </td>
                   <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">{TITULO[etapa] ?? ETAPA_LABEL[etapa]}</td>
                   <td className="hidden max-w-[10rem] truncate px-3 py-2.5 text-muted-foreground lg:table-cell">{quien?.nombre ?? "—"}</td>
-                  <td className="hidden whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground sm:table-cell">{t.vence ? fechaCorta(t.vence) : "—"}</td>
+                  <td className={cn("hidden whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground sm:table-cell", fecha.vieja && "line-through decoration-muted-foreground/50")}>
+                    {fecha.fecha ? fechaCorta(fecha.fecha) : "—"}
+                  </td>
                   <td className="px-4 py-2.5 text-right">
                     <span
                       className="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"

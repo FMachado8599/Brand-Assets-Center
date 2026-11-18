@@ -480,7 +480,7 @@ select n.id, n.origen, n.motivo, n.hilo_id, n.tarea_id, n.proyecto_id, n.creada,
        p.nombre as proyecto,
        b.id as brand_id, b.name as brand_name, b.color as brand_color, b.logo_url as brand_logo_url,
        b.logo_bg as brand_logo_bg, b.logo_from as brand_logo_from,
-       f.vence, f.vigencia, f.completada, f.etapa, f.estado, f.columna, f.tablero, f.pausada
+       f.vence, f.vigencia, f.completada, f.etapa, f.estado, f.columna, f.tablero, f.pausada, f.entrega
   from public.notificaciones n
   left join public.bc_eventos ev on ev.id = n.evento_id
   left join public.board_flujo f on f.id = n.tarea_id
@@ -511,3 +511,83 @@ drop policy if exists "cada uno marca las suyas" on public.notificaciones;
 create policy "cada uno marca las suyas" on public.notificaciones for update to authenticated
   using (persona_id = (select public.mi_equipo_id()))
   with check (persona_id = (select public.mi_equipo_id()));
+
+-- 10. Lo que cada uno elige de cada tarea ------------------------------------------
+-- "Solo si me citan": de esa tarea solo te llega lo que es para vos (te nombraron o te la pasaron).
+-- "Oculta": sale de tu tablero y tampoco avisa, salvo lo mismo. Sirve para cualquier tarea, también
+-- las que no son tuyas (ej: una de tu marca que no te toca). tarea_id es la card de Basecamp, o la
+-- conversación (un mensaje, un to-do): el hilo_id de las notificaciones.
+create table if not exists public.tarea_preferencias (
+  persona_id uuid not null references public.equipo(id) on delete cascade,
+  tarea_id bigint not null,
+  avisos text not null default 'todo' check (avisos in ('todo', 'citas')),
+  oculta boolean not null default false,
+  updated_at timestamptz not null default now(),
+  primary key (persona_id, tarea_id)
+);
+
+alter table public.tarea_preferencias enable row level security;
+drop policy if exists "cada uno las suyas" on public.tarea_preferencias;
+create policy "cada uno las suyas" on public.tarea_preferencias for select to authenticated
+  using (persona_id = (select public.mi_equipo_id()));
+
+-- Cambiar la preferencia (null = no cambia). Si vuelve a lo normal, se borra. Al silenciar, lo que
+-- había sin leer de esa tarea (que no te nombra ni te la pasa) se marca como leído.
+create or replace function public.tarea_preferencia(p_tarea bigint, p_avisos text default null, p_oculta boolean default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  yo uuid := public.mi_equipo_id();
+  r public.tarea_preferencias;
+begin
+  if yo is null or not public.has_access() then
+    raise exception 'Para esto tenés que estar en el equipo';
+  end if;
+  if p_avisos is not null and p_avisos not in ('todo', 'citas') then
+    raise exception 'Avisos desconocidos';
+  end if;
+  insert into public.tarea_preferencias as p (persona_id, tarea_id, avisos, oculta)
+  values (yo, p_tarea, coalesce(p_avisos, 'todo'), coalesce(p_oculta, false))
+  on conflict (persona_id, tarea_id) do update
+     set avisos = coalesce(p_avisos, p.avisos),
+         oculta = coalesce(p_oculta, p.oculta),
+         updated_at = now()
+  returning * into r;
+  if r.avisos = 'todo' and not r.oculta then
+    delete from public.tarea_preferencias where persona_id = yo and tarea_id = p_tarea;
+  else
+    update public.notificaciones n
+       set leida = now()
+     where n.persona_id = yo and n.leida is null
+       and p_tarea in (n.hilo_id, n.tarea_id)
+       and n.motivo not in ('mencion', 'asignacion');
+  end if;
+  return jsonb_build_object('tarea_id', p_tarea, 'avisos', r.avisos, 'oculta', r.oculta);
+end;
+$$;
+revoke execute on function public.tarea_preferencia(bigint, text, boolean) from public, anon;
+grant execute on function public.tarea_preferencia(bigint, text, boolean) to authenticated;
+
+-- Lo que no se tiene que avisar no se guarda: lo frena un trigger, así vale para todas las
+-- notificaciones (las de Basecamp y las del Board).
+create or replace function public.notificaciones_silenciar()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.motivo in ('mencion', 'asignacion') then
+    return new;
+  end if;
+  if exists (
+    select 1 from public.tarea_preferencias p
+     where p.persona_id = new.persona_id
+       and p.tarea_id in (new.hilo_id, new.tarea_id)
+       and (p.avisos = 'citas' or p.oculta)
+  ) then
+    return null;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.notificaciones_silenciar() from public, anon;
+
+drop trigger if exists notificaciones_silenciar on public.notificaciones;
+create trigger notificaciones_silenciar before insert on public.notificaciones
+  for each row execute function public.notificaciones_silenciar();

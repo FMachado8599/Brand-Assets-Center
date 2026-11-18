@@ -2,7 +2,7 @@
 
 import { forwardRef, type CSSProperties, type HTMLAttributes } from "react";
 import { CheckCheck, MessageSquare, Pause } from "lucide-react";
-import { TONO, tonoDe, type Responsable, type TareaFlujo } from "@/lib/board/flujo";
+import { TONO, fechaDe, tonoDe, type Responsable, type TareaFlujo } from "@/lib/board/flujo";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Avatar, BasecampGlyph } from "./comun";
@@ -37,6 +37,7 @@ export const TareaCard = forwardRef<HTMLDivElement, Props>(function TareaCard(
 ) {
   const tono = TONO[tonoDe(t)];
   const vencida = tonoDe(t) === "vencida";
+  const fecha = fechaDe(t);
   const persona = responsable.persona;
   const estilo: CSSProperties = {
     ...style,
@@ -101,9 +102,13 @@ export const TareaCard = forwardRef<HTMLDivElement, Props>(function TareaCard(
               Sin asignar
             </span>
           )}
-          {t.vence && (
-            <span className={cn("shrink-0 text-[11px] tabular-nums", vencida ? "font-semibold" : "text-muted-foreground")} style={vencida ? { color: tono.fg } : undefined}>
-              · {fechaCorta(t.vence)}
+          {fecha.fecha && (
+            <span
+              className={cn("shrink-0 text-[11px] tabular-nums", vencida ? "font-semibold" : "text-muted-foreground", fecha.vieja && "line-through decoration-muted-foreground/50")}
+              style={vencida ? { color: tono.fg } : undefined}
+              title={fecha.vieja ? "La fecha de Basecamp quedó vieja: poné una nueva en la tarea" : fecha.origen === "app" ? "Fecha de entrega puesta en la app" : "Fecha de entrega de Basecamp"}
+            >
+              · {fechaCorta(fecha.fecha)}
             </span>
           )}
         </div>

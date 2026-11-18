@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import Link from "next/link";
-import { ArrowUpRight, Check, CheckCheck, Loader2, Pause, Play, Presentation, Sparkles, Undo2, UserCheck } from "lucide-react";
+import { ArrowUpRight, Check, CheckCheck, Eye, EyeOff, Loader2, Pause, Play, Presentation, Sparkles, Undo2, UserCheck } from "lucide-react";
 import { ClientMark } from "@/components/clients/ClientMark";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
 import { cambiarTarea } from "@/hooks/useFlujo";
+import { refreshNotificaciones } from "@/hooks/useNotificaciones";
+import { ponerPreferencia, usePreferenciasTareas, type PreferenciaTarea } from "@/hooks/usePreferenciasTareas";
 import { useTipos } from "@/hooks/useTipos";
 import { supabase } from "@/lib/supabase";
 import {
@@ -17,6 +19,8 @@ import {
   ETAPA_LABEL,
   etapaDe,
   etapasDe,
+  FECHA_VIEJA_DIAS,
+  fechaDe,
   flujoErrorMessage,
   flujoRepo,
   responsableDe,
@@ -60,7 +64,6 @@ export function TareaDetalle({
   validaron,
   onClose,
   onValidado,
-  ocultar,
 }: {
   tarea: TareaFlujo | null;
   ctx: Contexto | null;
@@ -68,8 +71,6 @@ export function TareaDetalle({
   validaron: Set<string>;
   onClose: () => void;
   onValidado: () => void;
-  /** En Mi tablero: sacarla de la vista (o volver a mostrarla). Solo la ve así quien la oculta. */
-  ocultar?: { oculta: boolean; alternar: () => void };
 }) {
   const [movimientos, setMovimientos] = useState<Movimiento[] | null>(null);
   const [brief, setBrief] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export function TareaDetalle({
 
   const t = tarea;
   const etapa = etapaDe(t);
+  const fecha = fechaDe(t);
   const resp = responsableDe(t, ctx);
   const sector = sectorDeEtapa(etapa, t.tablero, ctx.data);
   const yo = ctx.data.yo?.equipo_id ?? null;
@@ -144,6 +146,10 @@ export function TareaDetalle({
       setMotivo("");
       hecho();
     }
+  }
+
+  async function entrega(fecha: string | null) {
+    if (await cambiarTarea(t.id, { entrega: fecha }, () => flujoRepo.entrega(t.id, fecha), fecha ? `Entrega: ${fechaCorta(fecha)}` : "Vuelve a la fecha de Basecamp")) hecho();
   }
 
   async function vigencia(fecha: string | null) {
@@ -341,27 +347,30 @@ export function TareaDetalle({
             </section>
           ) : null}
 
-          {ocultar && (
-            <button
-              type="button"
-              onClick={() => {
-                ocultar.alternar();
-                toast(ocultar.oculta ? "Vuelve a estar en tu tablero" : "La sacaste de tu tablero (la ves con “Ocultas”)");
-                if (!ocultar.oculta) onClose();
-              }}
-              className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              {ocultar.oculta ? "Volver a mostrarla en mi tablero" : "Ocultarla de mi tablero"}
-            </button>
-          )}
+          <ParaVos tareaId={t.id} onOcultada={onClose} />
 
           {/* Fechas */}
           <section className="space-y-2">
             <h3 className="eyebrow text-muted-foreground">Fechas</h3>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Entrega (Basecamp)</p>
-                <p className="mt-0.5 text-sm font-medium">{t.vence ? fechaCorta(t.vence) : "Sin fecha"}</p>
+              <div className={cn("rounded-2xl border bg-card p-3", fecha.vieja && "border-[#8A6A3B]/40")}>
+                <p className="text-xs text-muted-foreground">
+                  Entrega {t.entrega ? "· puesta en la app" : fecha.vieja ? "· la de Basecamp quedó vieja" : "· la de Basecamp"}
+                </p>
+                <input
+                  type="date"
+                  value={t.entrega ?? t.vence ?? ""}
+                  onChange={(e) => entrega(e.target.value || null)}
+                  className={cn("mt-0.5 w-full bg-transparent text-sm font-medium outline-none", fecha.vieja && "text-[#8A6A3B] line-through")}
+                />
+                {t.entrega && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    En Basecamp: {t.vence ? fechaCorta(t.vence) : "sin fecha"} ·{" "}
+                    <button type="button" onClick={() => entrega(null)} className="font-medium underline-offset-2 hover:text-foreground hover:underline">
+                      usar esa
+                    </button>
+                  </p>
+                )}
               </div>
               <div className="rounded-2xl border bg-card p-3">
                 <p className="text-xs text-muted-foreground">
@@ -386,7 +395,10 @@ export function TareaDetalle({
                 </button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Terminada y pasada esta fecha, la tarea se archiva. La IA lee el título y el brief y solo cambia esta fecha.</p>
+            <p className="text-xs text-muted-foreground">
+              La entrega se cambia solo acá: Basecamp no se toca. Si la de Basecamp venció hace más de {FECHA_VIEJA_DIAS} días, queda como vieja y no se pone roja hasta que pongas una nueva.
+              Terminada y pasada la vigencia, la tarea se archiva; la IA lee el título y el brief y solo cambia la vigencia.
+            </p>
           </section>
 
           {asignadosBc.length > 0 && (
@@ -455,7 +467,59 @@ function describir(m: Movimiento) {
       return m.a === "pausada" ? "la pausó" : "la reanudó";
     case "fecha":
       return m.a ? `puso vigente hasta el ${fechaCorta(m.a)}` : "volvió a la fecha de Basecamp";
+    case "entrega":
+      return m.a ? `puso la entrega para el ${fechaCorta(m.a)}` : "volvió a la entrega de Basecamp";
     case "validacion":
       return "la validó";
   }
+}
+
+/**
+ * Lo que cada uno elige de esta tarea: si le avisa todo o solo cuando lo citan, y si la saca de su
+ * tablero. Vale para cualquier tarea, también las que no son suyas. Solo lo ve quien lo elige.
+ */
+function ParaVos({ tareaId, onOcultada }: { tareaId: number; onOcultada: () => void }) {
+  const { de } = usePreferenciasTareas();
+  const pref = de(tareaId);
+  async function poner(cambio: Partial<PreferenciaTarea>, mensaje: string) {
+    try {
+      await ponerPreferencia(tareaId, cambio);
+      refreshNotificaciones();
+      toast(mensaje);
+      if (cambio.oculta) onOcultada();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo guardar", "error");
+    }
+  }
+  const opcion = (activa: boolean) =>
+    cn(
+      "h-8 rounded-full px-3 text-[13px] font-medium transition-colors",
+      activa ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+    );
+  return (
+    <section className="space-y-2">
+      <h3 className="eyebrow text-muted-foreground">Para vos</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-full border bg-card p-0.5" role="group" aria-label="Avisos de esta tarea">
+          <button type="button" aria-pressed={pref.avisos === "todo"} className={opcion(pref.avisos === "todo")} onClick={() => pref.avisos !== "todo" && poner({ avisos: "todo" }, "Te llega todo de esta tarea")}>
+            Avisarme todo
+          </button>
+          <button type="button" aria-pressed={pref.avisos === "citas"} className={opcion(pref.avisos === "citas")} onClick={() => pref.avisos !== "citas" && poner({ avisos: "citas" }, "Solo te llega si te citan o te la pasan")}>
+            Solo si me citan
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => poner({ oculta: !pref.oculta }, pref.oculta ? "Vuelve a estar en tu tablero" : "La sacaste de tu tablero (la ves con “Ocultas”)")}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-[13px] font-medium text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+        >
+          {pref.oculta ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          {pref.oculta ? "Volver a mostrarla" : "Ocultarla"}
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Con “Solo si me citan” te llega solo cuando te nombran o te la pasan. Oculta, además sale de tu tablero. Solo lo ves vos.
+      </p>
+    </section>
+  );
 }

@@ -11,7 +11,8 @@ import { tonoDe, type Etapa, type Tono } from "@/lib/board/flujo";
  *      marcas → algo de tus marcas que no es tuyo (solo en "Todo")
  *      leidas → lo ya visto
  * 3. Dentro de cada nivel, un puntaje: el motivo (mención 5, asignación 4, tu tarea 3, tu conversación 2,
- *    tu marca 1) más lo urgente de la tarea (vencida +4, vence hoy o mañana +2). Así lo vencido va
+ *    tu marca 1) más lo urgente de la tarea (vencida +4, vence hoy o mañana +2; una fecha vieja de
+ *    Basecamp o algo que espera al cliente no suma). Así lo vencido va
  *    primero, después las menciones y lo que vence pronto, después las asignaciones; a igual puntaje,
  *    lo más nuevo arriba.
  */
@@ -47,6 +48,8 @@ export type Notificacion = {
   // La tarea del Board, si la conversación es una card (para saber qué tan urgente es).
   vence: string | null;
   vigencia: string | null;
+  /** La fecha de entrega de la app: manda sobre vence. */
+  entrega: string | null;
   completada: boolean | null;
   etapa: string | null;
   estado: string | null;
@@ -105,7 +108,7 @@ export const puntaje = (g: Pick<Grupo, "motivo" | "tono">) => RANGO[g.motivo] + 
 
 /** Qué tan urgente es la tarea de la notificación. null si no es una card (un mensaje, un to-do…). */
 export function tonoDeNotificacion(n: Notificacion, hoy = new Date()): Tono | null {
-  if (n.tarea_id == null || (n.etapa == null && n.estado == null && n.vence == null && n.completada == null)) return null;
+  if (n.tarea_id == null || (n.etapa == null && n.estado == null && n.vence == null && n.entrega == null && n.completada == null)) return null;
   return tonoDe(
     {
       // La base solo guarda etapas válidas (tarea_flujo tiene un check).
@@ -116,6 +119,7 @@ export function tonoDeNotificacion(n: Notificacion, hoy = new Date()): Tono | nu
       completada: Boolean(n.completada),
       pausada: Boolean(n.pausada),
       vence: n.vence,
+      entrega: n.entrega ?? null,
     },
     hoy
   );
