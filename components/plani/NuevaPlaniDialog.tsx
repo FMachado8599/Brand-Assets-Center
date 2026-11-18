@@ -13,7 +13,7 @@ import { agregarTipo, useTipos } from "@/hooks/useTipos";
 import { mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
 import { MESES } from "@/lib/plani/config";
 import { planiErrorMessage, planiRepo } from "@/lib/plani/repo";
-import { COLORES_TIPO, ICONOS, iconoDe, idDeNombre, normalizarPalabras, tipoDeTitulo, tiposRepo } from "@/lib/plani/tipos";
+import { COLORES_TIPO, HERRAMIENTAS, ICONOS, iconoDe, idDeNombre, normalizarPalabras, tipoDeTitulo, tiposRepo, type Herramienta } from "@/lib/plani/tipos";
 import type { PlaniTipo } from "@/lib/plani/types";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
@@ -291,6 +291,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
   const [color, setColor] = useState(COLORES_TIPO[4]);
   const [icono, setIcono] = useState("presentacion");
   const [palabras, setPalabras] = useState("");
+  const [herramientas, setHerramientas] = useState<Herramienta[]>([]);
   const [guardando, setGuardando] = useState(false);
 
   const crear = async () => {
@@ -308,6 +309,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
       icono,
       // Si no se ponen palabras, se lo reconoce por su nombre.
       palabras: normalizarPalabras(palabras.trim() ? palabras : limpio),
+      herramientas,
     });
     setGuardando(false);
     if (error || !data) return toast(planiErrorMessage(error ?? { message: "No se pudo crear el tipo" }), "error");
@@ -370,6 +372,29 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
           className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
         />
       </label>
+      <div>
+        <span className="mb-1 block text-xs text-muted-foreground">Herramientas de la app que usa</span>
+        <div className="flex flex-wrap gap-1.5">
+          {HERRAMIENTAS.map((h) => {
+            const on = herramientas.includes(h.value);
+            return (
+              <button
+                key={h.value}
+                type="button"
+                aria-pressed={on}
+                title={h.hint}
+                onClick={() => setHerramientas((x) => (on ? x.filter((v) => v !== h.value) : [...x, h.value]))}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  on ? "border-foreground bg-foreground text-background" : "border-black/[0.08] bg-background/60 hover:bg-secondary"
+                )}
+              >
+                {on && <Check className="h-3.5 w-3.5" />} {h.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancelar} className="h-8 rounded-full px-3 text-sm font-medium hover:bg-secondary">
           Cancelar

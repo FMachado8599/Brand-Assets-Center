@@ -19,6 +19,8 @@ import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { FormatDot, FormatIcon } from "../bits";
 import { HiloComentarios, pendientes } from "../Comentarios";
+import { AnuncioMockup } from "../AnuncioMockup";
+import { useHerramientas } from "../herramientas";
 import { anchoMockup, Mockup, portadaDe, PortadaMockup } from "../Mockups";
 import { PlatformIcon } from "../PlatformIcon";
 import { CopyDialog } from "./CopyDialog";
@@ -46,6 +48,7 @@ type Props = {
  * título, misma idea). Arriba, el formato, el título, las aprobaciones y los comentarios.
  */
 export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar, onBorrar, onAdaptar, onOpen, comentarios, otrosCopys }: Props) {
+  const herramientas = useHerramientas();
   const grupo = [pieza, ...adaptaciones];
   const [activaId, setActivaId] = useState(pieza.id);
   const activa = grupo.find((p) => p.id === activaId) ?? pieza;
@@ -196,7 +199,16 @@ export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar,
         </div>
       </header>
 
-      <div className={cn("grid gap-5", activa.formato === "reel" || activa.formato === "historia" ? "md:grid-cols-[minmax(0,15.5rem)_1fr]" : "md:grid-cols-[minmax(0,19rem)_1fr]")}>
+      <div
+        className={cn(
+          "grid gap-5",
+          activa.formato === "banner"
+            ? "md:grid-cols-[minmax(0,1fr)_1fr]"
+            : activa.formato === "reel" || activa.formato === "historia"
+              ? "md:grid-cols-[minmax(0,15.5rem)_1fr]"
+              : "md:grid-cols-[minmax(0,19rem)_1fr]"
+        )}
+      >
         <div className={cn("mx-auto w-full md:sticky md:top-24 md:self-start", anchoMockup(activa))}>
           {conPortada && (
             <div className="mb-2.5 flex justify-center">
@@ -226,6 +238,14 @@ export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar,
           )}
           {conPortada && vista === "portada" ? (
             <PortadaMockup pieza={activa} onOpen={onOpen ? (m) => onOpen(m, activa) : undefined} />
+          ) : herramientas.ads && activa.formato !== "banner" ? (
+            // En los tipos con anuncios: el mockup de la herramienta de Ads, con lo que tapa Instagram.
+            <AnuncioMockup
+              pieza={activa}
+              brand={brand}
+              ancho={activa.formato === "reel" || activa.formato === "historia" ? 240 : 290}
+              onOpen={onOpen ? (m) => onOpen(m, activa) : undefined}
+            />
           ) : (
             <Mockup
               pieza={activa}

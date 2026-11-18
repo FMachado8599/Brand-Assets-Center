@@ -89,6 +89,7 @@ export function piezaNueva(
     proporcion,
     plataformas,
     slides: formato === "carrusel" ? [{ instruccion: "" }, { instruccion: "" }, { instruccion: "" }] : [],
+    ...(formato === "banner" ? { ancho: 300, alto: 250, plataformas: [] } : {}),
     ...extra,
   };
 }

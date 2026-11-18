@@ -3,9 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ESTADOS, FORMATOS, FORMATO_ORDEN } from "@/lib/plani/config";
+import { ESTADOS, FORMATOS, formatosDe } from "@/lib/plani/config";
 import type { Formato, PlaniEstado } from "@/lib/plani/types";
 import { cn } from "@/lib/utils";
+import { useHerramientas } from "../herramientas";
 import { FormatDot, FormatIcon } from "../bits";
 
 /**
@@ -33,6 +34,7 @@ export function NuevaPiezaMenu({
   const isOpen = open ?? own;
   const setOpen = onOpenChange ?? setOwn;
   const [dia, setDia] = useState(fecha);
+  const herramientas = useHerramientas();
   // Cada vez que se abre arranca en la fecha que corresponde (la del día tocado o la sugerida).
   useEffect(() => {
     if (isOpen) setDia(fecha);
@@ -52,7 +54,7 @@ export function NuevaPiezaMenu({
           />
         )}
         <div className="grid grid-cols-2 gap-1.5">
-          {FORMATO_ORDEN.map((f) => (
+          {formatosDe(herramientas.gif).map((f) => (
             <button
               key={f}
               type="button"

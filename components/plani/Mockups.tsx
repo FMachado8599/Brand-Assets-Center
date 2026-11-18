@@ -17,7 +17,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { ClientMark } from "@/components/clients/ClientMark";
-import { MEDIDAS } from "@/lib/plani/config";
+import { medidaDe } from "@/lib/plani/config";
 import { copyTexto } from "@/lib/plani/copy";
 import type { Medio, Pieza, Plataforma, Sticker } from "@/lib/plani/types";
 import type { Brand } from "@/lib/types";
@@ -66,7 +66,44 @@ export function Mockup(props: MockupProps) {
       return <ReelMockup {...props} />;
     case "historia":
       return <StoryMockup {...props} />;
+    case "banner":
+      return <BannerMockup {...props} />;
   }
+}
+
+/**
+ * Un banner de display (programática): el GIF o la imagen a su medida, sobre un fondo neutro, como
+ * se va a ver en la página. Mientras no hay diseño, lo que pidió redacción.
+ */
+function BannerMockup({ pieza, onOpen, className }: MockupProps) {
+  const medioUrl = useMedioUrl();
+  const m = pieza.medios.find((x) => x.rol === "final") ?? null;
+  const { w, h } = medidaDe(pieza);
+  return (
+    <div className={cn("w-full", className)}>
+      <div className="rounded-2xl border border-black/[0.06] bg-[#ececee] p-4">
+        <div className="mx-auto w-full overflow-hidden bg-white shadow-sm" style={{ maxWidth: Math.min(w, 560), aspectRatio: `${w} / ${h}` }}>
+          {m ? (
+            // El original (no la miniatura): así el GIF se mueve.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={medioUrl(m)}
+              alt={pieza.titulo || "Banner"}
+              onClick={onOpen ? () => onOpen(m) : undefined}
+              className={cn("h-full w-full object-contain", onOpen && "cursor-zoom-in")}
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center border-2 border-dashed border-black/10 p-2 text-center text-[11px] leading-snug text-muted-foreground">
+              {pieza.instrucciones || "Diseño pendiente"}
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        Banner {w}×{h} px{m ? ` · ${Math.round(m.tamano / 1024)} KB` : ""}
+      </p>
+    </div>
+  );
 }
 
 /* ───────────── Piezas sueltas ───────────── */
@@ -102,7 +139,7 @@ function Placeholder({ pieza, dark, slide }: { pieza: Pieza; dark?: boolean; sli
         {texto || (cliente ? "" : pieza.titulo || "Sin indicaciones todavía")}
       </p>
       <span className="relative text-[10px] font-medium opacity-55">
-        {MEDIDAS[pieza.proporcion].label} · {MEDIDAS[pieza.proporcion].w}×{MEDIDAS[pieza.proporcion].h}
+        {medidaDe(pieza).label} · {medidaDe(pieza).w}×{medidaDe(pieza).h}
       </span>
     </div>
   );

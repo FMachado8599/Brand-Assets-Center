@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext } from "react";
-import { Clapperboard, CircleDashed, GalleryHorizontalEnd, Square, type LucideIcon } from "lucide-react";
+import { Clapperboard, CircleDashed, GalleryHorizontalEnd, RectangleHorizontal, Square, type LucideIcon } from "lucide-react";
 import { APROBACION, FORMATOS, estadoInfo } from "@/lib/plani/config";
 import type { Aprobacion, Formato, Medio, PlaniEstado } from "@/lib/plani/types";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ export const FORMAT_ICONS: Record<Formato, LucideIcon> = {
   carrusel: GalleryHorizontalEnd,
   reel: Clapperboard,
   historia: CircleDashed,
+  banner: RectangleHorizontal,
 };
 
 export function FormatIcon({ formato, className }: { formato: Formato; className?: string }) {

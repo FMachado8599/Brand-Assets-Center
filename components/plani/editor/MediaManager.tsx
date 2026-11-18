@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, HardDriveUpload, ImagePlus, Loader2, Trash2, Vid
 import { toast } from "@/components/ui/toaster";
 import { useEquipo } from "@/hooks/useEquipo";
 import { conectarUrl, useIntegraciones } from "@/hooks/useIntegraciones";
-import { FORMATOS, MEDIDAS } from "@/lib/plani/config";
+import { FORMATOS, medidaDe } from "@/lib/plani/config";
 import type { Medio, Pieza } from "@/lib/plani/types";
 import { borrarMedio, subirMedio, SubidaError } from "@/lib/plani/upload";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ export function MediaManager({ pieza, onChange }: { pieza: Pieza; onChange: (med
   const info = FORMATOS[pieza.formato];
   const finales = pieza.medios.filter((m) => m.rol === "final");
   const portada = pieza.medios.find((m) => m.rol === "portada") ?? null;
-  const medida = MEDIDAS[pieza.proporcion];
+  const medida = medidaDe(pieza);
 
   const commit = (next: Medio[]) => {
     latest.current = next;

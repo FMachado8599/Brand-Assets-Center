@@ -57,6 +57,7 @@ import { hasSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { BasecampMark, BasecampTarea, TareaPicker } from "../BasecampTarea";
 import { FormatDot, medioUrl } from "../bits";
+import { HerramientasProvider } from "../herramientas";
 import { TipoChip } from "../TipoChip";
 import { HiloComentarios, pendientes } from "../Comentarios";
 import { PlaniEmojiProvider } from "../emojis";
@@ -473,7 +474,7 @@ function Editor({ id }: { id: string }) {
   const fueraDelMes = dias.filter((d) => !enElMes(d.fecha, plani.anio, plani.mes)).length;
 
   return (
-    <>
+    <HerramientasProvider value={tipo.herramientas}>
       {bar}
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:px-6 md:pt-28">
         {/* ───── Portada ───── */}
@@ -676,7 +677,7 @@ function Editor({ id }: { id: string }) {
         </DialogContent>
       </Dialog>
 
-    </>
+    </HerramientasProvider>
   );
 }
 

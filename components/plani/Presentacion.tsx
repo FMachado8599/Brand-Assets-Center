@@ -20,6 +20,9 @@ import { cn } from "@/lib/utils";
 import { HiloComentarios, pendientes } from "./Comentarios";
 import { Lightbox } from "./Lightbox";
 import { copyDe, finales, Mockup, portadaDe, PortadaMockup, type MockupBrand } from "./Mockups";
+import { AnuncioMockup } from "./AnuncioMockup";
+import type { Herramienta } from "@/lib/plani/tipos";
+import { HerramientasProvider, useHerramientas } from "./herramientas";
 import { Calendario, FeedGrid } from "./Overview";
 import { PlatformIcon } from "./PlatformIcon";
 
@@ -54,7 +57,15 @@ type Props = {
  * (o la rueda) y se puede poner en pantalla completa (F). Es la misma para el estudio y para el
  * cliente (en su link): el cliente comenta y aprueba; el estudio ve además lo interno.
  */
-export function PresentacionVista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver }: Props) {
+export function PresentacionVista({ herramientas = [], ...props }: Props & { herramientas?: Herramienta[] }) {
+  return (
+    <HerramientasProvider value={herramientas}>
+      <Vista {...props} />
+    </HerramientasProvider>
+  );
+}
+
+function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver }: Props) {
   const deck = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(0);
   const [full, setFull] = useState(false);
@@ -299,6 +310,7 @@ export function Presentacion({ id }: { id: string }) {
     <PresentacionVista
       plani={plani}
       tipoNombre={tipo.nombre}
+      herramientas={tipo.herramientas}
       piezas={piezas}
       brand={brand ?? { name: "Cliente", color: "#52525B", logo_url: null, logo_bg: "light" }}
       modo="estudio"
@@ -398,6 +410,7 @@ function PiezaSlide({
   onAprobar?: (piezaId: string, estado: Aprobacion) => void;
   onOpen: (m: Medio) => void;
 }) {
+  const herramientas = useHerramientas();
   const vertical = pieza.formato === "reel" || pieza.formato === "historia";
   const copy = copyDe(pieza);
   const titulo = pieza.titulo || fuente?.titulo || "";
@@ -437,7 +450,13 @@ function PiezaSlide({
             ))}
           </div>
         )}
-        {conPortada && verPortada ? <PortadaMockup pieza={pieza} onOpen={onOpen} /> : <Mockup pieza={pieza} brand={brand} fuente={fuente} onOpen={onOpen} />}
+        {conPortada && verPortada ? (
+          <PortadaMockup pieza={pieza} onOpen={onOpen} />
+        ) : herramientas.ads && pieza.formato !== "banner" ? (
+          <AnuncioMockup pieza={pieza} brand={brand} ancho={320} onOpen={onOpen} />
+        ) : (
+          <Mockup pieza={pieza} brand={brand} fuente={fuente} onOpen={onOpen} />
+        )}
       </div>
 
       <aside className="flex flex-col gap-4 md:h-full md:py-6">

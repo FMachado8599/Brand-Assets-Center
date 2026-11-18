@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toaster";
 import { supabase } from "@/lib/supabase";
 import { MESES } from "@/lib/plani/config";
+import type { Herramienta } from "@/lib/plani/tipos";
 import type { Aprobacion, Comentario, Pieza } from "@/lib/plani/types";
 import { MedioBaseProvider, VistaClienteProvider } from "./bits";
 import type { MockupBrand } from "./Mockups";
@@ -11,7 +12,7 @@ import { PresentacionVista, type PresentacionPlani } from "./Presentacion";
 
 type Datos = {
   presentacion: PresentacionPlani & { titulo: string; brand_id: string };
-  tipo: { id: string; nombre: string; color: string; icono: string } | null;
+  tipo: { id: string; nombre: string; color: string; icono: string; herramientas?: Herramienta[] } | null;
   brand: MockupBrand | null;
   piezas: Partial<Pieza>[];
   comentarios: (Omit<Comentario, "presentacion_id" | "autor_id" | "interno"> & { del_cliente: boolean })[];
@@ -26,6 +27,9 @@ function completar(p: Partial<Pieza>): Pieza {
     slides: [],
     referencias: [],
     assets: [],
+    anuncio: {},
+    ancho: null,
+    alto: null,
     estado_agencia: "pendiente",
     updated_at: "",
     ...p,
@@ -127,6 +131,7 @@ export function PlaniCliente({ token }: { token: string }) {
         <PresentacionVista
           plani={datos.presentacion}
           tipoNombre={datos.tipo?.nombre ?? "Presentación"}
+          herramientas={datos.tipo?.herramientas ?? []}
           piezas={datos.piezas.map(completar)}
           brand={datos.brand ?? { name: "Cliente", color: "#52525B", logo_url: null, logo_bg: "light" }}
           modo="cliente"

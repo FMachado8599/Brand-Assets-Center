@@ -1,4 +1,4 @@
-import { FORMATOS, MEDIDAS, MESES, nombreFormato } from "./config";
+import { FORMATOS, medidaDe, MESES, nombreFormato } from "./config";
 import { copyTexto } from "./copy";
 import { etiquetaArchivo, etiquetaCorta } from "./fechas";
 import type { Formato, Pieza, Plani } from "./types";
@@ -62,7 +62,7 @@ export function armarMesas(piezas: Pieza[]): Doc[] {
 
     // Cada pieza aporta sus mesas (un carrusel, una por slide) y quedan juntas en la misma fila.
     const bloques = delGrupo.map((p) => {
-      const m = MEDIDAS[p.proporcion];
+      const m = medidaDe(p);
       // "4:5" → "4x5": "Exportar para pantallas" usa el nombre de la mesa como nombre de archivo y Windows no acepta ":".
       const base = `${etiquetaArchivo(p.fecha)} ${etiquetaCorta(p.fecha).split(" ")[0]} · ${nombreFormato(p.formato, p.proporcion).replace(":", "x")}`;
       const titulo = p.titulo ? ` · ${p.titulo.slice(0, 40)}` : "";

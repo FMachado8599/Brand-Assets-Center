@@ -95,7 +95,7 @@ export function Calendario({
 
 /**
  * El feed como va a quedar en el perfil: lo más nuevo arriba a la izquierda, en la grilla 3:4 de
- * Instagram. Las historias no van al feed.
+ * Instagram. Las historias y los banners no van al feed.
  */
 export function FeedGrid({
   piezas,
@@ -107,7 +107,7 @@ export function FeedGrid({
   className?: string;
 }) {
   const medioUrl = useMedioUrl();
-  const feed = piezas.filter((p) => p.formato !== "historia").sort((a, b) => b.fecha.localeCompare(a.fecha) || b.orden - a.orden);
+  const feed = piezas.filter((p) => p.formato !== "historia" && p.formato !== "banner").sort((a, b) => b.fecha.localeCompare(a.fecha) || b.orden - a.orden);
   if (!feed.length) {
     return (
       <div className={cn("grid aspect-[3/4] place-items-center rounded-xl border border-dashed border-foreground/15 p-6 text-center text-sm text-muted-foreground", className)}>

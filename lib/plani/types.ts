@@ -11,9 +11,16 @@ export type PlaniTipo = string;
 /** En qué etapa está la presentación entera. */
 export type PlaniEstado = "redaccion" | "diseno" | "revision" | "cliente" | "programacion" | "lista";
 
-export type Formato = "post" | "carrusel" | "reel" | "historia";
+import type { Placement } from "@/lib/ads/placements";
 
-export type Proporcion = "4:5" | "1:1" | "9:16" | "16:9";
+/** banner: programática y display (en los tipos con GIF), con su medida en ancho y alto. */
+export type Formato = "post" | "carrusel" | "reel" | "historia" | "banner";
+
+/** libre: la medida va en ancho y alto (los banners). */
+export type Proporcion = "4:5" | "1:1" | "9:16" | "16:9" | "libre";
+
+/** El anuncio de una pieza (en los tipos con ads): dónde sale, el botón y el título. */
+export type Anuncio = { lugares?: Placement[]; cta?: string; titulo?: string };
 
 export type Plataforma = "instagram" | "facebook" | "tiktok" | "linkedin" | "youtube" | "x";
 
@@ -81,6 +88,10 @@ export type Pieza = {
    * Las planis de antes pueden traer uno por red (instagram, tiktok…).
    */
   copys: Partial<Record<Plataforma, string>> & { todas?: string; html?: string };
+  /** Banners: la medida en px (300×250, 728×90…). */
+  ancho: number | null;
+  alto: number | null;
+  anuncio: Anuncio;
   instrucciones: string;
   slides: Slide[];
   referencias: Link[];

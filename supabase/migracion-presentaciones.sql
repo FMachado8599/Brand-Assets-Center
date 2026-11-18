@@ -54,6 +54,9 @@ create table if not exists public.presentacion_tipos (
   icono text not null default 'presentacion',
   -- En minúsculas y sin tildes; se buscan como palabras enteras en el título de la tarea.
   palabras text[] not null default '{}',
+  -- Las herramientas de la app que usa: ads (el mockup del anuncio en cada pieza) y gif (banners
+  -- con su GIF armado con los frames).
+  herramientas text[] not null default '{}',
   orden int not null default 100,
   creado_por uuid default auth.uid() references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -63,15 +66,24 @@ create table if not exists public.presentacion_tipos (
   constraint presentacion_tipos_textos check (char_length(descripcion) <= 300 and cardinality(palabras) <= 30)
 );
 
-insert into public.presentacion_tipos (id, nombre, descripcion, color, icono, palabras, orden) values
+-- Si la tabla es de antes de las herramientas.
+alter table public.presentacion_tipos add column if not exists herramientas text[] not null default '{}';
+alter table public.presentacion_tipos drop constraint if exists presentacion_tipos_herramientas;
+alter table public.presentacion_tipos add constraint presentacion_tipos_herramientas
+  check (herramientas <@ array['ads', 'gif']::text[]);
+
+insert into public.presentacion_tipos (id, nombre, descripcion, color, icono, palabras, herramientas, orden) values
   ('planificacion', 'Planificación', 'El contenido orgánico del mes', '#7C3AED', 'calendario',
-   array['plani', 'planis', 'planificacion', 'social media plan', 'plan de contenido', 'plan de contenidos', 'grilla'], 10),
-  ('pauta', 'Pauta', 'Contenido pautado', '#2563EB', 'megafono', array['pauta', 'pautas', 'pautado', 'paid'], 20),
+   array['plani', 'planis', 'planificacion', 'social media plan', 'plan de contenido', 'plan de contenidos', 'grilla'], '{}', 10),
+  ('pauta', 'Pauta', 'Contenido pautado', '#2563EB', 'megafono', array['pauta', 'pautas', 'pautado', 'paid'], '{ads}', 20),
   ('leads', 'Leads / Ads', 'Anuncios para captar leads', '#DB2777', 'objetivo',
-   array['leads', 'lead', 'ads', 'anuncio', 'anuncios', 'meta ads', 'lead ads'], 30),
+   array['leads', 'lead', 'ads', 'anuncio', 'anuncios', 'meta ads', 'lead ads'], '{ads}', 30),
   ('programatica', 'Programática / YouTube', 'Banners de programática y piezas para YouTube', '#059669', 'pantalla',
-   array['programatica', 'youtube', 'display', 'banners'], 40)
+   array['programatica', 'youtube', 'display', 'banners'], '{gif}', 40)
 on conflict (id) do nothing;
+-- Los de base que se crearon antes de las herramientas (si nadie las cambió todavía).
+update public.presentacion_tipos set herramientas = '{ads}' where id in ('leads', 'pauta') and herramientas = '{}';
+update public.presentacion_tipos set herramientas = '{gif}' where id = 'programatica' and herramientas = '{}';
 
 -- 2. La presentación ------------------------------------------------
 -- Una por tarea: cliente, tipo, mes. Puede haber más de una del mismo cliente y mes.
@@ -112,12 +124,16 @@ create table if not exists public.presentacion_piezas (
   hora time,
   orden int not null default 0,
   formato text not null,
-  -- post y carrusel: 4:5 o 1:1 · reel e historia: 9:16
+  -- post y carrusel: 4:5 o 1:1 · reel e historia: 9:16 · banner: libre (con ancho y alto)
   proporcion text not null default '4:5',
+  ancho int,
+  alto int,
   plataformas text[] not null default '{instagram}',
   titulo text not null default '',
   -- El copy: { "todas": "…", "html": "…" } (las de antes pueden traer uno por red).
   copys jsonb not null default '{}'::jsonb,
+  -- El anuncio (en los tipos con ads): { "lugares": ["feed", "reels", "story", …], "cta": "…", "titulo": "…" }
+  anuncio jsonb not null default '{}'::jsonb,
   -- Indicaciones para diseño (en un carrusel, las generales; las de cada slide van en slides).
   instrucciones text not null default '',
   -- Carrusel: [{ "instruccion": "…" }, …] — una por slide.
@@ -136,8 +152,10 @@ create table if not exists public.presentacion_piezas (
   programada boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint presentacion_piezas_formato check (formato in ('post', 'carrusel', 'reel', 'historia')),
-  constraint presentacion_piezas_proporcion check (proporcion in ('4:5', '1:1', '9:16', '16:9')),
+  constraint presentacion_piezas_formato check (formato in ('post', 'carrusel', 'reel', 'historia', 'banner')),
+  constraint presentacion_piezas_proporcion check (proporcion in ('4:5', '1:1', '9:16', '16:9', 'libre')),
+  constraint presentacion_piezas_medida check ((ancho is null or ancho between 10 and 4000) and (alto is null or alto between 10 and 4000)),
+  constraint presentacion_piezas_anuncio check (jsonb_typeof(anuncio) = 'object'),
   constraint presentacion_piezas_estado_agencia check (estado_agencia in ('pendiente', 'aprobada', 'cambios')),
   constraint presentacion_piezas_estado_cliente check (estado_cliente in ('pendiente', 'aprobada', 'cambios')),
   constraint presentacion_piezas_copys_objeto check (jsonb_typeof(copys) = 'object'),
@@ -206,6 +224,22 @@ begin
     end if;
   end loop;
 end $$;
+
+-- Si la tabla es de antes de los banners y los anuncios.
+alter table public.presentacion_piezas add column if not exists ancho int;
+alter table public.presentacion_piezas add column if not exists alto int;
+alter table public.presentacion_piezas add column if not exists anuncio jsonb not null default '{}'::jsonb;
+alter table public.presentacion_piezas drop constraint if exists presentacion_piezas_formato;
+alter table public.presentacion_piezas add constraint presentacion_piezas_formato
+  check (formato in ('post', 'carrusel', 'reel', 'historia', 'banner'));
+alter table public.presentacion_piezas drop constraint if exists presentacion_piezas_proporcion;
+alter table public.presentacion_piezas add constraint presentacion_piezas_proporcion
+  check (proporcion in ('4:5', '1:1', '9:16', '16:9', 'libre'));
+alter table public.presentacion_piezas drop constraint if exists presentacion_piezas_medida;
+alter table public.presentacion_piezas add constraint presentacion_piezas_medida
+  check ((ancho is null or ancho between 10 and 4000) and (alto is null or alto between 10 and 4000));
+alter table public.presentacion_piezas drop constraint if exists presentacion_piezas_anuncio;
+alter table public.presentacion_piezas add constraint presentacion_piezas_anuncio check (jsonb_typeof(anuncio) = 'object');
 
 create index if not exists presentacion_piezas_presentacion_idx on public.presentacion_piezas (presentacion_id, fecha, orden);
 create index if not exists presentacion_comentarios_presentacion_idx on public.presentacion_comentarios (presentacion_id, created_at);

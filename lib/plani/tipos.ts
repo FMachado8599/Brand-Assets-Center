@@ -15,9 +15,18 @@ export type TipoPresentacion = {
   color: string;
   icono: string;
   palabras: string[];
+  /** Las herramientas de la app que usa: ads (mockup del anuncio) y gif (banners con su GIF). */
+  herramientas: Herramienta[];
   orden: number;
   creado_por: string | null;
 };
+
+export type Herramienta = "ads" | "gif";
+
+export const HERRAMIENTAS: { value: Herramienta; label: string; hint: string }[] = [
+  { value: "ads", label: "Mockup de anuncios", hint: "Cada pieza se ve como anuncio: Feed, Reels, Historia y formulario de leads" },
+  { value: "gif", label: "GIF y banners", hint: "Banners con su medida y el GIF armado con los frames" },
+];
 
 /** Los íconos que puede tener un tipo (se guarda el nombre). */
 export const ICONOS: Record<string, { icon: LucideIcon; label: string }> = {
@@ -45,6 +54,7 @@ export const tipoDesconocido = (id: string): TipoPresentacion => ({
   color: "#52525B",
   icono: "presentacion",
   palabras: [],
+  herramientas: [],
   orden: 999,
   creado_por: null,
 });
@@ -93,9 +103,9 @@ export function tipoDeTitulo(titulo: string, tipos: TipoPresentacion[]): TipoPre
 export const tiposRepo = {
   list: () => supabase.from("presentacion_tipos").select("*").order("orden").order("nombre").returns<TipoPresentacion[]>(),
 
-  create: (input: Pick<TipoPresentacion, "id" | "nombre" | "color" | "icono" | "palabras"> & { descripcion?: string }) =>
+  create: (input: Pick<TipoPresentacion, "id" | "nombre" | "color" | "icono" | "palabras" | "herramientas"> & { descripcion?: string }) =>
     supabase.from("presentacion_tipos").insert(input).select().single<TipoPresentacion>(),
 
-  update: (id: string, patch: Partial<Pick<TipoPresentacion, "nombre" | "descripcion" | "color" | "icono" | "palabras">>) =>
+  update: (id: string, patch: Partial<Pick<TipoPresentacion, "nombre" | "descripcion" | "color" | "icono" | "palabras" | "herramientas">>) =>
     supabase.from("presentacion_tipos").update(patch).eq("id", id).select().single<TipoPresentacion>(),
 };

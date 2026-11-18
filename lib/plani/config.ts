@@ -1,4 +1,4 @@
-import type { Aprobacion, Formato, PlaniEstado, Plataforma, Proporcion, Rol, StickerTipo } from "./types";
+import type { Aprobacion, Formato, Pieza, PlaniEstado, Plataforma, Proporcion, Rol, StickerTipo } from "./types";
 
 export const MESES = [
   "Enero",
@@ -65,19 +65,46 @@ export const FORMATOS: Record<
   carrusel: { label: "Carrusel", plural: "Carruseles", proporciones: ["4:5", "1:1"], color: "#FFB000", video: false, multiple: true },
   reel: { label: "Reel", plural: "Reels", proporciones: ["9:16"], color: "#E5484D", video: true, multiple: false },
   historia: { label: "Historia", plural: "Historias", proporciones: ["9:16"], color: "#FF7A00", video: true, multiple: false },
+  banner: { label: "Banner", plural: "Banners", proporciones: ["libre"], color: "#0EA5E9", video: false, multiple: false },
 };
 
+/** Los formatos de redes (los de siempre). El banner se suma en los tipos con GIF. */
 export const FORMATO_ORDEN: Formato[] = ["post", "carrusel", "reel", "historia"];
+export const formatosDe = (conGif: boolean): Formato[] => (conGif ? [...FORMATO_ORDEN, "banner"] : FORMATO_ORDEN);
+
+/** Las medidas de display más pedidas (IAB), para elegir rápido. */
+export const BANNERS: { w: number; h: number; label: string }[] = [
+  { w: 300, h: 250, label: "Medium rectangle" },
+  { w: 728, h: 90, label: "Leaderboard" },
+  { w: 160, h: 600, label: "Skyscraper" },
+  { w: 300, h: 600, label: "Half page" },
+  { w: 320, h: 50, label: "Mobile banner" },
+  { w: 320, h: 100, label: "Large mobile" },
+  { w: 970, h: 250, label: "Billboard" },
+  { w: 336, h: 280, label: "Large rectangle" },
+];
 
 export const MEDIDAS: Record<Proporcion, { w: number; h: number; label: string }> = {
   "4:5": { w: 1080, h: 1350, label: "Feed 4:5" },
   "1:1": { w: 1080, h: 1080, label: "Feed 1:1" },
   "9:16": { w: 1080, h: 1920, label: "Vertical 9:16" },
   "16:9": { w: 1920, h: 1080, label: "Horizontal 16:9" },
+  libre: { w: 300, h: 250, label: "Banner" },
 };
+
+/** La medida de una pieza: la de su proporción o, en un banner, la que se le puso. */
+export function medidaDe(p: Pick<Pieza, "proporcion" | "ancho" | "alto">) {
+  if (p.proporcion === "libre") {
+    const w = p.ancho ?? MEDIDAS.libre.w;
+    const h = p.alto ?? MEDIDAS.libre.h;
+    return { w, h, label: "Banner" };
+  }
+  return MEDIDAS[p.proporcion];
+}
 
 /** Cómo se nombra el formato en la presentación ("Feed 4:5", "Historia"…), como en la plani de siempre. */
 export function nombreFormato(formato: Formato, proporcion: Proporcion) {
+  if (formato === "banner") return "Banner";
   if (formato === "post") return `Feed ${proporcion}`;
   if (formato === "carrusel") return `Carrusel ${proporcion}`;
   return FORMATOS[formato].label;

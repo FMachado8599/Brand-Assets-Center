@@ -34,7 +34,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
       'estado', p.estado, 'drive_carpeta_id', null
     ),
     'tipo', (
-      select jsonb_build_object('id', t.id, 'nombre', t.nombre, 'color', t.color, 'icono', t.icono)
+      select jsonb_build_object('id', t.id, 'nombre', t.nombre, 'color', t.color, 'icono', t.icono, 'herramientas', t.herramientas)
       from public.presentacion_tipos t where t.id = p.tipo
     ),
     'brand', (
@@ -44,8 +44,8 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     'piezas', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', x.id, 'presentacion_id', x.presentacion_id, 'fecha', x.fecha, 'hora', x.hora, 'orden', x.orden,
-        'formato', x.formato, 'proporcion', x.proporcion, 'plataformas', x.plataformas, 'titulo', x.titulo,
-        'copys', x.copys,
+        'formato', x.formato, 'proporcion', x.proporcion, 'ancho', x.ancho, 'alto', x.alto,
+        'plataformas', x.plataformas, 'titulo', x.titulo, 'copys', x.copys, 'anuncio', x.anuncio,
         -- Sin la inspiración de Redacción: es del estudio, no de la entrega.
         'medios', (select coalesce(jsonb_agg(m), '[]'::jsonb) from jsonb_array_elements(x.medios) m where m ->> 'rol' is distinct from 'referencia'),
         'stickers', x.stickers, 'adapta_de', x.adapta_de,
