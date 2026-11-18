@@ -44,8 +44,8 @@ export async function DELETE(request: NextRequest) {
   }
   try {
     const db = createSupabaseServer();
-    if (proveedor === "basecamp" && !(await esAdminApp(db))) {
-      return NextResponse.json({ error: "Solo un admin de la app puede desconectar Basecamp" }, { status: 403 });
+    if (!(await esAdminApp(db))) {
+      return NextResponse.json({ error: `Solo un admin de la app puede desconectar ${proveedor === "basecamp" ? "Basecamp" : "el Drive"}` }, { status: 403 });
     }
     await borrarConexion(db, proveedor as Proveedor);
     return NextResponse.json({ ok: true });

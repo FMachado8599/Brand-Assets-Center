@@ -62,7 +62,10 @@ export function useIntegraciones() {
   return {
     ...snap,
     driveOk: Boolean(snap.data?.google),
+    /** La conexión se ve (solo la ven los admins): se puede sincronizar o desconectar. */
     basecampOk: Boolean(snap.data?.basecamp),
+    /** Hay datos de Basecamp para leer (tareas, proyectos): para todo el estudio, sea admin o no. */
+    hayBasecamp: Boolean(snap.data?.basecamp || snap.data?.sync?.ultimo),
     refresh: refreshIntegraciones,
   };
 }

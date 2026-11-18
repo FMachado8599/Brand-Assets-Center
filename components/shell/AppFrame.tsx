@@ -38,6 +38,16 @@ export function AppFrame({ children }: { children: ReactNode }) {
     }
   }, [current.href]);
 
+  // La plani en el link del cliente (/p/…) va sola: sin la navegación ni la cuenta del estudio.
+  if (pathname.startsWith("/p/")) {
+    return (
+      <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
+        {children}
+        <Toaster />
+      </TooltipProvider>
+    );
+  }
+
   return (
     <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
       <AccountProvider>

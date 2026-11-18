@@ -1,6 +1,7 @@
 import {
   ArrowDownToLine,
   Briefcase,
+  CalendarDays,
   Disc3,
   Film,
   Gamepad2,
@@ -44,6 +45,7 @@ export const MODULES: AppModule[] = [
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase },
   { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban },
+  { href: "/planificacion", label: "Planificación", description: "La plani del mes: copys, diseño y lo que se programa", icon: CalendarDays },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine },
   { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone },
   { href: "/retoque", label: "Retoque", description: "Quitale el fondo a una imagen con Magnific", icon: WandSparkles },

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Basecamp } from "@/lib/integraciones/basecamp";
 import { ReconectarError } from "@/lib/integraciones/reconectar";
+import { anotarLlaveServidor } from "@/lib/integraciones/llave-servidor";
 import { esAdminApp } from "@/lib/integraciones/store";
 import { correrPaso, type SyncPaso } from "@/lib/integraciones/basecamp-sync";
 import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
@@ -35,6 +36,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Alguien ya está sincronizando Basecamp. Esperá un minuto.", ocupado: true }, { status: 409 });
       }
       conTurno = true;
+      // La llave con la que el servidor abre el Drive para el link del cliente, al día (por si
+      // cambió INTEGRACIONES_SECRET). Si falla, la sincronización sigue igual.
+      await anotarLlaveServidor(db, "drive").catch(() => false);
     }
     const bc = await Basecamp.desde(db);
     if (!bc) return NextResponse.json({ error: "Basecamp no está conectado" }, { status: 400 });

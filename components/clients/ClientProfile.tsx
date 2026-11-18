@@ -28,6 +28,7 @@ import { LogosSection } from "./profile/LogosSection";
 import { PaletteSection } from "./profile/PaletteSection";
 import { VozMarcaSection } from "./profile/VozMarca";
 import { MigrationNotice } from "./profile/Section";
+import { TrabajoDelMes } from "./profile/PlaniSections";
 import { fetchProfilePhoto, LogoFromSocials, SocialsField } from "./profile/Socials";
 import { CardsSection, KitSection, ProductsSection, RedaccionesSection } from "./profile/WorkSections";
 
@@ -215,6 +216,7 @@ export function ClientProfile({ id }: { id: string }) {
 
         <div className="mt-8 grid gap-4">
           <LogosSection brand={brand} save={save} missing={hasLogos === false} />
+          <TrabajoDelMes brand={brand} />
           <PaletteSection brand={brand} saveSoon={saveSoon} />
           <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
