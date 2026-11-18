@@ -127,3 +127,116 @@ $$;
 
 revoke all on function public.presentacion_cambiar_estado(uuid, text) from public, anon;
 grant execute on function public.presentacion_cambiar_estado(uuid, text) to authenticated;
+
+-- ============================================================
+-- Y al revés: la presentación sigue a su tarea. Si la tarea cambia de etapa en el Board (alguien la
+-- arrastra) o en Basecamp (la card pasa de columna), la presentación pasa a la etapa que corresponde.
+--
+--   Board               →  presentación
+--   Entrada, Redacción  →  Redacción
+--   Diseño              →  Diseño
+--   En proceso          →  queda en Redacción o Diseño si estaba en una de las dos; si no, Diseño
+--   Validación interna  →  Revisión
+--   Cliente             →  En cliente
+--   Implementación      →  Programación
+--   Finalizada          →  Lista
+-- ============================================================
+
+create or replace function public.presentacion_estado_de_board(p_etapa text, p_actual text)
+returns text language sql immutable set search_path = '' as $$
+  select case p_etapa
+    when 'entrada' then 'redaccion'
+    when 'redaccion' then 'redaccion'
+    when 'diseno' then 'diseno'
+    when 'en_proceso' then case when p_actual in ('redaccion', 'diseno') then p_actual else 'diseno' end
+    when 'validacion' then 'revision'
+    when 'cliente' then 'cliente'
+    when 'implementacion' then 'programacion'
+    when 'finalizada' then 'lista'
+    else p_actual
+  end;
+$$;
+
+-- Cuando cambia la etapa de una tarea en el Board. (Si el cambio vino de la presentación, la
+-- presentación ya está en esa etapa: no pasa nada, así que no da vueltas.)
+create or replace function public.presentacion_seguir_board()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE' and new.etapa is not distinct from old.etapa then
+    return null;
+  end if;
+  update public.presentaciones p
+     set estado = public.presentacion_estado_de_board(new.etapa, p.estado)
+   where p.bc_tarea_id = new.tarea_id
+     and p.estado is distinct from public.presentacion_estado_de_board(new.etapa, p.estado);
+  return null;
+end;
+$$;
+
+drop trigger if exists presentacion_seguir_board on public.tarea_flujo;
+create trigger presentacion_seguir_board after insert or update of etapa on public.tarea_flujo
+  for each row execute function public.presentacion_seguir_board();
+
+-- Lo mismo que flujo_reconciliar, pero para una sola tarea: el Board sigue a Basecamp en el momento.
+create or replace function public.flujo_reconciliar_tarea(p_tarea bigint)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform public.flujo_asegurar(p_tarea);
+  with cambios as (
+    select f.tarea_id, f.etapa as antes, f.bc_estado as estado_antes, c.estado, t.columna_id,
+           public.flujo_etapa_bc(c.estado, c.nombre, tb.nombre, t.completada) as nueva
+      from public.tarea_flujo f
+      join public.bc_tareas t on t.id = f.tarea_id
+      left join public.bc_columnas c on c.id = t.columna_id
+      left join public.bc_tableros tb on tb.id = c.tablero_id
+     where f.tarea_id = p_tarea
+       and (f.bc_columna_id is distinct from t.columna_id or (t.completada and f.etapa <> 'finalizada'))
+  ), destino as (
+    select x.*,
+           case
+             when x.nueva is null then x.antes
+             when x.nueva = 'redaccion' and x.antes in ('redaccion', 'diseno') then x.antes
+             else x.nueva
+           end as despues
+      from cambios x
+  ), aplicados as (
+    update public.tarea_flujo f
+       set etapa = d.despues,
+           responsable_id = case when d.despues <> d.antes then null else f.responsable_id end,
+           pausada = case
+                       when d.estado = 'not_now' then true
+                       when d.estado_antes = 'not_now' then false
+                       else f.pausada
+                     end,
+           bc_columna_id = d.columna_id,
+           bc_estado = d.estado,
+           updated_at = now()
+      from destino d
+     where f.tarea_id = d.tarea_id
+    returning f.tarea_id, d.antes, d.despues
+  )
+  insert into public.tarea_movimientos (tarea_id, tipo, de, a, origen)
+  select tarea_id, 'etapa', antes, despues, 'basecamp' from aplicados where antes <> despues;
+end;
+$$;
+
+revoke execute on function public.flujo_reconciliar_tarea(bigint) from public, anon, authenticated;
+
+-- Cuando una card cambia de columna en Basecamp (por el aviso al instante o la sincronización):
+-- si tiene presentación, el Board la sigue en el momento (y con él, la presentación). Las demás
+-- tareas se siguen poniendo al día al abrir el Board, como siempre.
+create or replace function public.presentacion_seguir_basecamp()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from public.presentaciones p where p.bc_tarea_id = new.id) then
+    perform public.flujo_reconciliar_tarea(new.id);
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists presentacion_seguir_basecamp on public.bc_tareas;
+create trigger presentacion_seguir_basecamp after update of columna_id, completada on public.bc_tareas
+  for each row
+  when (old.columna_id is distinct from new.columna_id or old.completada is distinct from new.completada)
+  execute function public.presentacion_seguir_basecamp();
