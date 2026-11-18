@@ -30,8 +30,8 @@ type PiezaConPlani = {
  * navegador sube el archivo directo a Google.
  */
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => ({}))) as { piezaId?: string; nombre?: string; mime?: string; tamano?: number };
-  const { piezaId, nombre, mime = "", tamano } = body;
+  const body = (await request.json().catch(() => ({}))) as { piezaId?: string; nombre?: string; mime?: string; tamano?: number; rol?: string };
+  const { piezaId, nombre, mime = "", tamano, rol } = body;
   if (!piezaId || !nombre || typeof tamano !== "number" || tamano <= 0) {
     return NextResponse.json({ error: "Faltan datos del archivo" }, { status: 400 });
   }
@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
       `${etiquetaArchivo(data.fecha)} ${etiquetaDia(data.fecha).split(" ")[0]}`,
       carpetaPlani
     );
+    // La inspiración de Redacción va aparte (no es parte de la entrega).
+    const destino =
+      rol === "referencia" ? await drive.carpeta(`insp:${plani.id}:${data.fecha}`, "Inspiración", carpetaDia) : carpetaDia;
     // La carpeta de la plani queda anotada para el botón "Abrir en Drive".
     await db.from("presentaciones").update({ drive_carpeta_id: carpetaPlani }).eq("id", plani.id).is("drive_carpeta_id", null);
 
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
       nombre,
       mime,
       tamano,
-      carpeta: carpetaDia,
+      carpeta: destino,
       origin: request.headers.get("origin") || appOrigin(request.url),
     });
     return NextResponse.json({ uploadUrl });

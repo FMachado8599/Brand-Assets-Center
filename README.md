@@ -718,7 +718,8 @@ Si quien administra la app no es admin de Basecamp, en Board → Basecamp genera
 Donde se prepara el material de una tarea para mostrárselo al cliente. Cada presentación es de un **tipo**: Planificación (el contenido orgánico del mes), Pauta, Leads / Ads, Programática / YouTube, o uno nuevo que se crea desde la app ("Otro tipo" al crear una). El tipo se ve siempre como una etiqueta de color.
 
 - **Desde Basecamp**: cada tipo tiene palabras con las que se lo reconoce en el título de una tarea ("plani", "leads", "programatica"…). Las tareas vivas que coinciden y todavía no tienen presentación aparecen en *Para arrancar*. Basecamp solo se lee: la app nunca escribe ahí.
-- **Por rol**: Redacción (copys, indicaciones, referencias), Diseño (sube el material al Drive) y CM (baja el material y marca lo programado).
+- **Por rol**: cada uno abre la vista de su sector (Redacción, Diseño o CM) y ve lo suyo. Redacción: copys, indicaciones, links e **inspiración** (imágenes que sube para Diseño; el cliente no las ve y no entran en la descarga). Diseño: lo que pidió Redacción y el material final para subir al Drive. CM: el material para bajar y lo programado.
+- **Etapas que mueven el Board**: con "Redacción lista → Diseño" (y así en cada etapa) la presentación pasa de etapa y, si está vinculada a una tarea, la tarea pasa a esa etapa en el Board y al designado de la marca en ese sector le llega el aviso. Solo en la app: Basecamp no se toca. Si hay ajustes, se vuelve a la etapa anterior desde el mismo paso a paso. Desde la tarea en el Board se abre su presentación.
 - **Para el cliente**: un link privado (`/p/<token>`) donde la ve, comenta y aprueba sin cuenta. Las credenciales del Drive nunca salen del servidor: la base solo confirma que el archivo es de esa presentación, y el servidor abre el Drive con una llave propia (sale de `INTEGRACIONES_SECRET`, que tiene que estar como *Sensitive* en Vercel).
 - **Descargas**: el material baja de a pedazos y va directo a un archivo en la compu (en Chrome y Edge), así ni un .zip de varios GB pasa por la memoria del navegador.
 
@@ -726,7 +727,7 @@ En el código se sigue llamando `plani` (empezó como la planificación del mes)
 
 ### Activarlo (una sola vez)
 
-1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql` y después `supabase/migracion-presentaciones-cliente.sql` (después de `migracion-integraciones.sql` y `migracion-equipo.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
+1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql`, `supabase/migracion-presentaciones-cliente.sql` y `supabase/migracion-presentaciones-board.sql`, en ese orden (después de `migracion-integraciones.sql`, `migracion-equipo.sql`, `migracion-flujo.sql` y `migracion-notificaciones.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
 2. Un admin conecta el Drive del estudio (Presentaciones → Basecamp y Drive). Necesita `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e `INTEGRACIONES_SECRET`, y la dirección de vuelta `/api/auth/google/callback` en el cliente OAuth de Google Cloud.
 
 ## Stack

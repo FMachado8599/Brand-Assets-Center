@@ -45,7 +45,10 @@ returns jsonb language sql stable security definer set search_path = '' as $$
       select jsonb_agg(jsonb_build_object(
         'id', x.id, 'presentacion_id', x.presentacion_id, 'fecha', x.fecha, 'hora', x.hora, 'orden', x.orden,
         'formato', x.formato, 'proporcion', x.proporcion, 'plataformas', x.plataformas, 'titulo', x.titulo,
-        'copys', x.copys, 'medios', x.medios, 'stickers', x.stickers, 'adapta_de', x.adapta_de,
+        'copys', x.copys,
+        -- Sin la inspiración de Redacción: es del estudio, no de la entrega.
+        'medios', (select coalesce(jsonb_agg(m), '[]'::jsonb) from jsonb_array_elements(x.medios) m where m ->> 'rol' is distinct from 'referencia'),
+        'stickers', x.stickers, 'adapta_de', x.adapta_de,
         'estado_cliente', x.estado_cliente, 'programada', x.programada, 'created_at', x.created_at
       ) order by x.fecha, x.orden, x.created_at)
       from public.presentacion_piezas x where x.presentacion_id = p.id
@@ -105,6 +108,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
       cross join lateral jsonb_array_elements(x.medios) m
      where p.share_token = p_token and p.compartida and length(p_token) >= 32
        and m ->> 'drive_id' = p_drive_id
+       and m ->> 'rol' is distinct from 'referencia'
   );
 $$;
 

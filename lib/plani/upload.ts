@@ -84,7 +84,7 @@ export async function subirMedio(
   const r = await fetch("/api/drive/subir", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ piezaId, nombre: file.name, mime: file.type, tamano: file.size }),
+    body: JSON.stringify({ piezaId, nombre: file.name, mime: file.type, tamano: file.size, rol }),
   });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new SubidaError(body.error ?? "No se pudo abrir la subida", Boolean(body.sinDrive));

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/components/ui/toaster";
-import { piezaNueva, planiErrorMessage, planiRepo } from "@/lib/plani/repo";
-import type { Formato, Pieza, PiezaPatch, Plani, PlaniPatch } from "@/lib/plani/types";
+import { piezaNueva, planiErrorMessage, planiRepo, type CambioEstado } from "@/lib/plani/repo";
+import type { Formato, Pieza, PiezaPatch, Plani, PlaniEstado, PlaniPatch } from "@/lib/plani/types";
 
 const SAVE_DELAY = 700;
 
@@ -183,6 +183,27 @@ export function usePlani(id: string) {
     [id, cargar]
   );
 
+  /**
+   * Pasa la presentación a otra etapa (ej: "Redacción lista" → Diseño). Si tiene tarea, también
+   * la mueve en el Board. Devuelve lo que pasó con la tarea, o null si falló.
+   */
+  const cambiarEstado = useCallback(
+    async (estado: PlaniEstado): Promise<CambioEstado | null> => {
+      const antes = plani?.estado;
+      setPlani((prev) => (prev ? { ...prev, estado } : prev));
+      empezar();
+      const { data, error } = await planiRepo.cambiarEstado(id, estado);
+      terminar(!error);
+      if (error) {
+        toast(planiErrorMessage(error), "error");
+        if (antes) setPlani((prev) => (prev ? { ...prev, estado: antes } : prev));
+        return null;
+      }
+      return (data as CambioEstado | null) ?? { estado, tarea: null, etapa: null, avisados: 0 };
+    },
+    [id, plani?.estado]
+  );
+
   /** Las piezas agrupadas por día, en orden. */
   const dias = useMemo(() => {
     const map = new Map<string, Pieza[]>();
@@ -203,6 +224,7 @@ export function usePlani(id: string) {
     removePieza,
     duplicarPieza,
     updatePlani,
+    cambiarEstado,
     flushAll,
   };
 }

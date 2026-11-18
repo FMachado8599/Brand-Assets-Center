@@ -317,7 +317,7 @@ function PlaniCard({ plani, brand, tipo }: { plani: PlaniResumen; brand: Brand |
   const feed = piezas
     .filter((p) => p.formato !== "historia")
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
-    .map((p) => (p.medios ?? []).find((m) => m.rol === (p.formato === "reel" ? "portada" : "final")) ?? (p.medios ?? [])[0])
+    .map((p) => (p.medios ?? []).find((m) => m.rol === (p.formato === "reel" ? "portada" : "final")) ?? (p.medios ?? []).find((m) => m.rol !== "referencia"))
     .filter(Boolean)
     .slice(0, 3);
 

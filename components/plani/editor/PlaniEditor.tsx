@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarPlus,
+  Check,
   Copy,
   Download,
   FileDown,
@@ -38,18 +39,20 @@ import { useClients } from "@/hooks/useClients";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { useComentarios } from "@/hooks/useComentarios";
 import { usePlani } from "@/hooks/usePlani";
+import { useEquipo } from "@/hooks/useEquipo";
 import { useTipos } from "@/hooks/useTipos";
 import { useStoredState } from "@/hooks/useStoredState";
 import type { GuardadoEstado } from "@/hooks/usePlani";
 import { Hint } from "@/components/ui/tooltip";
-import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES, ROLES } from "@/lib/plani/config";
+import { ETAPA_LABEL, type Etapa } from "@/lib/board/flujo";
+import { CIERRE, ESTADOS, estadoInfo, FORMATOS, FORMATO_ORDEN, MESES, ROL_DE_ESTADO, ROL_DE_SECTOR, ROLES } from "@/lib/plani/config";
 import { copyTexto } from "@/lib/plani/copy";
 import { descargar, nombreArchivo } from "@/lib/plani/descargas";
 import { enElMes, etiquetaArchivo, etiquetaDia, hoyISO, primerDiaLibre } from "@/lib/plani/fechas";
 import { nombreScript, scriptIllustrator } from "@/lib/plani/illustrator";
 import { planiRepo } from "@/lib/plani/repo";
 import type { CategorySummary } from "@/lib/emojis/types";
-import type { Formato, Medio, Pieza, Rol } from "@/lib/plani/types";
+import type { Formato, Medio, Pieza, PlaniEstado, Rol } from "@/lib/plani/types";
 import { hasSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { BasecampMark, BasecampTarea, TareaPicker } from "../BasecampTarea";
@@ -102,7 +105,18 @@ function Editor({ id }: { id: string }) {
   const { plani, piezas, dias, loading, error, guardado } = store;
   const { clients, loading: clientsLoading } = useClients();
   const { hayBasecamp, data: integraciones } = useIntegraciones();
-  const [rol, setRol] = useStoredState<Rol>("plani:rol", "redaccion");
+  // La vista: la que eligió cada uno o, si nunca eligió, la de su sector (un redactor arranca en
+  // Redacción, un diseñador en Diseño) o la que corresponde a la etapa en la que está.
+  const [rolElegido, setRol] = useStoredState<Rol | "">("presentacion:rol", "");
+  const { data: equipo } = useEquipo();
+  const rolesMios = useMemo(() => {
+    const yo = equipo?.yo?.equipo_id;
+    const persona = yo ? equipo?.personas.find((p) => p.id === yo) : null;
+    const sectores = persona?.puestos.flatMap((id) => equipo?.puestos.find((x) => x.id === id)?.sectores ?? []) ?? [];
+    return [...new Set(sectores.map((s) => ROL_DE_SECTOR[s]).filter((r): r is Rol => !!r))];
+  }, [equipo]);
+  const rolDeEtapa = plani ? ROL_DE_ESTADO[plani.estado] : "redaccion";
+  const rol: Rol = rolElegido || (rolesMios.includes(rolDeEtapa) ? rolDeEtapa : rolesMios[0]) || rolDeEtapa;
   const [nuevaOpen, setNuevaOpen] = useState(false);
   // El día que se tocó en el calendario: la pieza nueva va ahí.
   const [nuevaFecha, setNuevaFecha] = useState<string | null>(null);
@@ -212,7 +226,8 @@ function Editor({ id }: { id: string }) {
     const archivos = piezas.flatMap((p) => {
       const padre = p.adapta_de ? porId.get(p.adapta_de) : null;
       const titulo = p.titulo || padre?.titulo || "";
-      return p.medios.map((m) => ({
+      // La inspiración no se entrega: no entra en el zip.
+      return p.medios.filter((m) => m.rol !== "referencia").map((m) => ({
         carpeta: `${etiquetaArchivo(p.fecha)} ${etiquetaDia(p.fecha).split(" ")[0]}`,
         nombre: nombreArchivo(p, m, titulo),
         url: medioUrl(m),
@@ -266,6 +281,23 @@ function Editor({ id }: { id: string }) {
     if (error) return toast(error.message, "error");
     toast("Presentación eliminada");
     router.push("/presentaciones");
+  };
+
+  /**
+   * Pasa la presentación a otra etapa. Si tiene tarea de Basecamp, la tarea pasa a esa etapa en el
+   * Board (solo en la app) y al designado del sector le llega el aviso.
+   */
+  const pasarA = async (estado: PlaniEstado) => {
+    if (!plani || estado === plani.estado) return;
+    const cierre = CIERRE[plani.estado];
+    const titulo = cierre?.siguiente === estado ? cierre.label : `Pasó a ${estadoInfo(estado).label}`;
+    const r = await store.cambiarEstado(estado);
+    if (!r) return;
+    if (r.tarea && r.etapa) {
+      const etapa = ETAPA_LABEL[r.etapa as Etapa] ?? r.etapa;
+      const aviso = r.avisados ? (r.avisados === 1 ? " y le avisamos a su designado" : ` y les avisamos a ${r.avisados} personas`) : "";
+      toast(`${titulo}. En el Board, la tarea pasó a ${etapa}${aviso}.`);
+    } else toast(cierre?.siguiente === estado ? `${titulo}: pasó a ${estadoInfo(estado).label}` : titulo);
   };
 
   if (!hasSupabase) return <MissingConfig />;
@@ -473,7 +505,25 @@ function Editor({ id }: { id: string }) {
         </header>
 
         <div className="mt-8 rounded-[1.75rem] border border-black/[0.06] bg-card/80 p-4 sm:p-5">
-          <EstadoStepper value={plani.estado} onChange={(estado) => store.updatePlani({ estado })} />
+          <EstadoStepper value={plani.estado} onChange={pasarA} />
+          {CIERRE[plani.estado] && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-secondary/60 px-3.5 py-3">
+              <p className="min-w-0 flex-1 text-sm">
+                <b className="font-semibold">{estadoInfo(plani.estado).label}:</b>{" "}
+                <span className="text-muted-foreground">
+                  {estadoInfo(plani.estado).hint}. Cuando esté, pasala a {estadoInfo(CIERRE[plani.estado]!.siguiente).label}
+                  {plani.bc_tarea_id ? " (la tarea también pasa en el Board)" : ""}. Si después hay ajustes, se puede volver.
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => pasarA(CIERRE[plani.estado]!.siguiente)}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+              >
+                <Check className="h-4 w-4" /> {CIERRE[plani.estado]!.label} → {estadoInfo(CIERRE[plani.estado]!.siguiente).label}
+              </button>
+            </div>
+          )}
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 border-t border-black/[0.06] pt-3 text-xs text-muted-foreground">
             <span>
               <b className="font-semibold text-foreground tabular-nums">{conMaterial}</b> de {piezas.length} con material final

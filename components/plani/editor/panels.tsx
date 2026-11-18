@@ -13,6 +13,7 @@ import type { Brand } from "@/lib/types";
 import { FormatIcon, medioUrl, pesoLegible } from "../bits";
 import { PlatformIcon } from "../PlatformIcon";
 import { AutoText, Field, LinkList, Segmented, TextInput } from "./fields";
+import { Inspiracion } from "./Inspiracion";
 import { MediaManager } from "./MediaManager";
 import { StickerEditor } from "./StickerEditor";
 
@@ -139,6 +140,10 @@ export function PanelRedaccion({
         </Field>
       </div>
 
+      <Field label="Inspiración">
+        <Inspiracion pieza={pieza} onChange={(medios) => update({ medios }, true)} />
+      </Field>
+
       {onAdaptar && pieza.formato !== "historia" && (
         <button
           type="button"
@@ -255,6 +260,11 @@ export function PanelDiseno({
           </Field>
           <Field label="Assets">
             <LinkList items={pieza.assets} empty="Sin assets" />
+          </Field>
+        </div>
+        <div className="mt-3">
+          <Field label="Inspiración">
+            <Inspiracion pieza={pieza} />
           </Field>
         </div>
       </div>

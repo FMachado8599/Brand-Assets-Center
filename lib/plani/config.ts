@@ -31,6 +31,31 @@ export const ESTADOS: { value: PlaniEstado; label: string; hint: string; color: 
 
 export const estadoInfo = (estado: PlaniEstado) => ESTADOS.find((e) => e.value === estado) ?? ESTADOS[0];
 
+/**
+ * El botón para dar por terminada la etapa: qué dice y a cuál pasa. Pasar no cierra nada: si hay
+ * ajustes, se vuelve a la etapa anterior desde el mismo paso a paso.
+ */
+export const CIERRE: Partial<Record<PlaniEstado, { label: string; siguiente: PlaniEstado }>> = {
+  redaccion: { label: "Redacción lista", siguiente: "diseno" },
+  diseno: { label: "Diseño listo", siguiente: "revision" },
+  revision: { label: "Revisión lista", siguiente: "cliente" },
+  cliente: { label: "Aprobada por el cliente", siguiente: "programacion" },
+  programacion: { label: "Todo programado", siguiente: "lista" },
+};
+
+/** Qué vista conviene en cada etapa, para quien no es de ningún sector en particular. */
+export const ROL_DE_ESTADO: Record<PlaniEstado, Rol> = {
+  redaccion: "redaccion",
+  diseno: "diseno",
+  revision: "diseno",
+  cliente: "cm",
+  programacion: "cm",
+  lista: "cm",
+};
+
+/** La vista de cada sector del equipo (sectores de migracion-equipo.sql). */
+export const ROL_DE_SECTOR: Record<string, Rol> = { redaccion: "redaccion", diseno_digital: "diseno", cm: "cm" };
+
 /** Formatos, con sus medidas para diseño (en px, como se exportan). */
 export const FORMATOS: Record<
   Formato,

@@ -34,8 +34,11 @@ export type Medio = {
   tamano: number;
   ancho?: number | null;
   alto?: number | null;
-  /** final: imágenes o video, en orden (en un carrusel, una por slide) · portada: la tapa de un reel. */
-  rol: "final" | "portada";
+  /**
+   * final: imágenes o video, en orden (en un carrusel, una por slide) · portada: la tapa de un reel
+   * · referencia: la inspiración que sube Redacción (no se entrega: el cliente no la ve).
+   */
+  rol: "final" | "portada" | "referencia";
 };
 
 export type StickerTipo = "link" | "encuesta" | "pregunta" | "cuenta" | "mencion" | "ubicacion" | "hashtag" | "slider" | "reaccion";

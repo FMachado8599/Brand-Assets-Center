@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
-import { ArrowUpRight, Check, CheckCheck, Loader2, Pause, Play, Sparkles, Undo2, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Check, CheckCheck, Loader2, Pause, Play, Presentation, Sparkles, Undo2, UserCheck } from "lucide-react";
 import { ClientMark } from "@/components/clients/ClientMark";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
 import { cambiarTarea } from "@/hooks/useFlujo";
+import { useTipos } from "@/hooks/useTipos";
+import { supabase } from "@/lib/supabase";
 import {
   designadoDe,
   ejecutaSector,
@@ -76,6 +79,9 @@ export function TareaDetalle({
   const id = tarea?.id ?? null;
 
   const cargarHistorial = (tareaId: number) => flujoRepo.movimientos(tareaId).then(setMovimientos, () => setMovimientos([]));
+  // Las presentaciones hechas desde esta tarea (para abrirlas desde acá).
+  const [presentaciones, setPresentaciones] = useState<{ id: string; tipo: string; titulo: string }[]>([]);
+  const { tipoDe } = useTipos();
 
   useEffect(() => {
     setMovimientos(null);
@@ -85,6 +91,12 @@ export function TareaDetalle({
     if (id == null) return;
     cargarHistorial(id);
     flujoRepo.brief(id).then(setBrief, () => setBrief(""));
+    setPresentaciones([]);
+    supabase
+      .from("presentaciones")
+      .select("id, tipo, titulo")
+      .eq("bc_tarea_id", id)
+      .then(({ data }) => setPresentaciones((data ?? []) as { id: string; tipo: string; titulo: string }[]), () => undefined);
   }, [id]);
 
   const html = useMemo(() => (brief && typeof window !== "undefined" ? DOMPurify.sanitize(brief, LIMPIEZA) : ""), [brief]);
@@ -185,6 +197,20 @@ export function TareaDetalle({
                   Abrir en Basecamp <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5" />
                 </a>
               )}
+              {presentaciones.map((p) => {
+                const tipo = tipoDe(p.tipo);
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/presentaciones/${p.id}`}
+                    className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline"
+                    style={{ color: tipo.color }}
+                  >
+                    <Presentation className="h-3.5 w-3.5" />
+                    Abrir la presentación ({tipo.nombre}) <ArrowUpRight className="-ml-0.5 h-3.5 w-3.5" />
+                  </Link>
+                );
+              })}
             </DialogDescription>
           </header>
 

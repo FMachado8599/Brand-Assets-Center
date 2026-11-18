@@ -1,6 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { FORMATOS } from "./config";
-import type { Comentario, Formato, Pieza, PiezaPatch, Plani, PlaniPatch, PlaniResumen, PlaniTipo, Plataforma, Proporcion } from "./types";
+import type { Comentario, Formato, Pieza, PiezaPatch, Plani, PlaniEstado, PlaniPatch, PlaniResumen, PlaniTipo, Plataforma, Proporcion } from "./types";
+
+/** Lo que devuelve presentacion_cambiar_estado: la etapa a la que pasó la tarea en el Board, si tiene una. */
+export type CambioEstado = { estado: PlaniEstado; tarea: number | null; etapa: string | null; avisados: number };
 
 /** Lo que se trae de cada pieza para la lista (sin copys ni indicaciones: solo para contar y mostrar el feed). */
 const RESUMEN = "id, formato, fecha, programada, estado_agencia, estado_cliente, medios";
@@ -32,6 +35,13 @@ export const planiRepo = {
   update: (id: string, patch: PlaniPatch) => supabase.from("presentaciones").update(patch).eq("id", id).select().single<Plani>(),
 
   remove: (id: string) => supabase.from("presentaciones").delete().eq("id", id),
+
+  /**
+   * Pasa la presentación a otra etapa y, si está vinculada a una tarea, la mueve en el Board y le
+   * avisa al designado del sector nuevo (supabase/migracion-presentaciones-board.sql).
+   */
+  cambiarEstado: (id: string, estado: PlaniEstado) =>
+    supabase.rpc("presentacion_cambiar_estado", { p_presentacion: id, p_estado: estado }).returns<CambioEstado>(),
 
   piezas: (planiId: string) =>
     supabase
@@ -89,6 +99,7 @@ export const isMissingPlaniMigration = (message: string) =>
 
 export function planiErrorMessage(error: { message: string }) {
   if (/compartida|share_token|presentacion_publica/i.test(error.message)) return "Falta correr supabase/migracion-presentaciones-cliente.sql en Supabase";
+  if (/presentacion_cambiar_estado/i.test(error.message)) return "Falta correr supabase/migracion-presentaciones-board.sql en Supabase";
   if (isMissingPlaniMigration(error.message)) return "Falta correr supabase/migracion-presentaciones.sql en Supabase";
   return error.message;
 }
