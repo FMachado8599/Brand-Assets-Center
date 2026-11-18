@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import { ArrowUpRight, CalendarClock, ChevronDown, Link2Off, MessageSquare, Search } from "lucide-react";
-import { basecampRepo, ETAPA_LABEL, PARECE_PLANI, type BcPersona, type TareaCompleta } from "@/lib/plani/basecamp";
+import { useTipos } from "@/hooks/useTipos";
+import { basecampRepo, ETAPA_LABEL, type BcPersona, type TareaCompleta } from "@/lib/plani/basecamp";
+import { tipoDeTitulo } from "@/lib/plani/tipos";
 import { aDate } from "@/lib/plani/fechas";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
@@ -183,6 +185,7 @@ export function TareaPicker({
 }) {
   const [tareas, setTareas] = useState<TareaCompleta[] | null>(null);
   const [q, setQ] = useState("");
+  const { tipos } = useTipos();
 
   useEffect(() => {
     let vivo = true;
@@ -197,9 +200,10 @@ export function TareaPicker({
     if (!tareas) return [];
     const f = fold(q.trim());
     const filtradas = f ? tareas.filter((t) => fold(t.titulo).includes(f)) : tareas;
-    const score = (t: TareaCompleta) => (PARECE_PLANI.test(t.titulo) ? 2 : 0) + (mes && new RegExp(MES_RX[mes - 1], "i").test(fold(t.titulo)) ? 1 : 0);
+    // Primero las que se reconocen como de algún tipo de presentación y las del mes.
+    const score = (t: TareaCompleta) => (tipoDeTitulo(t.titulo, tipos) ? 2 : 0) + (mes && new RegExp(MES_RX[mes - 1], "i").test(fold(t.titulo)) ? 1 : 0);
     return [...filtradas].sort((a, b) => score(b) - score(a));
-  }, [tareas, q, mes]);
+  }, [tareas, q, mes, tipos]);
 
   return (
     <div className={className}>

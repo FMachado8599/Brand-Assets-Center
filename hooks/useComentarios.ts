@@ -35,7 +35,7 @@ export function useComentarios(planiId: string | null) {
   const comentar = useCallback(
     async (piezaId: string | null, texto: string, interno: boolean) => {
       if (!planiId || !texto.trim()) return false;
-      const { data, error } = await planiRepo.comentar({ plani_id: planiId, pieza_id: piezaId, texto: texto.trim(), autor_nombre: nombre, interno });
+      const { data, error } = await planiRepo.comentar({ presentacion_id: planiId, pieza_id: piezaId, texto: texto.trim(), autor_nombre: nombre, interno });
       if (error || !data) {
         toast(planiErrorMessage(error ?? { message: "No se pudo comentar" }), "error");
         return false;

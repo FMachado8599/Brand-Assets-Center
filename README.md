@@ -63,7 +63,7 @@ Abrí http://localhost:3000
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
-| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Presentaciones) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
 | `MAGNIFIC_API_KEY` | Retoque y Librerías → Íconos | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") y para buscar íconos |
 | `GIPHY_API_KEY` | Librerías → GIFs | Sí, para buscar GIFs (ver "Librerías") |
@@ -520,7 +520,7 @@ Cada archivo que alguien baja (o sube a Drive) desde Descargas queda anotado en 
 
 ### Drive: activarlo (una sola vez)
 
-En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOOGLE_OAUTH_CLIENT_ID`):
+En el proyecto de Google Cloud del cliente OAuth que ya usa Presentaciones (`GOOGLE_OAUTH_CLIENT_ID`):
 
 1. **APIs y servicios → Biblioteca**: habilitar *Google Drive API* y *Google Picker API*.
 2. **Credenciales → Crear credenciales → Clave de API**: restringirla a *Google Picker API* y, en "Restricciones de aplicaciones", a sitios web: el dominio de producción, el de testing/preview y `http://localhost:3000`. Va en `GOOGLE_PICKER_API_KEY`.
@@ -536,7 +536,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 
 **Cómo se usa**
 
-1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
+1. **Agregar pieza** (barra de arriba): se elige qué es, como en Presentaciones: **post**, **carrusel**, **reel** o **historia**.
 2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
 3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
 4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Arriba de cada teléfono va su nombre (y, si Meta lo adapta, cómo) y debajo sus acciones: **ver en pantalla completa**, copiar o descargar ese mockup. Tocar el teléfono también lo abre en grande, sobre un fondo oscuro y del tamaño que entre en la ventana (en un carrusel, con sus flechas); se cierra con la X, tocando afuera o con `Esc`.
@@ -712,6 +712,22 @@ Si quien administra la app no es admin de Basecamp, en Board → Basecamp genera
 - Basecamp reintenta hasta 10 veces un aviso que no conteste 2xx y después **apaga el webhook**. La sincronización revisa cada proyecto una vez por día y lo vuelve a prender.
 - Las menciones se reconocen por el `<bc-attachment sgid="…">` de Basecamp (adentro viene el id de la persona).
 - Cada uno ve solo sus notificaciones (RLS). Se guardan 45 días; los eventos, 90.
+
+## Presentaciones
+
+Donde se prepara el material de una tarea para mostrárselo al cliente. Cada presentación es de un **tipo**: Planificación (el contenido orgánico del mes), Pauta, Leads / Ads, Programática / YouTube, o uno nuevo que se crea desde la app ("Otro tipo" al crear una). El tipo se ve siempre como una etiqueta de color.
+
+- **Desde Basecamp**: cada tipo tiene palabras con las que se lo reconoce en el título de una tarea ("plani", "leads", "programatica"…). Las tareas vivas que coinciden y todavía no tienen presentación aparecen en *Para arrancar*. Basecamp solo se lee: la app nunca escribe ahí.
+- **Por rol**: Redacción (copys, indicaciones, referencias), Diseño (sube el material al Drive) y CM (baja el material y marca lo programado).
+- **Para el cliente**: un link privado (`/p/<token>`) donde la ve, comenta y aprueba sin cuenta. Las credenciales del Drive nunca salen del servidor: la base solo confirma que el archivo es de esa presentación, y el servidor abre el Drive con una llave propia (sale de `INTEGRACIONES_SECRET`, que tiene que estar como *Sensitive* en Vercel).
+- **Descargas**: el material baja de a pedazos y va directo a un archivo en la compu (en Chrome y Edge), así ni un .zip de varios GB pasa por la memoria del navegador.
+
+En el código se sigue llamando `plani` (empezó como la planificación del mes): `components/plani`, `lib/plani`.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql` y después `supabase/migracion-presentaciones-cliente.sql` (después de `migracion-integraciones.sql` y `migracion-equipo.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
+2. Un admin conecta el Drive del estudio (Presentaciones → Basecamp y Drive). Necesita `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e `INTEGRACIONES_SECRET`, y la dirección de vuelta `/api/auth/google/callback` en el cliente OAuth de Google Cloud.
 
 ## Stack
 

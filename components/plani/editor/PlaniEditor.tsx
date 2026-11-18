@@ -38,10 +38,11 @@ import { useClients } from "@/hooks/useClients";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { useComentarios } from "@/hooks/useComentarios";
 import { usePlani } from "@/hooks/usePlani";
+import { useTipos } from "@/hooks/useTipos";
 import { useStoredState } from "@/hooks/useStoredState";
 import type { GuardadoEstado } from "@/hooks/usePlani";
 import { Hint } from "@/components/ui/tooltip";
-import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES, ROLES, TIPOS } from "@/lib/plani/config";
+import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES, ROLES } from "@/lib/plani/config";
 import { copyTexto } from "@/lib/plani/copy";
 import { descargar, nombreArchivo } from "@/lib/plani/descargas";
 import { enElMes, etiquetaArchivo, etiquetaDia, hoyISO, primerDiaLibre } from "@/lib/plani/fechas";
@@ -53,6 +54,7 @@ import { hasSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { BasecampMark, BasecampTarea, TareaPicker } from "../BasecampTarea";
 import { FormatDot, medioUrl } from "../bits";
+import { TipoChip } from "../TipoChip";
 import { HiloComentarios, pendientes } from "../Comentarios";
 import { PlaniEmojiProvider } from "../emojis";
 import { Lightbox } from "../Lightbox";
@@ -74,7 +76,7 @@ function irA(elId: string) {
 }
 
 /**
- * Una plani abierta. Arriba, el mes en grande, la etapa y la tarea de Basecamp; después el
+ * Una presentación abierta. Arriba, el tipo, el mes en grande, la etapa y la tarea de Basecamp; después el
  * calendario y el feed como van a quedar; abajo, día por día, cada pieza con su mockup y lo que le
  * toca al rol elegido en la barra (redacción, diseño o CM).
  */
@@ -110,14 +112,16 @@ function Editor({ id }: { id: string }) {
   const comentarios = useComentarios(id);
 
   const brand = plani ? clients.find((c) => c.id === plani.brand_id) ?? null : null;
+  const { tipoDe } = useTipos();
+  const tipo = tipoDe(plani?.tipo ?? "");
 
   useEffect(() => {
-    if (plani && brand) document.title = `${brand.name} · ${MESES[plani.mes - 1]} ${plani.anio} · Planificación`;
-  }, [plani, brand]);
+    if (plani && brand) document.title = `${brand.name} · ${tipo.nombre} ${MESES[plani.mes - 1]} ${plani.anio} · Presentaciones`;
+  }, [plani, brand, tipo.nombre]);
 
   const porId = useMemo(() => new Map(piezas.map((p) => [p.id, p])), [piezas]);
 
-  /** Las historias que adaptan otra pieza de la plani van adentro del bloque de esa pieza. */
+  /** Las historias que adaptan otra pieza de la presentación van adentro del bloque de esa pieza. */
   const adaptacionesDe = useMemo(() => {
     const map = new Map<string, Pieza[]>();
     for (const p of piezas) if (p.adapta_de && porId.has(p.adapta_de)) map.set(p.adapta_de, [...(map.get(p.adapta_de) ?? []), p]);
@@ -192,7 +196,7 @@ function Editor({ id }: { id: string }) {
 
   const descargarIllustrator = () => {
     if (!plani || !brand) return;
-    if (!piezas.length) return toast("La plani todavía no tiene piezas", "error");
+    if (!piezas.length) return toast("La presentación todavía no tiene piezas", "error");
     const blob = new Blob([scriptIllustrator(plani, brand.name, piezas)], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -202,7 +206,7 @@ function Editor({ id }: { id: string }) {
     toast("En Illustrator: Archivo → Secuencias de comandos → Otra secuencia de comandos… y elegí el .jsx");
   };
 
-  /** Todo el material de la plani en un .zip, con una carpeta por día. */
+  /** Todo el material de la presentación en un .zip, con una carpeta por día. */
   const descargarTodo = async () => {
     if (!plani || !brand || bajando !== null) return;
     const archivos = piezas.flatMap((p) => {
@@ -230,7 +234,7 @@ function Editor({ id }: { id: string }) {
   const compartir = async (on: boolean) => {
     if (!plani) return;
     const ok = await store.updatePlani({ compartida: on, share_token: plani.share_token ?? nuevoToken() });
-    if (ok) toast(on ? "Listo: el cliente ya puede ver la plani con su link" : "El link del cliente dejó de funcionar");
+    if (ok) toast(on ? "Listo: el cliente ya puede ver la presentación con su link" : "El link del cliente dejó de funcionar");
   };
   const nuevoLink = async () => {
     const ok = await confirm({
@@ -252,7 +256,7 @@ function Editor({ id }: { id: string }) {
   const eliminarPlani = async () => {
     if (!plani || !brand) return;
     const ok = await confirm({
-      title: `¿Eliminar la plani de ${MESES[plani.mes - 1]}?`,
+      title: `¿Eliminar ${tipo.nombre} de ${MESES[plani.mes - 1]}?`,
       description: `Se borran sus ${piezas.length} piezas con copys e indicaciones. El material final queda en el Drive. No se puede deshacer.`,
       confirmLabel: "Eliminar",
       destructive: true,
@@ -260,8 +264,8 @@ function Editor({ id }: { id: string }) {
     if (!ok) return;
     const { error } = await planiRepo.remove(plani.id);
     if (error) return toast(error.message, "error");
-    toast("Plani eliminada");
-    router.push("/planificacion");
+    toast("Presentación eliminada");
+    router.push("/presentaciones");
   };
 
   if (!hasSupabase) return <MissingConfig />;
@@ -273,7 +277,7 @@ function Editor({ id }: { id: string }) {
 
   const bar = (
     <ContextBar>
-      <BarButton label="Todas las planis" icon={ArrowLeft} onClick={() => router.push("/planificacion")} />
+      <BarButton label="Todas las presentaciones" icon={ArrowLeft} onClick={() => router.push("/presentaciones")} />
       {plani && brand && (
         <>
           <BarDivider />
@@ -286,7 +290,7 @@ function Editor({ id }: { id: string }) {
           <BarDivider />
           <BarSegmented<Rol> label="Ver como" value={rol} onChange={(v) => setRol(v)} options={ROLES.map((r) => ({ value: r.value, label: r.label }))} />
           <BarDivider />
-          <BarButton label="Presentación" icon={Presentation} onClick={() => router.push(`/planificacion/${plani.id}/presentacion`)} />
+          <BarButton label="Presentación" icon={Presentation} onClick={() => router.push(`/presentaciones/${plani.id}/presentar`)} />
           {rol === "diseno" ? (
             <BarButton label="Mesas de trabajo para Illustrator (.jsx)" icon={FileDown} onClick={descargarIllustrator} />
           ) : rol === "cm" ? (
@@ -300,7 +304,7 @@ function Editor({ id }: { id: string }) {
             <BarButton label="Descargas: las mesas de Illustrator en Diseño y el material en CM" icon={Download} disabled />
           )}
           <BarPopover label="Comentarios" icon={MessageSquare} badge={pendientes(comentarios.items) || undefined} align="end" className="w-[24rem]">
-            <PanelTitle title="Comentarios" hint="Los generales de la plani. Los de cada pieza, en su bloque." />
+            <PanelTitle title="Comentarios" hint="Los generales de la presentación. Los de cada pieza, en su bloque." />
             <HiloComentarios
               comentarios={comentarios.porPieza.get("") ?? []}
               modo="estudio"
@@ -313,7 +317,7 @@ function Editor({ id }: { id: string }) {
             <PendientesEnPiezas piezas={piezas} porId={porId} porPieza={comentarios.porPieza} onIr={irAPieza} />
           </BarPopover>
           <BarPopover label="Más" icon={MoreHorizontal} align="end" className="w-72">
-            <PanelTitle title="Plani" hint={`${TIPOS[plani.tipo].label} · ${MESES[plani.mes - 1]} ${plani.anio}`} />
+            <PanelTitle title="Presentación" hint={`${tipo.nombre} · ${MESES[plani.mes - 1]} ${plani.anio}`} />
             <div className="mb-3 rounded-xl bg-secondary/60 p-3">
               <div className="flex items-center gap-2">
                 <Share2 className="h-4 w-4" />
@@ -332,7 +336,7 @@ function Editor({ id }: { id: string }) {
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {plani.compartida
                   ? "Con este link ve la presentación, comenta y aprueba cada pieza. No ve lo interno."
-                  : "Activalo para mandarle un link privado donde ve la plani, comenta y aprueba."}
+                  : "Activalo para mandarle un link privado donde ve la presentación, comenta y aprueba."}
               </p>
               {plani.compartida && linkCliente && (
                 <div className="mt-2 flex gap-1">
@@ -380,7 +384,7 @@ function Editor({ id }: { id: string }) {
                 </button>
               )}
               <button type="button" onClick={eliminarPlani} className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-sm text-destructive hover:bg-destructive/10">
-                <Trash2 className="h-4 w-4" /> Eliminar la plani
+                <Trash2 className="h-4 w-4" /> Eliminar la presentación
               </button>
             </div>
           </BarPopover>
@@ -423,9 +427,9 @@ function Editor({ id }: { id: string }) {
         {bar}
         <main className="mx-auto flex max-w-md flex-col items-center px-4 pb-16 pt-40 text-center">
           <p className="eyebrow">Planificación</p>
-          <h1 className="mt-3 font-display text-4xl">{error ? "No se pudo abrir" : "No encontramos esa plani"}</h1>
+          <h1 className="mt-3 font-display text-4xl">{error ? "No se pudo abrir" : "No encontramos esa presentación"}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{error ?? "Puede que la hayan eliminado."}</p>
-          <Link href="/planificacion" className="mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm">
+          <Link href="/presentaciones" className="mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm">
             <ArrowLeft className="h-4 w-4" /> Ver todas
           </Link>
         </main>
@@ -447,8 +451,8 @@ function Editor({ id }: { id: string }) {
               <Link href={`/clientes/${cliente.id}`} className="hover:text-ink">
                 {cliente.name}
               </Link>
-              <span className="text-primary">\</span> {TIPOS[plani.tipo].label}
             </p>
+            <TipoChip tipo={tipo} className="mt-3" />
             <RevealTitle className="mt-4 font-display text-[clamp(3.4rem,11vw,8rem)] leading-[0.86] tracking-[-0.025em]" deps={[plani.id]}>
               {MESES[plani.mes - 1]} <em className="text-ink/25">{plani.anio}</em>
             </RevealTitle>
@@ -493,11 +497,11 @@ function Editor({ id }: { id: string }) {
               onClick={() => setPickTarea(true)}
               className="flex w-full items-center gap-2.5 rounded-2xl border border-dashed border-foreground/15 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
             >
-              <BasecampMark /> Vincular la tarea de Basecamp de esta plani: el brief, la gente asignada y la etapa se ven acá.
+              <BasecampMark /> Vincular la tarea de Basecamp de esta presentación: el brief, la gente asignada y la etapa se ven acá.
             </button>
           ) : integraciones && !integraciones.basecamp ? (
             <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <BasecampMark className="h-3.5 w-3.5" /> Con Basecamp conectado (lo conecta un admin en Board → Basecamp), la tarea de la plani se ve acá.
+              <BasecampMark className="h-3.5 w-3.5" /> Con Basecamp conectado (lo conecta un admin en Board → Basecamp), la tarea de la presentación se ve acá.
             </p>
           ) : null}
         </div>
@@ -533,7 +537,7 @@ function Editor({ id }: { id: string }) {
           {dias.length === 0 ? (
             <div className="mx-auto flex max-w-md flex-col items-center py-12 text-center">
               <p className="eyebrow">Día por día</p>
-              <h2 className="mt-3 font-display text-4xl leading-tight">La plani está vacía</h2>
+              <h2 className="mt-3 font-display text-4xl leading-tight">La presentación está vacía</h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 Tocá un día del calendario o agregá la primera pieza: post, carrusel, reel o historia.
               </p>
@@ -608,7 +612,7 @@ function Editor({ id }: { id: string }) {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Tarea de Basecamp</DialogTitle>
-            <DialogDescription>Las tareas abiertas de {cliente.name}. Primero las que parecen la plani del mes.</DialogDescription>
+            <DialogDescription>Las tareas abiertas de {cliente.name}. Primero las que se reconocen como de algún tipo y las del mes.</DialogDescription>
           </DialogHeader>
           <TareaPicker
             brandId={plani.brand_id}

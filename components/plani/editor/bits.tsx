@@ -79,7 +79,7 @@ export function NuevaPiezaMenu({
 export function EstadoStepper({ value, onChange }: { value: PlaniEstado; onChange: (v: PlaniEstado) => void }) {
   const actual = ESTADOS.findIndex((e) => e.value === value);
   return (
-    <ol className="no-scrollbar -mx-4 flex overflow-x-auto px-4 sm:mx-0 sm:px-0" aria-label="Etapa de la plani">
+    <ol className="no-scrollbar -mx-4 flex overflow-x-auto px-4 sm:mx-0 sm:px-0" aria-label="Etapa de la presentación">
       {ESTADOS.map((e, i) => {
         const hecho = i < actual;
         const aca = i === actual;

@@ -19,9 +19,9 @@ async function leerTextos(brandId: string | null): Promise<string[]> {
   // Los copys de todas sus planis (de cualquier mes).
   if (brandId) {
     const { data } = await supabase
-      .from("plani_piezas")
-      .select("copys, planificaciones!inner(brand_id)")
-      .eq("planificaciones.brand_id", brandId)
+      .from("presentacion_piezas")
+      .select("copys, presentaciones!inner(brand_id)")
+      .eq("presentaciones.brand_id", brandId)
       .limit(1500);
     for (const r of (data ?? []) as CopyRow[]) {
       const c = r.copys ?? {};

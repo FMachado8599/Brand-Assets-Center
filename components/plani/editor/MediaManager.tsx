@@ -79,7 +79,7 @@ export function MediaManager({ pieza, onChange }: { pieza: Pieza; onChange: (med
     return (
       <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-foreground/20 p-4 text-sm">
         <p className="text-muted-foreground">
-          El material final se guarda en el Drive del estudio, en carpetas por cliente, plani y día.
+          El material final se guarda en el Drive del estudio, en carpetas por cliente, presentación y día.
           {data && !data.listo.google
             ? " Falta configurar Google en el servidor."
             : admin

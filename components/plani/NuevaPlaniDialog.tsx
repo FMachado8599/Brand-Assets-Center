@@ -9,14 +9,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from "@/components/ui/toaster";
 import { useClients } from "@/hooks/useClients";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
+import { agregarTipo, useTipos } from "@/hooks/useTipos";
 import { mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
-import { MESES, TIPOS } from "@/lib/plani/config";
+import { MESES } from "@/lib/plani/config";
 import { planiErrorMessage, planiRepo } from "@/lib/plani/repo";
+import { COLORES_TIPO, ICONOS, iconoDe, idDeNombre, normalizarPalabras, tipoDeTitulo, tiposRepo } from "@/lib/plani/tipos";
 import type { PlaniTipo } from "@/lib/plani/types";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { BasecampMark, TareaPicker } from "./BasecampTarea";
-import { Segmented } from "./editor/fields";
 
 /** El mes que viene: las planis se arman el mes anterior. */
 function mesQueViene() {
@@ -24,11 +25,12 @@ function mesQueViene() {
   return d.getMonth() === 11 ? { anio: d.getFullYear() + 1, mes: 1 } : { anio: d.getFullYear(), mes: d.getMonth() + 2 };
 }
 
-export type NuevaPlaniInicial = { brandId?: string | null; anio?: number; mes?: number; tarea?: TareaCompleta | null };
+export type NuevaPlaniInicial = { brandId?: string | null; anio?: number; mes?: number; tarea?: TareaCompleta | null; tipo?: PlaniTipo | null };
 
 /**
- * Nueva plani: cliente, mes y tipo. Si Basecamp está conectado, se puede colgar de la tarea del
- * brief (y si se arranca desde una tarea, ya viene todo elegido).
+ * Nueva presentación: tipo, cliente y mes. Si Basecamp está conectado, se puede colgar de la tarea
+ * del brief (y si se arranca desde una tarea, ya viene todo elegido, el tipo incluido). Si el tipo
+ * no existe todavía (ej: Programática), se crea acá mismo y queda para las próximas.
  */
 export function NuevaPlaniDialog({
   open,
@@ -42,11 +44,13 @@ export function NuevaPlaniDialog({
   const router = useRouter();
   const { clients } = useClients();
   const { hayBasecamp } = useIntegraciones();
+  const { tipos, tipoDe } = useTipos();
   const base = mesQueViene();
   const [brandId, setBrandId] = useState<string | null>(null);
   const [anio, setAnio] = useState(base.anio);
   const [mes, setMes] = useState(base.mes);
-  const [tipo, setTipo] = useState<PlaniTipo>("plani");
+  const [tipo, setTipo] = useState<PlaniTipo>("planificacion");
+  const [nuevoTipo, setNuevoTipo] = useState(false);
   const [tarea, setTarea] = useState<TareaCompleta | null>(null);
   const [eligiendoTarea, setEligiendoTarea] = useState(false);
   const [q, setQ] = useState("");
@@ -58,7 +62,10 @@ export function NuevaPlaniDialog({
     const desdeTarea = inicial?.tarea ? mesDelTitulo(inicial.tarea.titulo) : null;
     setAnio(inicial?.anio ?? base.anio);
     setMes(inicial?.mes ?? desdeTarea ?? base.mes);
-    setTipo("plani");
+    // El tipo: el pedido, el de la tarea (por su título) o Planificación.
+    const delTitulo = inicial?.tarea ? tipoDeTitulo(inicial.tarea.titulo, tipos) : null;
+    setTipo(inicial?.tipo ?? delTitulo?.id ?? "planificacion");
+    setNuevoTipo(false);
     setTarea(inicial?.tarea ?? null);
     setEligiendoTarea(false);
     setQ("");
@@ -93,24 +100,67 @@ export function NuevaPlaniDialog({
       anio,
       mes,
       tipo,
-      titulo: `${TIPOS[tipo].label} ${MESES[mes - 1]} ${anio}`,
+      titulo: `${tipoDe(tipo).nombre} ${MESES[mes - 1]} ${anio}`,
       bc_tarea_id: tarea?.id ?? null,
     });
     setCreando(false);
     if (error || !data) return toast(planiErrorMessage(error ?? { message: "No se pudo crear" }), "error");
     onOpenChange(false);
-    router.push(`/planificacion/${data.id}`);
+    router.push(`/presentaciones/${data.id}`);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Nueva planificación</DialogTitle>
-          <DialogDescription>Elegí el cliente y el mes. Las piezas se agregan adentro.</DialogDescription>
+          <DialogTitle>Nueva presentación</DialogTitle>
+          <DialogDescription>Qué es, de qué cliente y de qué mes. Las piezas se agregan adentro.</DialogDescription>
         </DialogHeader>
 
         <div className="-mx-1 min-h-0 space-y-5 overflow-y-auto px-1">
+          <section>
+            <span className="eyebrow mb-2 block">Tipo</span>
+            {nuevoTipo ? (
+              <NuevoTipo
+                onCreado={(id) => {
+                  setTipo(id);
+                  setNuevoTipo(false);
+                }}
+                onCancelar={() => setNuevoTipo(false)}
+              />
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {tipos.map((t) => {
+                  const Icono = iconoDe(t);
+                  const activo = t.id === tipo;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTipo(t.id)}
+                      aria-pressed={activo}
+                      title={t.descripcion || undefined}
+                      className={cn(
+                        "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
+                        activo ? "text-white" : "border-black/[0.08] bg-card hover:bg-secondary"
+                      )}
+                      style={activo ? { background: t.color, borderColor: t.color } : undefined}
+                    >
+                      <Icono className="h-4 w-4" style={activo ? undefined : { color: t.color }} /> {t.nombre}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setNuevoTipo(true)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-foreground/25 px-3 text-sm text-muted-foreground hover:border-foreground/45 hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" /> Otro tipo
+                </button>
+              </div>
+            )}
+          </section>
+
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="eyebrow">Cliente</span>
@@ -170,10 +220,6 @@ export function NuevaPlaniDialog({
                 </button>
               </div>
             </div>
-            <div>
-              <span className="eyebrow mb-2 block">Tipo</span>
-              <Segmented<PlaniTipo> value={tipo} onChange={(v) => setTipo(v)} options={(Object.keys(TIPOS) as PlaniTipo[]).map((t) => ({ value: t, label: TIPOS[t].label, title: TIPOS[t].hint }))} />
-            </div>
           </section>
 
           {hayBasecamp && brandId && (
@@ -215,7 +261,7 @@ export function NuevaPlaniDialog({
         <div className="flex items-center justify-end gap-2 border-t border-black/[0.06] pt-4">
           {brand && (
             <span className="mr-auto truncate text-sm text-muted-foreground">
-              {TIPOS[tipo].label} de <b className="font-semibold text-foreground">{brand.name}</b> · {MESES[mes - 1]} {anio}
+              {tipoDe(tipo).nombre} de <b className="font-semibold text-foreground">{brand.name}</b> · {MESES[mes - 1]} {anio}
             </span>
           )}
           <button type="button" onClick={() => onOpenChange(false)} className="h-10 rounded-full px-4 text-sm font-medium hover:bg-secondary">
@@ -227,10 +273,117 @@ export function NuevaPlaniDialog({
             disabled={!brandId || creando}
             className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-95 disabled:opacity-45"
           >
-            {creando && <Loader2 className="h-4 w-4 animate-spin" />} Crear plani
+            {creando && <Loader2 className="h-4 w-4 animate-spin" />} Crear
           </button>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Un tipo nuevo (ej: "Programática" o "Influencers"): nombre, color, ícono y las palabras con las
+ * que se lo reconoce en el título de una tarea de Basecamp. Queda para todo el estudio.
+ */
+function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; onCancelar: () => void }) {
+  const { porId } = useTipos();
+  const [nombre, setNombre] = useState("");
+  const [color, setColor] = useState(COLORES_TIPO[4]);
+  const [icono, setIcono] = useState("presentacion");
+  const [palabras, setPalabras] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const crear = async () => {
+    const limpio = nombre.trim();
+    if (!limpio) return;
+    // Un id que no choque con uno que ya existe ("leads" → "leads_2").
+    const base = idDeNombre(limpio);
+    let id = base;
+    for (let n = 2; porId.has(id); n++) id = `${base.slice(0, 36)}_${n}`;
+    setGuardando(true);
+    const { data, error } = await tiposRepo.create({
+      id,
+      nombre: limpio,
+      color,
+      icono,
+      // Si no se ponen palabras, se lo reconoce por su nombre.
+      palabras: normalizarPalabras(palabras.trim() ? palabras : limpio),
+    });
+    setGuardando(false);
+    if (error || !data) return toast(planiErrorMessage(error ?? { message: "No se pudo crear el tipo" }), "error");
+    agregarTipo(data);
+    toast(`Listo: ${data.nombre} ya es un tipo de presentación`);
+    onCreado(data.id);
+  };
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-black/[0.08] bg-card p-3">
+      <input
+        autoFocus
+        value={nombre}
+        onChange={(e) => setNombre(e.target.value.slice(0, 60))}
+        onKeyDown={(e) => e.key === "Enter" && crear()}
+        placeholder="Nombre del tipo (ej: Programática, Influencers)"
+        className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
+      />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1" role="radiogroup" aria-label="Color">
+          {COLORES_TIPO.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={c === color}
+              aria-label={c}
+              onClick={() => setColor(c)}
+              className={cn("h-6 w-6 rounded-full ring-offset-2 ring-offset-card transition", c === color && "ring-2 ring-foreground")}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Ícono">
+          {Object.entries(ICONOS).map(([key, { icon: Icono, label }]) => (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={key === icono}
+              aria-label={label}
+              title={label}
+              onClick={() => setIcono(key)}
+              className={cn("grid h-7 w-7 place-items-center rounded-full transition-colors", key === icono ? "text-white" : "text-muted-foreground hover:bg-secondary")}
+              style={key === icono ? { background: color } : undefined}
+            >
+              <Icono className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="block">
+        <span className="mb-1 block text-xs text-muted-foreground">
+          Cómo reconocerlo en Basecamp: palabras del título de la tarea, separadas por coma (si no ponés nada, se usa el nombre)
+        </span>
+        <input
+          value={palabras}
+          onChange={(e) => setPalabras(e.target.value)}
+          placeholder="programática, youtube, display"
+          className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
+        />
+      </label>
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onCancelar} className="h-8 rounded-full px-3 text-sm font-medium hover:bg-secondary">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={crear}
+          disabled={!nombre.trim() || guardando}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-white disabled:opacity-45"
+          style={{ background: color }}
+        >
+          {guardando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Crear tipo
+        </button>
+      </div>
+    </div>
   );
 }

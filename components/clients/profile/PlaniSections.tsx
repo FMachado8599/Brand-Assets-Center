@@ -7,15 +7,18 @@ import { BasecampMark, EtapaChip, Personas } from "@/components/plani/BasecampTa
 import { EstadoPill, FormatDot } from "@/components/plani/bits";
 import { NuevaPlaniDialog, type NuevaPlaniInicial } from "@/components/plani/NuevaPlaniDialog";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
-import { basecampRepo, mesDelTitulo, PARECE_PLANI, type TareaCompleta } from "@/lib/plani/basecamp";
-import { FORMATO_ORDEN, MESES, TIPOS } from "@/lib/plani/config";
+import { useTipos } from "@/hooks/useTipos";
+import { basecampRepo, mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
+import { tipoDeTitulo } from "@/lib/plani/tipos";
+import { FORMATO_ORDEN, MESES } from "@/lib/plani/config";
 import { aDate } from "@/lib/plani/fechas";
 import { planiRepo } from "@/lib/plani/repo";
 import type { PlaniResumen } from "@/lib/plani/types";
 import type { Brand } from "@/lib/types";
+import { TipoChip } from "@/components/plani/TipoChip";
 import { Empty, Section, SmallAction } from "./Section";
 
-/** Las planis del cliente, la más nueva arriba. */
+/** Las presentaciones del cliente, la más nueva arriba, con su tipo. */
 export function PlanisSection({
   brand,
   planis,
@@ -27,35 +30,38 @@ export function PlanisSection({
   falta: boolean;
   onNueva: (inicial: NuevaPlaniInicial) => void;
 }) {
+  const { tipoDe } = useTipos();
   return (
     <Section
       id="planis"
-      title="Planificaciones"
-      hint="Las planis de contenido de cada mes."
+      title="Presentaciones"
+      hint="Planificaciones, ads, programática… de cada mes."
       action={
         <SmallAction onClick={() => onNueva({ brandId: brand.id })}>
-          <Plus /> Nueva plani
+          <Plus /> Nueva
         </SmallAction>
       }
     >
       {planis === null ? (
         <span className="skeleton block h-16 rounded-2xl" />
       ) : falta ? (
-        <Empty>Falta correr supabase/migracion-planificacion.sql en Supabase.</Empty>
+        <Empty>Falta correr supabase/migracion-presentaciones.sql en Supabase.</Empty>
       ) : !planis.length ? (
-        <Empty>Todavía no tiene planis.</Empty>
+        <Empty>Todavía no tiene presentaciones.</Empty>
       ) : (
         <ul className="divide-y divide-black/[0.06]">
           {planis.slice(0, 8).map((p) => (
             <li key={p.id}>
-              <Link href={`/planificacion/${p.id}`} className="group flex items-center gap-3 py-2.5">
+              <Link href={`/presentaciones/${p.id}`} className="group flex items-center gap-3 py-2.5">
                 <span className="w-24 shrink-0 font-display text-2xl leading-none">
                   {MESES[p.mes - 1].slice(0, 3)} <span className="text-base text-muted-foreground">{p.anio}</span>
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-xs text-muted-foreground">{TIPOS[p.tipo].label} · {p.plani_piezas.length} piezas</span>
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <TipoChip tipo={tipoDe(p.tipo)} className="h-5 px-2 text-[10.5px]" /> {p.presentacion_piezas.length} piezas
+                  </span>
                   <span className="mt-1 flex gap-1">
-                    {FORMATO_ORDEN.flatMap((f) => p.plani_piezas.filter((x) => x.formato === f).map((x) => <FormatDot key={x.id} formato={f} className="h-2 w-2" />)).slice(0, 24)}
+                    {FORMATO_ORDEN.flatMap((f) => p.presentacion_piezas.filter((x) => x.formato === f).map((x) => <FormatDot key={x.id} formato={f} className="h-2 w-2" />)).slice(0, 24)}
                   </span>
                 </span>
                 <EstadoPill estado={p.estado} />
@@ -84,6 +90,7 @@ export function BasecampSection({
   onNueva: (inicial: NuevaPlaniInicial) => void;
 }) {
   const { hayBasecamp, loaded, data } = useIntegraciones();
+  const { tipos } = useTipos();
   const [tareas, setTareas] = useState<TareaCompleta[] | null>(null);
   const [proyectos, setProyectos] = useState<{ id: number; nombre: string; app_url: string | null }[]>([]);
 
@@ -129,19 +136,23 @@ export function BasecampSection({
         <Empty>No tiene tareas abiertas.</Empty>
       ) : (
         <ul className="max-h-[26rem] space-y-1 overflow-y-auto pr-1">
-          {tareas.map((t) => (
+          {tareas.map((t) => {
+            const tipo = tipoDeTitulo(t.titulo, tipos);
+            return (
             <li key={t.id} className="rounded-xl px-2 py-2 transition-colors hover:bg-secondary/60">
               <div className="flex items-start gap-2">
                 <a href={t.app_url ?? undefined} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 text-sm font-medium leading-snug hover:underline">
                   {t.titulo}
                 </a>
-                {PARECE_PLANI.test(t.titulo) && !vinculadas.has(Number(t.id)) && (
+                {tipo && !vinculadas.has(Number(t.id)) && (
                   <button
                     type="button"
-                    onClick={() => onNueva({ brandId: brand.id, tarea: t, mes: mesDelTitulo(t.titulo) ?? undefined })}
-                    className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-primary px-2 text-[11px] font-semibold text-primary-foreground"
+                    onClick={() => onNueva({ brandId: brand.id, tarea: t, tipo: tipo.id, mes: mesDelTitulo(t.titulo) ?? undefined })}
+                    title={`Crear la presentación: ${tipo.nombre}`}
+                    className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-semibold text-white"
+                    style={{ background: tipo.color }}
                   >
-                    <Plus className="h-3 w-3" /> Plani
+                    <Plus className="h-3 w-3" /> {tipo.nombre}
                   </button>
                 )}
               </div>
@@ -155,7 +166,8 @@ export function BasecampSection({
                 <Personas personas={t.personas} max={3} />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </Section>

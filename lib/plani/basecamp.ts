@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { tipoDeTitulo, type TipoPresentacion } from "./tipos";
 
 /** Lo que guardamos de Basecamp (supabase/migracion-integraciones.sql), visto desde la app. */
 
@@ -52,9 +53,6 @@ export const ETAPA_LABEL: Record<string, string> = {
   done: "Hecha",
   not_now: "En pausa",
 };
-
-/** Las tareas que suenan a plani ("Plani setiembre", "Social media plan", "Planificación agosto"…). */
-export const PARECE_PLANI = /plani|planificaci|social media plan|plan de contenido|contenidos? (de )?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|se?tiembre|octubre|noviembre|diciembre)/i;
 
 async function completar(tareas: BcTarea[]): Promise<TareaCompleta[]> {
   if (!tareas.length) return [];
@@ -111,20 +109,24 @@ export const basecampRepo = {
     return { data: completas.filter((t) => !ETAPAS_CERRADAS.has(t.columna?.estado ?? "")), error: null };
   },
 
-  /** Las tareas que suenan a plani y todavía no tienen una (para sugerir crearla). */
-  async planisSinCrear(vinculadas: Set<number>, limite = 60) {
+  /**
+   * Las tareas vivas que se reconocen como de algún tipo de presentación (por las palabras de su
+   * título) y todavía no tienen una, para sugerir crearla. Se leen las últimas que se movieron y se
+   * filtran acá: así "Planificación" (con tilde) también coincide con la palabra "planificacion".
+   */
+  async sinPresentacion(vinculadas: Set<number>, tipos: TipoPresentacion[], limite = 60) {
     const { data, error } = await supabase
       .from("bc_tareas")
       .select("*")
       .eq("completada", false)
-      .or("titulo.ilike.%plani%,titulo.ilike.%planificaci%,titulo.ilike.%social media plan%")
       .order("actualizada", { ascending: false })
-      .limit(limite);
+      .limit(600);
     if (error) return { data: [] as TareaCompleta[], error };
-    const completas = await completar(
-      ((data ?? []) as BcTarea[]).filter((t) => !vinculadas.has(Number(t.id)) && PARECE_PLANI.test(t.titulo))
-    );
-    return { data: completas.filter((t) => !ETAPAS_CERRADAS.has(t.columna?.estado ?? "")), error: null };
+    const candidatas = ((data ?? []) as BcTarea[])
+      .filter((t) => !vinculadas.has(Number(t.id)) && tipoDeTitulo(t.titulo, tipos))
+      .slice(0, limite * 2);
+    const completas = await completar(candidatas);
+    return { data: completas.filter((t) => !ETAPAS_CERRADAS.has(t.columna?.estado ?? "")).slice(0, limite), error: null };
   },
 
   proyectos: () => supabase.from("bc_proyectos").select("id, nombre, estado, app_url, brand_id, ignorado").order("nombre"),

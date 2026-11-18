@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { guardarDatos, leerConexion, renovarTokens, type Conexion } from "./store";
 
 /**
- * El Drive del estudio: el material final de las planis vive ahí, en carpetas por cliente, plani y
- * día. Una sola cuenta conectada para todos (la conecta un admin desde la app). El permiso es
+ * El Drive del estudio: el material final de las presentaciones vive ahí, en carpetas por cliente,
+ * presentación y día. Una sola cuenta conectada para todos (la conecta un admin desde la app). El permiso es
  * drive.file: la app solo ve las carpetas y archivos que creó ella, nada más del Drive.
  *
  * Los archivos se suben directo del navegador a Google (sesión de subida "resumable" que abre el
@@ -16,7 +16,7 @@ const UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const FOLDER = "application/vnd.google-apps.folder";
 
 export const DRIVE_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/drive.file"];
-export const ROOT_NAME = "Herramientas · Planificaciones";
+export const ROOT_NAME = "Herramientas · Presentaciones";
 
 function env(name: string) {
   const v = process.env[name];

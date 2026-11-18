@@ -9,6 +9,7 @@ import { ClientMark } from "@/components/clients/ClientMark";
 import { BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
 import { useClients } from "@/hooks/useClients";
 import { useComentarios } from "@/hooks/useComentarios";
+import { useTipos } from "@/hooks/useTipos";
 import { usePlani } from "@/hooks/usePlani";
 import { APROBACION, MESES, nombreFormato, plataformaInfo } from "@/lib/plani/config";
 import { etiquetaDia, horaCorta } from "@/lib/plani/fechas";
@@ -28,6 +29,8 @@ export type PresentacionPlani = Pick<Plani, "id" | "anio" | "mes" | "drive_carpe
 
 type Props = {
   plani: PresentacionPlani;
+  /** El nombre del tipo ("Planificación", "Leads / Ads"…): el título de la portada. */
+  tipoNombre: string;
   piezas: Pieza[];
   brand: MockupBrand;
   modo: "estudio" | "cliente";
@@ -45,13 +48,13 @@ type Props = {
 };
 
 /**
- * La plani presentada: lo que antes era la presentación de Google Slides, armado solo con lo que
+ * La presentación como la ve el cliente: lo que antes era la de Google Slides, armado solo con lo que
  * ya está cargado. Portada, calendario, feed y una página por pieza con su mockup, el copy, el
  * enlace al material, la hora, los estados y el sello de programada. Se recorre con las flechas
  * (o la rueda) y se puede poner en pantalla completa (F). Es la misma para el estudio y para el
  * cliente (en su link): el cliente comenta y aprueba; el estudio ve además lo interno.
  */
-export function PresentacionVista({ plani, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver }: Props) {
+export function PresentacionVista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver }: Props) {
   const deck = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(0);
   const [full, setFull] = useState(false);
@@ -122,7 +125,7 @@ export function PresentacionVista({ plani, piezas, brand, modo, comentarios, onC
     setLightbox({ medios: lista, index: Math.max(0, lista.findIndex((x) => x.id === m.id)) });
   };
 
-  const pie = `${brand.name} · Planificación ${MESES[plani.mes - 1]} ${plani.anio}`;
+  const pie = `${brand.name} · ${tipoNombre} ${MESES[plani.mes - 1]} ${plani.anio}`;
   const drive = modo === "estudio" && plani.drive_carpeta_id ? `https://drive.google.com/drive/folders/${plani.drive_carpeta_id}` : null;
   const piezaHilo = hilo ? porId.get(hilo) ?? null : null;
   const generales = porPieza.get("") ?? [];
@@ -150,7 +153,7 @@ export function PresentacionVista({ plani, piezas, brand, modo, comentarios, onC
     <div className="relative bg-background">
       {modo === "estudio" ? (
         <ContextBar>
-          <BarButton label="Volver a la plani" icon={ArrowLeft} onClick={onVolver} />
+          <BarButton label="Volver al editor" icon={ArrowLeft} onClick={onVolver} />
           <BarDivider />
           <span className="flex items-center gap-2 px-1.5">
             <ClientMark brand={brand} className="h-7 w-7 rounded-full text-[10px]" pad="p-[18%]" />
@@ -167,7 +170,7 @@ export function PresentacionVista({ plani, piezas, brand, modo, comentarios, onC
       )}
 
       <div ref={deck} className="no-scrollbar h-[100svh] snap-y snap-mandatory overflow-y-auto overscroll-contain">
-        <Portada n={0} cliente={brand} mes={MESES[plani.mes - 1]} anio={plani.anio} />
+        <Portada n={0} cliente={brand} titulo={tipoNombre} mes={MESES[plani.mes - 1]} anio={plani.anio} />
 
         <Slide n={1} pie={pie}>
           <div className="mx-auto flex h-full w-full max-w-6xl flex-col justify-center gap-6 px-5 pb-16 pt-24 sm:px-10">
@@ -239,7 +242,7 @@ export function PresentacionVista({ plani, piezas, brand, modo, comentarios, onC
             <div className="min-w-0 flex-1">
               <p className="eyebrow">Comentarios</p>
               <p className="mt-1 truncate font-display text-2xl leading-tight">
-                {piezaHilo ? `${etiquetaDia(piezaHilo.fecha)} · ${nombreFormato(piezaHilo.formato, piezaHilo.proporcion)}` : "De la plani"}
+                {piezaHilo ? `${etiquetaDia(piezaHilo.fecha)} · ${nombreFormato(piezaHilo.formato, piezaHilo.proporcion)}` : "Generales"}
               </p>
             </div>
             <button type="button" aria-label="Cerrar" onClick={() => setHilo(null)} className="grid h-8 w-8 place-items-center rounded-full hover:bg-secondary">
@@ -277,10 +280,12 @@ export function Presentacion({ id }: { id: string }) {
   const { clients } = useClients();
   const comentarios = useComentarios(id);
   const brand = plani ? clients.find((c) => c.id === plani.brand_id) ?? null : null;
+  const { tipoDe } = useTipos();
+  const tipo = tipoDe(plani?.tipo ?? "");
 
   useEffect(() => {
-    if (plani && brand) document.title = `${brand.name} · ${MESES[plani.mes - 1]} ${plani.anio} · Presentación`;
-  }, [plani, brand]);
+    if (plani && brand) document.title = `${brand.name} · ${tipo.nombre} ${MESES[plani.mes - 1]} ${plani.anio}`;
+  }, [plani, brand, tipo.nombre]);
 
   if (loading || !plani) {
     return (
@@ -293,6 +298,7 @@ export function Presentacion({ id }: { id: string }) {
   return (
     <PresentacionVista
       plani={plani}
+      tipoNombre={tipo.nombre}
       piezas={piezas}
       brand={brand ?? { name: "Cliente", color: "#52525B", logo_url: null, logo_bg: "light" }}
       modo="estudio"
@@ -301,7 +307,7 @@ export function Presentacion({ id }: { id: string }) {
       onResolver={comentarios.resolver}
       onBorrar={comentarios.borrar}
       yo={comentarios.yo}
-      onVolver={() => router.push(`/planificacion/${id}`)}
+      onVolver={() => router.push(`/presentaciones/${id}`)}
     />
   );
 }
@@ -322,7 +328,7 @@ function Slide({ n, pie, children }: { n: number; pie: string; children: React.R
 }
 
 /** La portada: negro tinta, el corte amarillo que la descubre y el mes en grande. */
-function Portada({ n, cliente, mes, anio }: { n: number; cliente: MockupBrand; mes: string; anio: number }) {
+function Portada({ n, cliente, titulo, mes, anio }: { n: number; cliente: MockupBrand; titulo: string; mes: string; anio: number }) {
   const root = useRef<HTMLElement>(null);
   useGSAP(
     () => {
@@ -359,7 +365,7 @@ function Portada({ n, cliente, mes, anio }: { n: number; cliente: MockupBrand; m
             {cliente.name} <span className="text-primary">\</span> {STUDIO}
           </span>
         </div>
-        <h1 className="font-display text-[clamp(3.6rem,13vw,11rem)] leading-[0.85] tracking-[-0.03em]">Planificación</h1>
+        <h1 className="font-display text-[clamp(3.6rem,13vw,11rem)] leading-[0.85] tracking-[-0.03em] [overflow-wrap:anywhere]">{titulo}</h1>
         <span data-p="rule" className="mt-6 block h-px origin-left bg-cream/30" />
         <p data-p="fade" className="mt-5 flex items-baseline gap-4 font-display text-[clamp(2rem,5vw,3.6rem)] leading-none">
           {mes} <em className="text-cream/40">{anio}</em>

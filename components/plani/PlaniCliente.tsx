@@ -10,10 +10,11 @@ import type { MockupBrand } from "./Mockups";
 import { PresentacionVista, type PresentacionPlani } from "./Presentacion";
 
 type Datos = {
-  plani: PresentacionPlani & { titulo: string; brand_id: string };
+  presentacion: PresentacionPlani & { titulo: string; brand_id: string };
+  tipo: { id: string; nombre: string; color: string; icono: string } | null;
   brand: MockupBrand | null;
   piezas: Partial<Pieza>[];
-  comentarios: (Omit<Comentario, "plani_id" | "autor_id" | "interno"> & { del_cliente: boolean })[];
+  comentarios: (Omit<Comentario, "presentacion_id" | "autor_id" | "interno"> & { del_cliente: boolean })[];
 };
 
 const NOMBRE_KEY = "plani:cliente:nombre";
@@ -57,7 +58,7 @@ export function PlaniCliente({ token }: { token: string }) {
   };
 
   const cargar = useCallback(async () => {
-    const { data, error } = await supabase.rpc("plani_publica", { p_token: token });
+    const { data, error } = await supabase.rpc("presentacion_publica", { p_token: token });
     if (error) {
       setEstado("error");
       return;
@@ -77,7 +78,7 @@ export function PlaniCliente({ token }: { token: string }) {
   }, [cargar]);
 
   useEffect(() => {
-    if (datos?.brand) document.title = `${datos.brand.name} · Planificación ${MESES[datos.plani.mes - 1]} ${datos.plani.anio}`;
+    if (datos?.brand) document.title = `${datos.brand.name} · ${datos.tipo?.nombre ?? "Presentación"} ${MESES[datos.presentacion.mes - 1]} ${datos.presentacion.anio}`;
   }, [datos]);
 
   const comentar = async (piezaId: string | null, texto: string) => {
@@ -85,7 +86,7 @@ export function PlaniCliente({ token }: { token: string }) {
       toast("Escribí tu nombre para comentar", "error");
       return false;
     }
-    const { error } = await supabase.rpc("plani_publica_comentar", { p_token: token, p_pieza: piezaId, p_nombre: nombre, p_texto: texto });
+    const { error } = await supabase.rpc("presentacion_publica_comentar", { p_token: token, p_pieza: piezaId, p_nombre: nombre, p_texto: texto });
     if (error) {
       toast("No se pudo enviar el comentario", "error");
       return false;
@@ -97,7 +98,7 @@ export function PlaniCliente({ token }: { token: string }) {
 
   const aprobar = async (piezaId: string, nuevo: Aprobacion) => {
     setDatos((d) => (d ? { ...d, piezas: d.piezas.map((p) => (p.id === piezaId ? { ...p, estado_cliente: nuevo } : p)) } : d));
-    const { error } = await supabase.rpc("plani_publica_aprobar", { p_token: token, p_pieza: piezaId, p_estado: nuevo });
+    const { error } = await supabase.rpc("presentacion_publica_aprobar", { p_token: token, p_pieza: piezaId, p_estado: nuevo });
     if (error) {
       toast("No se pudo guardar", "error");
       cargar();
@@ -112,7 +113,7 @@ export function PlaniCliente({ token }: { token: string }) {
             Cámara <span className="text-primary">\</span> TBWA
           </p>
           <h1 className="mt-5 font-display text-5xl leading-tight">
-            {estado === "cargando" ? "Cargando la plani…" : estado === "invalido" ? "Este link ya no está disponible" : "No se pudo abrir la plani"}
+            {estado === "cargando" ? "Cargando…" : estado === "invalido" ? "Este link ya no está disponible" : "No se pudo abrir la presentación"}
           </h1>
           {estado === "invalido" && <p className="mt-3 text-sm text-cream/60">Pedile al estudio un link nuevo.</p>}
         </div>
@@ -124,11 +125,12 @@ export function PlaniCliente({ token }: { token: string }) {
     <MedioBaseProvider value={`/api/p/${encodeURIComponent(token)}/archivo`}>
       <VistaClienteProvider value={true}>
         <PresentacionVista
-          plani={datos.plani}
+          plani={datos.presentacion}
+          tipoNombre={datos.tipo?.nombre ?? "Presentación"}
           piezas={datos.piezas.map(completar)}
           brand={datos.brand ?? { name: "Cliente", color: "#52525B", logo_url: null, logo_bg: "light" }}
           modo="cliente"
-          comentarios={datos.comentarios.map((c) => ({ ...c, plani_id: datos.plani.id, autor_id: null, interno: false }))}
+          comentarios={datos.comentarios.map((c) => ({ ...c, presentacion_id: datos.presentacion.id, autor_id: null, interno: false }))}
           onComentar={comentar}
           onAprobar={aprobar}
           nombre={{ value: nombre, onChange: setNombre }}

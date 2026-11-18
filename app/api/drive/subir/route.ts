@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { MESES, TIPOS } from "@/lib/plani/config";
+import { MESES } from "@/lib/plani/config";
 import { etiquetaArchivo, etiquetaDia } from "@/lib/plani/fechas";
-import type { PlaniTipo } from "@/lib/plani/types";
 import { Drive, FILE_FIELDS, type DriveFile } from "@/lib/integraciones/google";
 import { appOrigin } from "@/lib/integraciones/store";
 import { createSupabaseServer } from "@/lib/supabase-server";
@@ -15,12 +14,19 @@ type PiezaConPlani = {
   id: string;
   fecha: string;
   formato: string;
-  planificaciones: { id: string; anio: number; mes: number; tipo: PlaniTipo; brands: { id: string; name: string } | null } | null;
+  presentaciones: {
+    id: string;
+    anio: number;
+    mes: number;
+    tipo: string;
+    presentacion_tipos: { nombre: string } | null;
+    brands: { id: string; name: string } | null;
+  } | null;
 };
 
 /**
  * Abre la subida de un archivo del material final de una pieza. Arma (o reusa) las carpetas
- * Cliente / AAAA-MM Plani Mes / DD-MM Día en el Drive del estudio y devuelve la URL a la que el
+ * Cliente / AAAA-MM Tipo Mes / DD-MM Día en el Drive del estudio y devuelve la URL a la que el
  * navegador sube el archivo directo a Google.
  */
 export async function POST(request: NextRequest) {
@@ -38,12 +44,12 @@ export async function POST(request: NextRequest) {
     if (!drive) return NextResponse.json({ error: "El Drive del estudio no está conectado", sinDrive: true }, { status: 400 });
 
     const { data, error } = await db
-      .from("plani_piezas")
-      .select("id, fecha, formato, planificaciones(id, anio, mes, tipo, brands(id, name))")
+      .from("presentacion_piezas")
+      .select("id, fecha, formato, presentaciones(id, anio, mes, tipo, presentacion_tipos(nombre), brands(id, name))")
       .eq("id", piezaId)
       .maybeSingle<PiezaConPlani>();
     if (error) throw new Error(error.message);
-    const plani = data?.planificaciones;
+    const plani = data?.presentaciones;
     if (!data || !plani) return NextResponse.json({ error: "No existe esa pieza" }, { status: 404 });
 
     const raiz = await drive.raiz();
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
     const carpetaCliente = await drive.carpeta(`cliente:${cliente?.id ?? "sin"}`, cliente?.name ?? "Sin cliente", raiz);
     const carpetaPlani = await drive.carpeta(
       `plani:${plani.id}`,
-      `${plani.anio}-${String(plani.mes).padStart(2, "0")} · ${TIPOS[plani.tipo].label} ${MESES[plani.mes - 1]} ${plani.anio}`,
+      `${plani.anio}-${String(plani.mes).padStart(2, "0")} · ${plani.presentacion_tipos?.nombre ?? "Presentación"} ${MESES[plani.mes - 1]} ${plani.anio}`,
       carpetaCliente
     );
     if (!plani.id) throw new Error("Plani sin id");
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
       carpetaPlani
     );
     // La carpeta de la plani queda anotada para el botón "Abrir en Drive".
-    await db.from("planificaciones").update({ drive_carpeta_id: carpetaPlani }).eq("id", plani.id).is("drive_carpeta_id", null);
+    await db.from("presentaciones").update({ drive_carpeta_id: carpetaPlani }).eq("id", plani.id).is("drive_carpeta_id", null);
 
     const uploadUrl = await drive.sesionDeSubida({
       nombre,

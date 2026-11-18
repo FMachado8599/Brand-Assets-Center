@@ -4,10 +4,10 @@ import { PlaniShell } from "@/components/plani/PlaniShell";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Planificación",
-  description: "Las planis del mes de cada cliente: copys, diseño, aprobaciones y lo que se programa.",
+  title: "Presentaciones",
+  description: "El material de cada tarea, listo para el cliente: planificaciones, ads, programática y más.",
 };
 
-export default function PlanificacionPage() {
+export default function PresentacionesPage() {
   return <PlaniShell />;
 }

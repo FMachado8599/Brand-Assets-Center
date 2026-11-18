@@ -4,7 +4,7 @@ import { PlaniCliente } from "@/components/plani/PlaniCliente";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Planificación",
+  title: "Presentación",
   // Un link privado: que no lo indexe ningún buscador.
   robots: { index: false, follow: false },
 };

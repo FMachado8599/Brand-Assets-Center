@@ -11,8 +11,10 @@ import { useClients } from "@/hooks/useClients";
 import { useEquipo } from "@/hooks/useEquipo";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { useOAuthResult } from "@/hooks/useOAuthResult";
+import { useTipos } from "@/hooks/useTipos";
 import { basecampRepo, mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
-import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES, TIPOS } from "@/lib/plani/config";
+import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES } from "@/lib/plani/config";
+import { tipoDeTitulo, type TipoPresentacion } from "@/lib/plani/tipos";
 import { planiErrorMessage, planiRepo } from "@/lib/plani/repo";
 import type { PlaniEstado, PlaniResumen } from "@/lib/plani/types";
 import { fold } from "@/lib/redaccion/text";
@@ -24,6 +26,9 @@ import { FormatDot, medioUrl } from "./bits";
 import { ConexionesPanel } from "./Conexiones";
 import { NuevaPlaniDialog, type NuevaPlaniInicial } from "./NuevaPlaniDialog";
 import { RevealTitle } from "./Reveal";
+import { TipoChip } from "./TipoChip";
+
+const TODOS = "";
 
 function hoyMes() {
   const d = new Date();
@@ -31,8 +36,9 @@ function hoyMes() {
 }
 
 /**
- * Planificación: las planis del mes, en columnas por etapa (de redacción a lista). Abajo, lo que
- * falta arrancar: las tareas de Basecamp que suenan a plani y todavía no tienen una.
+ * Presentaciones: las del mes, en columnas por etapa (de redacción a lista), de todos los tipos o
+ * del que se elija. Abajo, lo que falta arrancar: las tareas de Basecamp que se reconocen como de
+ * algún tipo (por las palabras de su título) y todavía no tienen presentación.
  */
 export function PlaniShell() {
   const { clients } = useClients();
@@ -43,6 +49,8 @@ export function PlaniShell() {
   const [error, setError] = useState<string | null>(null);
   const [{ anio, mes }, setMes] = useState(hoyMes);
   const [query, setQuery] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState<string>(TODOS);
+  const { tipos, tipoDe } = useTipos();
   const [nueva, setNueva] = useState<NuevaPlaniInicial | null>(null);
   const [sugeridas, setSugeridas] = useState<TareaCompleta[] | null>(null);
   const [brandsPorProyecto, setBrandsPorProyecto] = useState<Map<number, string>>(new Map());
@@ -64,12 +72,12 @@ export function PlaniShell() {
     return () => window.removeEventListener("focus", cargar);
   }, [cargar]);
 
-  // Las tareas de Basecamp que suenan a plani y no tienen una todavía.
+  // Las tareas de Basecamp que se reconocen como de algún tipo y no tienen presentación todavía.
   useEffect(() => {
-    if (!hayBasecamp || !planis || sync.corriendo) return;
+    if (!hayBasecamp || !planis || sync.corriendo || !tipos.length) return;
     const vinculadas = new Set(planis.map((p) => p.bc_tarea_id).filter((x): x is number => x != null));
     let vivo = true;
-    Promise.all([basecampRepo.planisSinCrear(vinculadas), basecampRepo.proyectos()]).then(([t, p]) => {
+    Promise.all([basecampRepo.sinPresentacion(vinculadas, tipos), basecampRepo.proyectos()]).then(([t, p]) => {
       if (!vivo) return;
       setSugeridas(t.data);
       setBrandsPorProyecto(new Map(((p.data ?? []) as { id: number; brand_id: string | null }[]).filter((x) => x.brand_id).map((x) => [Number(x.id), x.brand_id!])));
@@ -77,7 +85,7 @@ export function PlaniShell() {
     return () => {
       vivo = false;
     };
-  }, [hayBasecamp, planis, sync.corriendo]);
+  }, [hayBasecamp, planis, sync.corriendo, tipos]);
 
   const porCliente = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const q = fold(query.trim());
@@ -85,10 +93,26 @@ export function PlaniShell() {
     () =>
       (planis ?? [])
         .filter((p) => p.anio === anio && p.mes === mes)
+        .filter((p) => !tipoFiltro || p.tipo === tipoFiltro)
         .filter((p) => !q || fold(porCliente.get(p.brand_id)?.name ?? "").includes(q))
         .sort((a, b) => (porCliente.get(a.brand_id)?.name ?? "").localeCompare(porCliente.get(b.brand_id)?.name ?? "", "es")),
-    [planis, anio, mes, q, porCliente]
+    [planis, anio, mes, q, porCliente, tipoFiltro]
   );
+
+  // Lo que falta arrancar, con su tipo (y del tipo elegido arriba, si hay uno).
+  const paraArrancar = useMemo(
+    () =>
+      (sugeridas ?? [])
+        .map((t) => ({ tarea: t, tipo: tipoDeTitulo(t.titulo, tipos) }))
+        .filter((x): x is { tarea: TareaCompleta; tipo: TipoPresentacion } => !!x.tipo && (!tipoFiltro || x.tipo.id === tipoFiltro)),
+    [sugeridas, tipos, tipoFiltro]
+  );
+  // Cuántas hay de cada tipo este mes (para los chips del filtro).
+  const delMesPorTipo = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of planis ?? []) if (p.anio === anio && p.mes === mes) m.set(p.tipo, (m.get(p.tipo) ?? 0) + 1);
+    return m;
+  }, [planis, anio, mes]);
 
   const mover = (d: number) =>
     setMes(({ anio, mes }) => {
@@ -121,14 +145,14 @@ export function PlaniShell() {
           <PanelTitle title="Conexiones del estudio" hint="Una sola para todos: las conecta un admin." />
           <ConexionesPanel />
         </BarPopover>
-        <BarAction label="Nueva plani" icon={Plus} onClick={() => setNueva({ anio, mes })} />
+        <BarAction label="Nueva presentación" icon={Plus} onClick={() => setNueva({ anio, mes })} />
       </ContextBar>
 
       <main className="mx-auto max-w-[96rem] px-4 pb-20 pt-24 sm:px-6 md:pt-28">
         <header className="flex flex-wrap items-end justify-between gap-4 pb-8">
           <div>
             <p className="site-label text-ink/50">
-              Planificación <span className="text-primary">\</span> {delMes.length} {delMes.length === 1 ? "plani" : "planis"}
+              Presentaciones <span className="text-primary">\</span> {delMes.length} {delMes.length === 1 ? "presentación" : "presentaciones"}
             </p>
             <RevealTitle className="mt-4 font-display text-[clamp(3.2rem,10vw,7rem)] leading-[0.86] tracking-[-0.025em]" deps={[anio, mes]}>
               {MESES[mes - 1]} <em className="text-ink/25">{anio}</em>
@@ -140,6 +164,38 @@ export function PlaniShell() {
             </button>
           ) : null}
         </header>
+
+        {tipos.length > 0 && (
+          <div className="-mt-2 mb-6 flex flex-wrap items-center gap-1.5" role="group" aria-label="Tipo">
+            <button
+              type="button"
+              onClick={() => setTipoFiltro(TODOS)}
+              aria-pressed={!tipoFiltro}
+              className={cn(
+                "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
+                !tipoFiltro ? "border-foreground bg-foreground text-background" : "bg-card hover:border-foreground/30"
+              )}
+            >
+              Todas
+            </button>
+            {tipos.map((t) => {
+              const activo = tipoFiltro === t.id;
+              const n = delMesPorTipo.get(t.id) ?? 0;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTipoFiltro(activo ? TODOS : t.id)}
+                  aria-pressed={activo}
+                  className={cn("rounded-full transition-opacity", !activo && tipoFiltro && "opacity-50 hover:opacity-100")}
+                >
+                  <TipoChip tipo={t} className={cn("h-8 px-3 text-[13px]", activo && "ring-2 ring-offset-1")} />
+                  {n > 0 && <span className="sr-only">{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {error ? (
           <p className="rounded-2xl bg-primary/25 px-4 py-3 text-sm">{error}</p>
@@ -158,7 +214,7 @@ export function PlaniShell() {
               return (
                 <Columna key={e.value} estado={e.value} count={items.length}>
                   {items.map((p) => (
-                    <PlaniCard key={p.id} plani={p} brand={porCliente.get(p.brand_id) ?? null} />
+                    <PlaniCard key={p.id} plani={p} brand={porCliente.get(p.brand_id) ?? null} tipo={tipoDe(p.tipo)} />
                   ))}
                   {e.value === "redaccion" && (
                     <button
@@ -166,7 +222,7 @@ export function PlaniShell() {
                       onClick={() => setNueva({ anio, mes })}
                       className="flex h-20 w-full items-center justify-center gap-2 rounded-[1.25rem] border-2 border-dashed border-foreground/12 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                     >
-                      <Plus className="h-4 w-4" /> Nueva plani
+                      <Plus className="h-4 w-4" /> Nueva
                     </button>
                   )}
                 </Columna>
@@ -175,16 +231,16 @@ export function PlaniShell() {
           </Tablero>
         )}
 
-        {hayBasecamp && sugeridas && sugeridas.length > 0 && (
+        {hayBasecamp && paraArrancar.length > 0 && (
           <section className="mt-14" aria-label="Para arrancar">
             <div className="mb-4 flex items-end gap-3 border-b border-foreground/15 pb-2">
               <h2 className="font-display text-[2.4rem] leading-none">Para arrancar</h2>
               <span className="flex items-center gap-1.5 pb-1 text-xs text-muted-foreground">
-                <BasecampMark className="h-3.5 w-3.5" /> Tareas de Basecamp que suenan a plani y todavía no tienen una
+                <BasecampMark className="h-3.5 w-3.5" /> Tareas de Basecamp que se reconocen por su título y todavía no tienen presentación
               </span>
             </div>
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {sugeridas.map((t) => {
+              {paraArrancar.map(({ tarea: t, tipo }) => {
                 const brandId = brandsPorProyecto.get(Number(t.proyecto_id)) ?? null;
                 const brand = brandId ? porCliente.get(brandId) ?? null : null;
                 return (
@@ -197,6 +253,7 @@ export function PlaniShell() {
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <TipoChip tipo={tipo} />
                       <EtapaChip tarea={t} />
                       <Personas personas={t.personas} max={3} />
                     </div>
@@ -204,11 +261,11 @@ export function PlaniShell() {
                       <button
                         type="button"
                         disabled={!brandId}
-                        onClick={() => setNueva({ brandId, tarea: t, anio, mes: mesDelTitulo(t.titulo) ?? mes })}
+                        onClick={() => setNueva({ brandId, tarea: t, tipo: tipo.id, anio, mes: mesDelTitulo(t.titulo) ?? mes })}
                         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:brightness-95 disabled:opacity-45"
                         title={brandId ? undefined : "Ese proyecto no está vinculado a ningún cliente"}
                       >
-                        <Plus className="h-3.5 w-3.5" /> Crear la plani
+                        <Plus className="h-3.5 w-3.5" /> Crear la presentación
                       </button>
                       {t.app_url && (
                         <a href={t.app_url} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">
@@ -251,8 +308,8 @@ function Columna({ estado, count, children }: { estado: PlaniEstado; count: numb
   );
 }
 
-function PlaniCard({ plani, brand }: { plani: PlaniResumen; brand: Brand | null }) {
-  const piezas = plani.plani_piezas ?? [];
+function PlaniCard({ plani, brand, tipo }: { plani: PlaniResumen; brand: Brand | null; tipo: TipoPresentacion }) {
+  const piezas = plani.presentacion_piezas ?? [];
   const total = piezas.length;
   const conMaterial = piezas.filter((p) => (p.medios ?? []).some((m) => m.rol === "final")).length;
   const programadas = piezas.filter((p) => p.programada).length;
@@ -266,7 +323,7 @@ function PlaniCard({ plani, brand }: { plani: PlaniResumen; brand: Brand | null 
 
   return (
     <Link
-      href={`/planificacion/${plani.id}`}
+      href={`/presentaciones/${plani.id}`}
       className="group flex flex-col gap-3 rounded-[1.25rem] border border-black/[0.06] bg-card p-3.5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04)] transition-[transform,box-shadow] duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_hsl(40_45%_20%/0.45)]"
     >
       <div className="flex items-center gap-2.5">
@@ -274,11 +331,12 @@ function PlaniCard({ plani, brand }: { plani: PlaniResumen; brand: Brand | null 
         <span className="min-w-0 flex-1">
           <span className="block truncate font-display text-[1.45rem] leading-tight">{brand?.name ?? "Cliente"}</span>
           <span className="block truncate text-[11px] text-muted-foreground">
-            {TIPOS[plani.tipo].label} · {total} {total === 1 ? "pieza" : "piezas"}
+            {total} {total === 1 ? "pieza" : "piezas"}
           </span>
         </span>
         {plani.bc_tarea_id && <BasecampMark className="h-3.5 w-3.5 opacity-70" />}
       </div>
+      <TipoChip tipo={tipo} className="self-start" />
 
       {feed.length > 0 ? (
         <div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-lg">

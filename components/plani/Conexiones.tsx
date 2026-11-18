@@ -113,7 +113,7 @@ export function ConexionesPanel() {
         ) : (
           <>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Cada proyecto de Basecamp aparece como cliente, y las tareas (con su brief y su gente) se ven en las planis.
+              Cada proyecto de Basecamp aparece como cliente, y las tareas (con su brief y su gente) se ven en las presentaciones.
             </p>
             <Link href="/board/basecamp" className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:brightness-95">
               Conectar en Board → Basecamp
@@ -138,7 +138,7 @@ export function ConexionesPanel() {
           </p>
         ) : g ? (
           <>
-            <p className="mt-1.5 text-xs text-muted-foreground">{g.cuenta_id} · el material final va a carpetas por cliente, plani y día.</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">{g.cuenta_id} · el material final va a carpetas por cliente, presentación y día.</p>
             {g.datos?.raiz_url && (
               <a href={g.datos.raiz_url} target="_blank" rel="noopener noreferrer" className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary">
                 <FolderOpen className="h-3.5 w-3.5" /> Abrir la carpeta
@@ -148,7 +148,7 @@ export function ConexionesPanel() {
         ) : (
           <>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              El material final de las planis (fotos, videos, portadas) se guarda ahí. La app solo ve las carpetas que crea ella.
+              El material final de las presentaciones (fotos, videos, portadas) se guarda ahí. La app solo ve las carpetas que crea ella.
             </p>
             {admin ? (
               <a href={conectarUrl("google")} className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:brightness-95">

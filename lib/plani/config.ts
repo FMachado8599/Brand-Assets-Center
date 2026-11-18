@@ -1,4 +1,4 @@
-import type { Aprobacion, Formato, PlaniEstado, PlaniTipo, Plataforma, Proporcion, Rol, StickerTipo } from "./types";
+import type { Aprobacion, Formato, PlaniEstado, Plataforma, Proporcion, Rol, StickerTipo } from "./types";
 
 export const MESES = [
   "Enero",
@@ -18,12 +18,6 @@ export const MESES = [
 export const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 /** El calendario arranca el lunes, como en la plani de siempre. */
 export const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-export const TIPOS: Record<PlaniTipo, { label: string; hint: string }> = {
-  plani: { label: "Plani", hint: "Contenido orgánico del mes" },
-  pauta: { label: "Pauta", hint: "Contenido pautado" },
-  programatica: { label: "Programática", hint: "Programática y YouTube" },
-};
 
 /** Las etapas de una plani, en orden. El color es el del punto en la lista. */
 export const ESTADOS: { value: PlaniEstado; label: string; hint: string; color: string }[] = [

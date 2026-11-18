@@ -1,11 +1,14 @@
 /**
- * Planificación: los tipos tal como vienen de la base (supabase/migracion-planificacion.sql).
+ * Presentaciones: los tipos de TypeScript tal como vienen de la base
+ * (supabase/migracion-presentaciones.sql). En el código se siguen llamando "plani" (así empezó: la
+ * planificación del mes), pero una presentación puede ser de cualquier tipo.
  * Las fechas de las piezas son "AAAA-MM-DD" (días de calendario, sin hora ni zona).
  */
 
-export type PlaniTipo = "plani" | "pauta" | "programatica";
+/** El id de su tipo en presentacion_tipos ("planificacion", "leads", "programatica"…). */
+export type PlaniTipo = string;
 
-/** En qué etapa está la plani entera. */
+/** En qué etapa está la presentación entera. */
 export type PlaniEstado = "redaccion" | "diseno" | "revision" | "cliente" | "programacion" | "lista";
 
 export type Formato = "post" | "carrusel" | "reel" | "historia";
@@ -61,7 +64,7 @@ export type Slide = { instruccion: string };
 
 export type Pieza = {
   id: string;
-  plani_id: string;
+  presentacion_id: string;
   fecha: string;
   hora: string | null;
   orden: number;
@@ -110,17 +113,17 @@ export type Plani = {
 
 /** Lo que llega en la lista: la plani y un resumen de sus piezas. */
 export type PlaniResumen = Plani & {
-  plani_piezas: Pick<Pieza, "id" | "formato" | "fecha" | "programada" | "estado_agencia" | "estado_cliente" | "medios">[];
+  presentacion_piezas: Pick<Pieza, "id" | "formato" | "fecha" | "programada" | "estado_agencia" | "estado_cliente" | "medios">[];
 };
 
-export type PiezaPatch = Partial<Omit<Pieza, "id" | "plani_id" | "created_at" | "updated_at">>;
+export type PiezaPatch = Partial<Omit<Pieza, "id" | "presentacion_id" | "created_at" | "updated_at">>;
 export type PlaniPatch = Partial<
   Pick<Plani, "titulo" | "tipo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id" | "notas" | "brand_id" | "compartida" | "share_token">
 >;
 
 export type Comentario = {
   id: string;
-  plani_id: string;
+  presentacion_id: string;
   pieza_id: string | null;
   autor_id: string | null;
   autor_nombre: string;

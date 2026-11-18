@@ -21,7 +21,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
   }
   try {
     const db = createSupabaseAnon();
-    const permitido = await db.rpc("plani_publica_archivo", { p_token: params.token, p_drive_id: params.id });
+    const permitido = await db.rpc("presentacion_publica_archivo", { p_token: params.token, p_drive_id: params.id });
     if (permitido.error) throw new Error(permitido.error.message);
     if (permitido.data !== true) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 

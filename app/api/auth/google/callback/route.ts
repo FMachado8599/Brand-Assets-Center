@@ -10,11 +10,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * Vuelta de Google: se guardan los tokens cifrados y se crea (o se recupera) la carpeta raíz de las
- * planificaciones en ese Drive.
+ * presentaciones en ese Drive.
  */
 export async function GET(request: NextRequest) {
   const volver = terminarOAuth(request, "google");
-  if (!volver) return volverCon(request, "google", "/planificacion", "error", "El pedido venció o no coincide. Probá de nuevo.");
+  if (!volver) return volverCon(request, "google", "/presentaciones", "error", "El pedido venció o no coincide. Probá de nuevo.");
 
   const code = request.nextUrl.searchParams.get("code");
   if (!code) return volverCon(request, "google", volver, "error", request.nextUrl.searchParams.get("error") ?? "Google no autorizó la conexión");

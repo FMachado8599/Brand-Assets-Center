@@ -36,7 +36,7 @@ export function CopyDialog({
   onOpenChange: (o: boolean) => void;
   pieza: Pieza;
   brand: Brand;
-  /** Los copys de toda la plani: sus hashtags se sugieren como "en la plani". */
+  /** Los copys de toda la plani: sus hashtags se sugieren como "en la presentación". */
   otrosCopys: string[];
   update: (patch: PiezaPatch, ahora?: boolean) => void;
 }) {
@@ -71,7 +71,7 @@ export function CopyDialog({
   }, [otrosCopys, kit.hashtags]);
 
   const hashtagPool = useMemo<HashtagOption[]>(
-    () => [...kit.hashtags.map((tag) => ({ tag, hint: brand.name })), ...deLaPlani.map((tag) => ({ tag, hint: "en la plani" }))],
+    () => [...kit.hashtags.map((tag) => ({ tag, hint: brand.name })), ...deLaPlani.map((tag) => ({ tag, hint: "en la presentación" }))],
     [kit.hashtags, deLaPlani, brand.name]
   );
   const emojiPool = useMemo(() => {
