@@ -5,6 +5,8 @@ import DOMPurify from "dompurify";
 import Link from "next/link";
 import { ArrowUpRight, Check, CheckCheck, Eye, EyeOff, Loader2, Pause, Play, Presentation, Sparkles, Undo2, UserCheck } from "lucide-react";
 import { ClientMark } from "@/components/clients/ClientMark";
+import { abrirPerfil } from "@/components/perfil/abrir";
+import { EstadoChip } from "@/components/perfil/piezas";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
 import { cambiarTarea } from "@/hooks/useFlujo";
@@ -31,6 +33,7 @@ import {
   type Movimiento,
   type TareaFlujo,
 } from "@/lib/board/flujo";
+import { fueraDeOficina, textoFuera } from "@/lib/perfil";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Avatar, BasecampGlyph } from "./comun";
@@ -271,8 +274,11 @@ export function TareaDetalle({
               <ul className="space-y-1.5">
                 {validadores.map((p) => (
                   <li key={p.id} className="flex items-center gap-2 text-sm">
-                    <Avatar nombre={p.nombre} url={p.avatar_url} className="h-7 w-7" />
-                    <span className="flex-1">{p.nombre}</span>
+                    <button type="button" onClick={() => abrirPerfil(p.id)} title={`Ver el perfil de ${p.nombre}`} className="flex min-w-0 flex-1 items-center gap-2 text-left hover:underline">
+                      <Avatar nombre={p.nombre} url={p.avatar_url} className="h-7 w-7" />
+                      <span className="truncate">{p.nombre}</span>
+                      <EstadoChip perfil={p.perfil} />
+                    </button>
                     {validaron.has(p.id) ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                         <CheckCheck className="h-3.5 w-3.5" /> Validó
@@ -311,19 +317,32 @@ export function TareaDetalle({
               <h3 className="eyebrow text-muted-foreground">{enEntrada ? "Por empezar · la tiene" : "La tiene"}</h3>
               <div className="flex items-center gap-3 rounded-2xl border bg-card p-3">
                 {resp.persona ? (
-                  <>
+                  <button
+                    type="button"
+                    onClick={() => abrirPerfil(resp.persona!.id)}
+                    title={`Ver el perfil de ${resp.persona.nombre}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
                     <Avatar nombre={resp.persona.nombre} url={resp.persona.avatar_url} className="h-9 w-9" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{resp.persona.nombre}</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium">
+                        <span className="truncate">{resp.persona.nombre}</span>
+                        <EstadoChip perfil={resp.persona.perfil} />
+                      </p>
                       <p className="text-xs text-muted-foreground">{resp.origen ? ORIGEN[resp.origen] : ""}</p>
                     </div>
-                  </>
+                  </button>
                 ) : (
                   <p className="flex-1 text-sm text-muted-foreground">
                     {enEntrada ? "Sin asignar: nadie la tiene en Basecamp todavía." : "Sin asignar: la marca no tiene designado para esta etapa."}
                   </p>
                 )}
               </div>
+              {resp.persona && fueraDeOficina(resp.persona.perfil) && (
+                <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-900">
+                  {textoFuera(fueraDeOficina(resp.persona.perfil)!)}. Si no puede esperar, pasásela a otra persona.
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 {yo && puedeTenerla(yo) && resp.persona?.id !== yo && (
                   <button type="button" onClick={() => asignar(yo)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-sm font-semibold text-background hover:opacity-90">
@@ -406,10 +425,16 @@ export function TareaDetalle({
               <h3 className="eyebrow text-muted-foreground">Asignados en Basecamp</h3>
               <div className="flex flex-wrap gap-1.5">
                 {asignadosBc.map((p) => (
-                  <span key={p!.id} className="inline-flex items-center gap-1.5 rounded-full bg-secondary py-0.5 pl-0.5 pr-2 text-xs font-medium">
+                  <button
+                    key={p!.id}
+                    type="button"
+                    onClick={() => abrirPerfil(p!.id)}
+                    title={`Ver el perfil de ${p!.nombre}`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-secondary py-0.5 pl-0.5 pr-2 text-xs font-medium transition-colors hover:bg-secondary/60"
+                  >
                     <Avatar nombre={p!.nombre} url={p!.avatar_url} className="h-5 w-5 text-[8px]" />
                     {p!.nombre}
-                  </span>
+                  </button>
                 ))}
               </div>
             </section>

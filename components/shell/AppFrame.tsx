@@ -7,7 +7,7 @@ import { TooltipProvider, Hint } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { NewClientHost } from "@/components/clients/NewClientHost";
 import { JamBurbuja } from "@/components/spotify/jam/JamBurbuja";
-import { activeModule, LAST_MODULE_KEY, type AppModule } from "@/lib/modules";
+import { activeModule, LAST_MODULE_KEY, PERFIL, type AppModule } from "@/lib/modules";
 import { AccountPill } from "./AccountPill";
 import { AccountProvider } from "./AccountProvider";
 import { NotificacionesPill, useNotificacionesVisibles } from "./Notificaciones";
@@ -30,7 +30,8 @@ export function AppFrame({ children }: { children: ReactNode }) {
   useEffect(() => setNavOpen(false), [pathname]);
 
   useEffect(() => {
-    if (current.href === "/") return;
+    // Tu perfil no es una herramienta: no le saca la marca de "la última" a la que usaste.
+    if (current.href === "/" || current === PERFIL) return;
     try {
       localStorage.setItem(LAST_MODULE_KEY, current.href);
     } catch {

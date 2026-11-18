@@ -6,6 +6,8 @@ import { BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar
 import { toast } from "@/components/ui/toaster";
 import { useClients } from "@/hooks/useClients";
 import { useEquipo } from "@/hooks/useEquipo";
+import { abrirPerfil } from "@/components/perfil/abrir";
+import { EstadoChip } from "@/components/perfil/piezas";
 import { cambiarTarea, useFlujo } from "@/hooks/useFlujo";
 import { useStoredState } from "@/hooks/useStoredState";
 import type { Persona } from "@/lib/board/equipo";
@@ -291,16 +293,27 @@ export function EquipoFilas() {
                 <section key={f.key} className={cn(!f.tareas.length && "opacity-55")}>
                   <header className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                     {f.persona ? (
-                      <Avatar nombre={f.persona.nombre} url={f.persona.avatar_url} className="h-8 w-8" />
+                      <button
+                        type="button"
+                        onClick={() => abrirPerfil(f.persona!.id)}
+                        title={`Ver el perfil de ${f.persona.nombre}`}
+                        className="-m-1 flex items-center gap-x-3 rounded-full p-1 pr-2 transition-colors hover:bg-secondary/70"
+                      >
+                        <Avatar nombre={f.persona.nombre} url={f.persona.avatar_url} className="h-8 w-8" />
+                        <span className="font-display text-xl leading-none">
+                          {f.persona.nombre}
+                          {f.persona.id === yo && <span className="ml-1.5 font-sans text-xs text-muted-foreground">vos</span>}
+                        </span>
+                      </button>
                     ) : (
-                      <span className="grid h-8 w-8 place-items-center rounded-full border border-dashed text-xs text-muted-foreground">?</span>
+                      <>
+                        <span className="grid h-8 w-8 place-items-center rounded-full border border-dashed text-xs text-muted-foreground">?</span>
+                        <span className="font-display text-xl leading-none">Sin asignar</span>
+                      </>
                     )}
-                    <span className="font-display text-xl leading-none">
-                      {f.persona ? f.persona.nombre : "Sin asignar"}
-                      {f.persona?.id === yo && <span className="ml-1.5 font-sans text-xs text-muted-foreground">vos</span>}
-                    </span>
                     {f.persona ? (
                       <>
+                        <EstadoChip perfil={f.persona.perfil} />
                         <span className="text-xs tabular-nums text-muted-foreground">
                           {carga.n} {carga.n === 1 ? "activa" : "activas"}
                           {esperando ? ` · ${esperando} esperando` : ""}

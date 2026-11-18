@@ -12,6 +12,8 @@ import { cambiarEquipo, useEquipo } from "@/hooks/useEquipo";
 import { equipoRepo, NIVEL_LABEL, type EquipoData, type Persona } from "@/lib/board/equipo";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
+import { abrirPerfil } from "@/components/perfil/abrir";
+import { EstadoChip } from "@/components/perfil/piezas";
 import { Avatar, BoardNav, hace } from "./comun";
 import { HubsPanel } from "./equipo/HubsPanel";
 import { Organigrama } from "./equipo/Organigrama";
@@ -185,11 +187,16 @@ function PersonasPanel({ data, buscar, admin }: { data: EquipoData; buscar: stri
             return (
               <li key={p.id} className={cn("grid grid-cols-1 items-center gap-2 px-4 py-2.5 sm:gap-3", GRID, !p.activo && "opacity-60")}>
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <Avatar nombre={p.nombre} url={p.avatar_url} className="h-8 w-8" />
+                  <button type="button" onClick={() => abrirPerfil(p.id)} title={`Ver el perfil de ${p.nombre}`} className="shrink-0 rounded-full">
+                    <Avatar nombre={p.nombre} url={p.avatar_url} className="h-8 w-8" />
+                  </button>
                   <div className="min-w-0">
                     <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-                      <span className="truncate">{p.nombre}</span>
+                      <button type="button" onClick={() => abrirPerfil(p.id)} className="truncate text-left hover:underline">
+                        {p.nombre}
+                      </button>
                       {esYo && <Chip tono="suave">vos</Chip>}
+                      <EstadoChip perfil={p.perfil} />
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {p.cargo || p.email || "—"}

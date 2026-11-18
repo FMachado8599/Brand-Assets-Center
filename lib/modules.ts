@@ -8,6 +8,7 @@ import {
   ImagePlay,
   Library,
   Megaphone,
+  UserRound,
   PenLine,
   Presentation,
   RefreshCw,
@@ -64,6 +65,14 @@ export const LIBRARY_HUB: AppModule = {
   icon: Library,
 };
 
+/** Tu perfil (/perfil): no es una herramienta de la sidebar, se abre desde la cuenta. */
+export const PERFIL: AppModule = {
+  href: "/perfil",
+  label: "Perfil",
+  description: "Tu foto, tu estado y lo tuyo en el estudio",
+  icon: UserRound,
+};
+
 /** Lo que muestra Inicio: las herramientas y, en el lugar de la primera librería, la tarjeta de Librerías. */
 export const TOOLS: AppModule[] = MODULES.flatMap((m) => {
   if (m.href === "/" || m.soon) return [];
@@ -80,6 +89,6 @@ export const LAST_LIBRARY_KEY = "library:ultima";
 export function activeModule(pathname: string): AppModule {
   return (
     MODULES.find((m) => !m.soon && (m.href === "/" ? pathname === "/" : pathname.startsWith(m.href))) ??
-    (pathname.startsWith(LIBRARY_HUB.href) ? LIBRARY_HUB : MODULES[0])
+    (pathname.startsWith(LIBRARY_HUB.href) ? LIBRARY_HUB : pathname.startsWith(PERFIL.href) ? PERFIL : MODULES[0])
   );
 }

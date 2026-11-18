@@ -1,3 +1,4 @@
+import { fotoElegida, normalizarPerfil, type Perfil } from "@/lib/perfil";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -29,8 +30,10 @@ export type Persona = {
   hub_id: string | null;
   activo: boolean;
   puestos: string[];
-  /** De Basecamp: la foto y el cargo que tiene escrito ahí (solo informativo). */
+  /** La foto que se ve: la que eligió en su perfil o, si no eligió, la de Basecamp (o la de Google). */
   avatar_url: string | null;
+  /** De Basecamp: la foto y el cargo que tiene escrito ahí (solo informativo). */
+  avatar_bc: string | null;
   cargo: string | null;
   /** null: activo según su actividad · true/false: lo fijó un admin a mano. */
   activo_manual: boolean | null;
@@ -42,6 +45,8 @@ export type Persona = {
   jefes: string[];
   /** Ya está ubicado en el organigrama (los de arriba de todo no dependen de nadie pero están). */
   en_organigrama: boolean;
+  /** Su perfil de Herramientas (supabase/migracion-perfil.sql), por su mail. null si nunca entró. */
+  perfil: Perfil | null;
 };
 
 /** hub: grupo de marcas de diseño · cliente: el equipo de un cliente (ej: "Equipo BBVA") con su gente propia. */
@@ -92,11 +97,16 @@ export async function cargarEquipo(): Promise<EquipoData> {
   const actividad = await supabase.rpc("equipo_actividad");
   const conActividad = !actividad.error;
   // Lo mismo con el organigrama (migracion-organigrama.sql): jefes y directores de cada hub.
-  const [jefesRes, lideresRes] = await Promise.all([
+  // Y con los perfiles (foto elegida, estado, fuera de oficina): sin migracion-perfil.sql solo se ve el propio.
+  const [jefesRes, lideresRes, perfilesRes] = await Promise.all([
     supabase.from("equipo_jefes").select("persona_id, jefe_id"),
     supabase.from("hub_lideres").select("hub_id, persona_id"),
+    supabase.from("profiles").select("*"),
   ]);
   const conOrganigrama = !jefesRes.error && !lideresRes.error;
+  const perfilDe = new Map(
+    ((perfilesRes.data ?? []) as Record<string, unknown>[]).map(normalizarPerfil).filter((p) => p.email).map((p) => [p.email!, p])
+  );
   const [sectores, puestos, puestoSectores, equipo, equipoPuestos, hubs, hubMarcas, designaciones, bc, yo] = await Promise.all([
     leer<Sector[]>(supabase.from("sectores").select("id, nombre, area, tablero, orden").order("orden")),
     leer<Omit<Puesto, "sectores">[]>(supabase.from("puestos").select("id, nombre, nivel, orden").order("orden").order("nombre")),
@@ -142,11 +152,13 @@ export async function cargarEquipo(): Promise<EquipoData> {
     puestos: puestos.map((p) => ({ ...p, sectores: sectoresDe.get(p.id) ?? [] })),
     personas: equipo.map((p) => {
       const b = p.bc_persona_id != null ? deBasecamp.get(Number(p.bc_persona_id)) : undefined;
+      const perfil = (p.email && perfilDe.get(p.email.toLowerCase())) || null;
       return {
         ...p,
         bc_persona_id: p.bc_persona_id != null ? Number(p.bc_persona_id) : null,
         puestos: puestosDe.get(p.id) ?? [],
-        avatar_url: b?.avatar_url ?? null,
+        avatar_url: fotoElegida(perfil, b?.avatar_url) ?? b?.avatar_url ?? perfil?.avatar_url ?? null,
+        avatar_bc: b?.avatar_url ?? null,
         cargo: b?.cargo ?? null,
         activo_manual: p.activo_manual ?? null,
         // Sin la migración nueva, el único jefe que había (reporta_a).
@@ -154,6 +166,7 @@ export async function cargarEquipo(): Promise<EquipoData> {
         en_organigrama: p.en_organigrama ?? false,
         ultima_actividad: actividadDe.get(p.id)?.ultima ?? null,
         actividad_medida: actividadDe.get(p.id)?.medida ?? false,
+        perfil,
       };
     }),
     hubs: hubs.map((h) => ({

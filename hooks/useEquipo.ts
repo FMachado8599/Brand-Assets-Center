@@ -33,6 +33,11 @@ export async function refreshEquipo() {
   }
 }
 
+/** Vuelve a leer el equipo solo si alguien ya lo usa (ej: cambiaste tu perfil y el Board está abierto). */
+export function refrescarEquipoSiSeUsa() {
+  if (started) refreshEquipo();
+}
+
 /** Corre un cambio y vuelve a leer; si falla, avisa con el motivo en palabras de la app. */
 export async function cambiarEquipo(accion: () => Promise<unknown>, ok?: string) {
   try {

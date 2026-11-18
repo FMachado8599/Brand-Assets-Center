@@ -1,24 +1,29 @@
 "use client";
 
-import { forwardRef, useState, type ButtonHTMLAttributes } from "react";
+import { forwardRef, useEffect, useState, type ButtonHTMLAttributes } from "react";
+import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import { Check, Loader2, LogIn, LogOut } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronRight, Loader2, LogIn, LogOut, Plane } from "lucide-react";
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint } from "@/components/ui/tooltip";
+import { useMiPerfil } from "@/hooks/useMiPerfil";
+import { estadoVigente, fotoElegida, fueraDeOficina, textoFuera, type Perfil } from "@/lib/perfil";
 import { STUDIO, STUDIO_DOMAIN } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
 
 const SYNCED = [
+  "Tu perfil: foto, nombre para mostrar y estado",
   "Favoritos y recientes de emojis",
   "Ajustes de emojis, GIF y conversor",
   "Tus redacciones y los emojis y hashtags de cada cliente",
   "Tus tarjetas quedan a tu nombre",
 ];
 
-function displayName(user: User) {
+/** El nombre para mostrar del perfil, si eligió uno; si no, el de Google. */
+function displayName(user: User, perfil?: Perfil | null) {
   const meta = user.user_metadata ?? {};
-  return (meta.full_name as string) || (meta.name as string) || user.email || "Tu cuenta";
+  return perfil?.nombre_visible?.trim() || (meta.full_name as string) || (meta.name as string) || user.email || "Tu cuenta";
 }
 
 function initials(name: string) {
@@ -31,10 +36,16 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-/** Foto de Google; si no hay (o no carga), las iniciales. Sin sesión, un avatar genérico. */
-export function UserAvatar({ user, size }: { user: User | null; size: number }) {
+/**
+ * La foto que eligió en su perfil o, si no eligió, la de Google; si no hay (o no carga), las iniciales.
+ * Sin sesión, un avatar genérico.
+ */
+export function UserAvatar({ user, size, perfil }: { user: User | null; size: number; perfil?: Perfil | null }) {
   const [broken, setBroken] = useState(false);
   const style = { width: size, height: size };
+  const meta = user?.user_metadata ?? {};
+  const url = fotoElegida(perfil) || (meta.avatar_url as string) || (meta.picture as string) || "";
+  useEffect(() => setBroken(false), [url]);
 
   if (!user) {
     return (
@@ -52,8 +63,6 @@ export function UserAvatar({ user, size }: { user: User | null; size: number }) 
     );
   }
 
-  const meta = user.user_metadata ?? {};
-  const url = (meta.avatar_url as string) || (meta.picture as string) || "";
   if (url && !broken) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -72,22 +81,25 @@ export function UserAvatar({ user, size }: { user: User | null; size: number }) 
       className="grid shrink-0 place-items-center rounded-full bg-primary font-semibold text-primary-foreground ring-2 ring-white"
       style={{ ...style, fontSize: size * 0.38 }}
     >
-      {initials(displayName(user))}
+      {initials(displayName(user, perfil))}
     </span>
   );
 }
 
-type TriggerProps = ButtonHTMLAttributes<HTMLButtonElement> & { user: User | null; ready: boolean; compact?: boolean };
+type TriggerProps = ButtonHTMLAttributes<HTMLButtonElement> & { user: User | null; ready: boolean; compact?: boolean; perfil?: Perfil | null };
 
 /** Botón flotante de arriba a la derecha (con etiqueta al pasar el mouse, como el resto de la barra). */
-const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, ready, compact, className, ...props }, ref) => {
-  const label = user ? displayName(user).split(" ")[0] : "Ingresar";
+const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, ready, compact, perfil, className, ...props }, ref) => {
+  const label = user ? displayName(user, perfil).split(" ")[0] : "Ingresar";
+  // El estado, en chiquito sobre la foto (fuera de oficina gana): se ve sin abrir nada.
+  const estado = user ? estadoVigente(perfil) : null;
+  const fuera = user ? fueraDeOficina(perfil) : null;
   return (
-    <Hint label={user ? "Tu cuenta" : "Iniciar sesión con Google"}>
+    <Hint label={user ? "Tu cuenta y tu perfil" : "Iniciar sesión con Google"}>
       <button
         ref={ref}
         type="button"
-        aria-label={user ? `Tu cuenta: ${displayName(user)}` : "Iniciar sesión"}
+        aria-label={user ? `Tu cuenta: ${displayName(user, perfil)}` : "Iniciar sesión"}
         className={cn(
           "floating-ink pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] data-[state=open]:scale-100",
           !compact && "md:pr-4",
@@ -96,7 +108,20 @@ const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, read
         {...props}
       >
         {ready ? (
-          <UserAvatar user={user} size={36} />
+          <span className="relative shrink-0">
+            <UserAvatar user={user} size={36} perfil={perfil} />
+            {(fuera || estado?.emoji) && (
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute -bottom-1 -right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full text-[11px] leading-none ring-2 ring-ink",
+                  fuera ? "bg-amber-400 text-amber-950" : "bg-white"
+                )}
+              >
+                {fuera ? <Plane className="h-2.5 w-2.5" strokeWidth={2.5} /> : estado?.emoji}
+              </span>
+            )}
+          </span>
         ) : (
           <span className="block h-9 w-9 shrink-0 animate-pulse rounded-full bg-cream/15" />
         )}
@@ -112,6 +137,7 @@ AccountTrigger.displayName = "AccountTrigger";
 /** compact: solo la foto (al lado va la campanita y no entra el nombre sin descentrar la barra). */
 export function AccountPill({ compact = false }: { compact?: boolean }) {
   const account = useAccount();
+  const { perfil } = useMiPerfil();
   const [busy, setBusy] = useState(false);
   if (!account) return null;
   const { user, ready, available, signIn, signOut } = account;
@@ -128,18 +154,24 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <AccountTrigger user={user} ready={ready} compact={compact && Boolean(user)} />
+        <AccountTrigger user={user} ready={ready} compact={compact && Boolean(user)} perfil={perfil} />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
         {user ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <UserAvatar user={user} size={44} />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{displayName(user)}</p>
-                <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-              </div>
-            </div>
+            <PopoverClose asChild>
+              <Link href="/perfil" className="group -m-1.5 flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-secondary/70">
+                <UserAvatar user={user} size={44} perfil={perfil} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{displayName(user, perfil)}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                  <EstadoCorto perfil={perfil} />
+                </div>
+                <span className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-muted-foreground group-hover:text-foreground">
+                  Tu perfil <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            </PopoverClose>
             <div className="rounded-xl bg-secondary/70 p-3">
               <p className="mb-1.5 text-xs font-medium">Se guarda en tu cuenta</p>
               <SyncedList />
@@ -189,6 +221,16 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
       </PopoverContent>
     </Popover>
   );
+}
+
+/** Tu estado, debajo del mail: o una invitación a ponerte uno. */
+function EstadoCorto({ perfil }: { perfil: Perfil | null }) {
+  if (!perfil) return null;
+  const fuera = fueraDeOficina(perfil);
+  const estado = estadoVigente(perfil);
+  if (fuera) return <p className="mt-0.5 truncate text-xs font-medium text-amber-800">{textoFuera(fuera)}</p>;
+  if (estado) return <p className="mt-0.5 truncate text-xs">{[estado.emoji, estado.texto].filter(Boolean).join(" ")}</p>;
+  return <p className="mt-0.5 truncate text-xs text-muted-foreground/80">Poné tu estado</p>;
 }
 
 function SyncedList() {
