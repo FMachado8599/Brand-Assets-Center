@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { studioSession } from "@/lib/access";
-import { Drive, DRIVE_SCOPES, emailDeIdToken, expiraEn, googleExchangeCode } from "@/lib/integraciones/google";
+import { Drive, DRIVE_SCOPE, emailDeIdToken, expiraEn, googleExchangeCode } from "@/lib/integraciones/google";
 import { terminarOAuth, volverCon } from "@/lib/integraciones/oauth-state";
 import { anotarLlaveServidor } from "@/lib/integraciones/llave-servidor";
 import { appOrigin, esAdminApp, guardarConexion, leerConexion } from "@/lib/integraciones/store";
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const origin = appOrigin(request.url);
     const tokens = await googleExchangeCode(origin, code);
     const granted = tokens.scope?.split(" ") ?? [];
-    if (!granted.includes(DRIVE_SCOPES[2])) {
+    if (!granted.includes(DRIVE_SCOPE)) {
       return volverCon(request, "google", volver, "error", "Hay que tildar el permiso de Google Drive para conectar");
     }
     const email = emailDeIdToken(tokens.id_token);
@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
 
     // Si es la misma cuenta que ya estaba, se conserva la carpeta raíz (y todo lo que hay adentro).
     const anterior = await leerConexion(db, "google").catch(() => null);
-    const datos = anterior && anterior.cuenta_id === email ? anterior.datos : {};
+    // Con el permiso completo la app ve las carpetas del estudio (PAUTAS DIGITAL), no solo las suyas.
+    const datos = { ...(anterior && anterior.cuenta_id === email ? anterior.datos : {}), completo: true };
 
     await guardarConexion(db, {
       proveedor: "google",

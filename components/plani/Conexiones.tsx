@@ -138,17 +138,34 @@ export function ConexionesPanel() {
           </p>
         ) : g ? (
           <>
-            <p className="mt-1.5 text-xs text-muted-foreground">{g.cuenta_id} · el material final va a carpetas por cliente, presentación y día.</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {g.cuenta_id} · el material va a {g.datos?.raiz_nombre ?? "la carpeta raíz"} / año / marca / mes / tipo, en una carpeta por día.
+            </p>
+            {!g.datos?.completo ? (
+              <div className="mt-2.5 rounded-lg bg-card p-2.5 text-xs">
+                <p className="font-medium">Falta el permiso para ver las carpetas del estudio.</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Hoy la app solo ve las carpetas que crea ella. Volvé a conectar con la cuenta que tiene PAUTAS DIGITAL y aceptá el acceso a Drive.
+                </p>
+                {admin && (
+                  <a href={conectarUrl("google")} className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:brightness-95">
+                    Volver a conectar el Drive
+                  </a>
+                )}
+              </div>
+            ) : (
+              <RaizDrive nombre={g.datos?.raiz_nombre ?? null} admin={admin} />
+            )}
             {g.datos?.raiz_url && (
               <a href={g.datos.raiz_url} target="_blank" rel="noopener noreferrer" className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary">
-                <FolderOpen className="h-3.5 w-3.5" /> Abrir la carpeta
+                <FolderOpen className="h-3.5 w-3.5" /> Abrir {g.datos?.raiz_nombre ?? "la carpeta"}
               </a>
             )}
           </>
         ) : (
           <>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              El material final de las presentaciones (fotos, videos, portadas) se guarda ahí. La app solo ve las carpetas que crea ella.
+              El material de las presentaciones (fotos, videos, portadas) se guarda ahí. Conectalo con la cuenta del estudio que tiene PAUTAS DIGITAL.
             </p>
             {admin ? (
               <a href={conectarUrl("google")} className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:brightness-95">
@@ -162,6 +179,55 @@ export function ConexionesPanel() {
       </section>
 
       <ProyectosDialog open={proyectosOpen} onOpenChange={setProyectosOpen} />
+    </div>
+  );
+}
+
+/** La carpeta raíz del Drive (ej: PAUTAS DIGITAL): la elige un admin pegando el link. */
+function RaizDrive({ nombre, admin }: { nombre: string | null; admin: boolean }) {
+  const [link, setLink] = useState("");
+  const [editando, setEditando] = useState(!nombre);
+  const [guardando, setGuardando] = useState(false);
+  const guardar = async () => {
+    setGuardando(true);
+    const r = await fetch("/api/drive/raiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ link }) });
+    const body = await r.json().catch(() => ({}));
+    setGuardando(false);
+    if (!r.ok) return toast(body.error ?? "No se pudo guardar", "error");
+    toast(`Carpeta raíz: ${body.nombre}`);
+    setLink("");
+    setEditando(false);
+    refreshIntegraciones();
+  };
+  if (!admin) return nombre ? null : <p className="mt-2 text-xs text-muted-foreground">Falta que un admin elija la carpeta raíz del Drive.</p>;
+  if (!editando)
+    return (
+      <p className="mt-2 text-xs">
+        Raíz: <span className="font-semibold">{nombre}</span>{" "}
+        <button type="button" onClick={() => setEditando(true)} className="font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+          cambiar
+        </button>
+      </p>
+    );
+  return (
+    <div className="mt-2.5 space-y-1.5">
+      <p className="text-xs text-muted-foreground">Pegá el link de la carpeta raíz del estudio (ej: PAUTAS DIGITAL). Adentro van las de cada año.</p>
+      <div className="flex gap-1.5">
+        <input
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://drive.google.com/drive/folders/…"
+          className="h-8 min-w-0 flex-1 rounded-full border border-black/[0.08] bg-card px-3 text-xs outline-none focus:border-foreground/25"
+        />
+        <button
+          type="button"
+          onClick={guardar}
+          disabled={!link.trim() || guardando}
+          className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background disabled:opacity-40"
+        >
+          {guardando && <Loader2 className="h-3 w-3 animate-spin" />} Guardar
+        </button>
+      </div>
     </div>
   );
 }

@@ -55,7 +55,7 @@ returns jsonb language sql stable security definer set search_path = '' as $$
     ), '[]'::jsonb),
     'comentarios', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'id', c.id, 'pieza_id', c.pieza_id, 'autor_nombre', c.autor_nombre, 'texto', c.texto,
+        'id', c.id, 'pieza_id', c.pieza_id, 'respuesta_a', c.respuesta_a, 'autor_nombre', c.autor_nombre, 'texto', c.texto,
         'del_cliente', c.autor_id is null, 'resuelto', c.resuelto, 'created_at', c.created_at
       ) order by c.created_at)
       from public.presentacion_comentarios c where c.presentacion_id = p.id and not c.interno

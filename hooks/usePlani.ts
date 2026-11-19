@@ -13,14 +13,30 @@ const ordenar = (a: Pieza, b: Pieza) =>
 export type GuardadoEstado = "idle" | "saving" | "error";
 
 /**
+ * Las presentaciones que ya se trajeron (o se precargaron desde el tablero): abrir una de estas se
+ * ve al toque con lo que hay, y se actualiza atrás. Vale 5 minutos para precargar de nuevo.
+ */
+const precargadas = new Map<string, { plani: Plani; piezas: Pieza[]; cuando: number }>();
+const VIGENCIA = 5 * 60_000;
+
+/** Trae una presentación de antemano (ej: las de tu etapa en el tablero), si no está fresca. */
+export async function precargarPresentacion(id: string) {
+  const ya = precargadas.get(id);
+  if (ya && Date.now() - ya.cuando < VIGENCIA) return;
+  const [p, ps] = await Promise.all([planiRepo.get(id), planiRepo.piezas(id)]);
+  if (p.error || ps.error || !p.data) return;
+  precargadas.set(id, { plani: p.data, piezas: ((ps.data ?? []) as Pieza[]).sort(ordenar), cuando: Date.now() });
+}
+
+/**
  * Una plani abierta: sus datos y sus piezas. Los cambios se ven al instante y se guardan atrás;
  * lo que se escribe seguido (copys, indicaciones) se junta en un solo pedido por pieza. Al volver
  * a la pestaña se relee, por si otro rol cambió algo (diseño subió material, CM programó).
  */
 export function usePlani(id: string) {
-  const [plani, setPlani] = useState<Plani | null>(null);
-  const [piezas, setPiezas] = useState<Pieza[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [plani, setPlani] = useState<Plani | null>(() => precargadas.get(id)?.plani ?? null);
+  const [piezas, setPiezas] = useState<Pieza[]>(() => precargadas.get(id)?.piezas ?? []);
+  const [loading, setLoading] = useState(() => !precargadas.has(id));
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState<GuardadoEstado>("idle");
 
@@ -39,16 +55,24 @@ export function usePlani(id: string) {
         setPlani(p.data ?? null);
         // Lo que se está escribiendo ahora no se pisa con lo que vino de la base.
         const local = pending.current;
-        setPiezas(((ps.data ?? []) as Pieza[]).map((x) => (local.has(x.id) ? { ...x, ...local.get(x.id) } : x)).sort(ordenar));
+        const nuevas = ((ps.data ?? []) as Pieza[]).sort(ordenar);
+        if (p.data) precargadas.set(id, { plani: p.data, piezas: nuevas, cuando: Date.now() });
+        setPiezas(nuevas.map((x) => (local.has(x.id) ? { ...x, ...local.get(x.id) } : x)));
       }
       if (!silencioso) setLoading(false);
     },
     [id]
   );
 
+  // Lo que se edita queda también en la copia, para que volver a abrirla no muestre lo de antes.
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    if (plani && plani.id === id) precargadas.set(id, { plani, piezas, cuando: precargadas.get(id)?.cuando ?? Date.now() });
+  }, [id, plani, piezas]);
+
+  useEffect(() => {
+    // Si estaba precargada ya se ve: se actualiza sin mostrar el "cargando".
+    cargar(precargadas.has(id));
+  }, [cargar, id]);
 
   useEffect(() => {
     const onFocus = () => {

@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { MESES } from "@/lib/plani/config";
 import { etiquetaArchivo, etiquetaDia } from "@/lib/plani/fechas";
 import { Drive, FILE_FIELDS, type DriveFile } from "@/lib/integraciones/google";
 import { appOrigin } from "@/lib/integraciones/store";
+import { crearCamino, SELECT_PRESENTACION, sinCarpeta, sugerida, usarCarpeta, type PresentacionDrive } from "@/lib/plani/drive-carpeta";
 import { createSupabaseServer } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -10,24 +10,13 @@ export const dynamic = "force-dynamic";
 /** Hasta 5 GB por archivo: un reel en 4K entra de sobra. */
 const MAX_BYTES = 5 * 1024 ** 3;
 
-type PiezaConPlani = {
-  id: string;
-  fecha: string;
-  formato: string;
-  presentaciones: {
-    id: string;
-    anio: number;
-    mes: number;
-    tipo: string;
-    presentacion_tipos: { nombre: string } | null;
-    brands: { id: string; name: string } | null;
-  } | null;
-};
+type PiezaConPlani = { id: string; fecha: string; formato: string; presentaciones: PresentacionDrive | null };
 
 /**
- * Abre la subida de un archivo del material final de una pieza. Arma (o reusa) las carpetas
- * Cliente / AAAA-MM Tipo Mes / DD-MM Día en el Drive del estudio y devuelve la URL a la que el
- * navegador sube el archivo directo a Google.
+ * Abre la subida de un archivo del material de una pieza y devuelve la URL a la que el navegador
+ * lo sube directo a Google. Va a la carpeta de la presentación, en una carpeta por día; si todavía
+ * no tiene, a la que le toca (PAUTAS DIGITAL / año / marca / mes / tipo) cuando la marca aparece, y
+ * si no, a "Sin carpeta" hasta que alguien la elija (ver lib/plani/drive-carpeta.ts).
  */
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as { piezaId?: string; nombre?: string; mime?: string; tamano?: number; rol?: string };
@@ -45,32 +34,26 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await db
       .from("presentacion_piezas")
-      .select("id, fecha, formato, presentaciones(id, anio, mes, tipo, presentacion_tipos(nombre), brands(id, name))")
+      .select(`id, fecha, formato, presentaciones(${SELECT_PRESENTACION})`)
       .eq("id", piezaId)
       .maybeSingle<PiezaConPlani>();
     if (error) throw new Error(error.message);
     const plani = data?.presentaciones;
     if (!data || !plani) return NextResponse.json({ error: "No existe esa pieza" }, { status: 404 });
 
-    const raiz = await drive.raiz();
-    const cliente = plani.brands;
-    const carpetaCliente = await drive.carpeta(`cliente:${cliente?.id ?? "sin"}`, cliente?.name ?? "Sin cliente", raiz);
-    const carpetaPlani = await drive.carpeta(
-      `plani:${plani.id}`,
-      `${plani.anio}-${String(plani.mes).padStart(2, "0")} · ${plani.presentacion_tipos?.nombre ?? "Presentación"} ${MESES[plani.mes - 1]} ${plani.anio}`,
-      carpetaCliente
-    );
-    if (!plani.id) throw new Error("Plani sin id");
-    const carpetaDia = await drive.carpeta(
-      `dia:${plani.id}:${data.fecha}`,
-      `${etiquetaArchivo(data.fecha)} ${etiquetaDia(data.fecha).split(" ")[0]}`,
-      carpetaPlani
-    );
+    let carpetaPlani = plani.drive_carpeta_id;
+    if (!carpetaPlani) {
+      const s = await sugerida(drive, db, plani).catch(() => null);
+      if (s && !s.falta) {
+        carpetaPlani = await crearCamino(drive, s.pasos);
+        await usarCarpeta(drive, db, plani, carpetaPlani);
+      }
+    }
+    const padre = carpetaPlani ?? (await sinCarpeta(drive, plani));
+    const carpetaDia = await drive.carpeta(`dia:${plani.id}:${data.fecha}`, `${etiquetaArchivo(data.fecha)} ${etiquetaDia(data.fecha).split(" ")[0]}`, padre);
     // La inspiración de Redacción va aparte (no es parte de la entrega).
     const destino =
       rol === "referencia" ? await drive.carpeta(`insp:${plani.id}:${data.fecha}`, "Inspiración", carpetaDia) : carpetaDia;
-    // La carpeta de la plani queda anotada para el botón "Abrir en Drive".
-    await db.from("presentaciones").update({ drive_carpeta_id: carpetaPlani }).eq("id", plani.id).is("drive_carpeta_id", null);
 
     const uploadUrl = await drive.sesionDeSubida({
       nombre,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, Copy, MessageSquare, MoreHorizontal, Trash2, Unlink } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,7 +18,7 @@ import type { Aprobacion, Medio, Pieza, PiezaPatch, Rol } from "@/lib/plani/type
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { FormatDot, FormatIcon } from "../bits";
-import { HiloComentarios, pendientes } from "../Comentarios";
+import { HiloComentarios, pendientes, useGenteParaMencionar } from "../Comentarios";
 import { AnuncioMockup } from "../AnuncioMockup";
 import { useHerramientas } from "../herramientas";
 import { anchoMockup, Mockup, portadaDe, PortadaMockup } from "../Mockups";
@@ -40,6 +40,8 @@ type Props = {
   comentarios: ComentariosStore;
   /** Los copys de toda la plani (para sugerir hashtags al redactar). */
   otrosCopys: string[];
+  /** Una pieza (esta o una de sus adaptaciones) cuyos comentarios hay que abrir (desde la campanita). */
+  abrirComentarios?: string | null;
 };
 
 /**
@@ -47,10 +49,19 @@ type Props = {
  * al rol que está mirando. Si tiene adaptación a historia, las dos van juntas con pestañas (mismo
  * título, misma idea). Arriba, el formato, el título, las aprobaciones y los comentarios.
  */
-export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar, onBorrar, onAdaptar, onOpen, comentarios, otrosCopys }: Props) {
+export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar, onBorrar, onAdaptar, onOpen, comentarios, otrosCopys, abrirComentarios }: Props) {
   const herramientas = useHerramientas();
+  const gente = useGenteParaMencionar();
   const grupo = [pieza, ...adaptaciones];
   const [activaId, setActivaId] = useState(pieza.id);
+  const [verComentarios, setVerComentarios] = useState(false);
+  useEffect(() => {
+    if (!abrirComentarios || ![pieza.id, ...adaptaciones.map((a) => a.id)].includes(abrirComentarios)) return;
+    setActivaId(abrirComentarios);
+    const t = setTimeout(() => setVerComentarios(true), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirComentarios]);
   const activa = grupo.find((p) => p.id === activaId) ?? pieza;
   const esAdaptacion = activa.id !== pieza.id;
 
@@ -119,7 +130,7 @@ export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar,
           <AprobacionMenu quien="Agencia" value={activa.estado_agencia} onChange={(estado_agencia) => set({ estado_agencia }, true)} />
           <AprobacionMenu quien="Cliente" value={activa.estado_cliente} onChange={(estado_cliente) => set({ estado_cliente }, true)} />
 
-          <Popover>
+          <Popover open={verComentarios} onOpenChange={setVerComentarios}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -144,7 +155,8 @@ export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar,
                 modo="estudio"
                 yo={comentarios.yo}
                 compacto
-                onEnviar={(texto, paraCliente) => comentarios.comentar(activa.id, texto, !paraCliente)}
+                gente={gente}
+                onEnviar={(texto, paraCliente, extra) => comentarios.comentar(activa.id, texto, !paraCliente, extra)}
                 onResolver={comentarios.resolver}
                 onBorrar={comentarios.borrar}
               />

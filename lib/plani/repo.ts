@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { FORMATOS } from "./config";
-import type { Comentario, Formato, Pieza, PiezaPatch, Plani, PlaniEstado, PlaniPatch, PlaniResumen, PlaniTipo, Plataforma, Proporcion } from "./types";
+import type { Comentario, Formato, Pieza, PiezaPatch, Plani, PlaniEstado, PlaniPatch, PlaniResumen, PlaniTarjeta, PlaniTipo, Plataforma, Proporcion } from "./types";
 
 /** Lo que devuelve presentacion_cambiar_estado: la etapa a la que pasó la tarea en el Board, si tiene una. */
 export type CambioEstado = { estado: PlaniEstado; tarea: number | null; etapa: string | null; avisados: number };
@@ -16,6 +16,12 @@ export const planiRepo = {
       .order("anio", { ascending: false })
       .order("mes", { ascending: false })
       .returns<PlaniResumen[]>(),
+
+  /** Lo del tablero: las del mes y las de antes que no están listas, con lo justo para cada tarjeta. */
+  async tablero(anio: number, mes: number) {
+    const r = await supabase.rpc("presentaciones_tablero", { p_anio: anio, p_mes: mes });
+    return { data: (r.data ?? []) as PlaniTarjeta[], error: r.error };
+  },
 
   /** Las planis de un cliente, la más nueva primero. */
   porCliente: (brandId: string) =>
@@ -64,7 +70,15 @@ export const planiRepo = {
   comentarios: (planiId: string) =>
     supabase.from("presentacion_comentarios").select("*").eq("presentacion_id", planiId).order("created_at").returns<Comentario[]>(),
 
-  comentar: (input: { presentacion_id: string; pieza_id: string | null; texto: string; autor_nombre: string; interno: boolean }) =>
+  comentar: (input: {
+    presentacion_id: string;
+    pieza_id: string | null;
+    texto: string;
+    autor_nombre: string;
+    interno: boolean;
+    respuesta_a?: string | null;
+    menciones?: string[];
+  }) =>
     supabase.from("presentacion_comentarios").insert(input).select().single<Comentario>(),
 
   resolver: (id: string, resuelto: boolean) =>

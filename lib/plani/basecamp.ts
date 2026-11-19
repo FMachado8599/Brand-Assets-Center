@@ -39,6 +39,16 @@ export type TareaCompleta = BcTarea & {
   proyecto: Pick<BcProyecto, "id" | "nombre" | "app_url"> | null;
 };
 
+/** Una tarea de "Para arrancar", con la marca de su proyecto. */
+export type TareaParaArrancar = TareaCompleta & { brand_id: string | null };
+
+type FilaParaArrancar = {
+  id: number; titulo: string; app_url: string | null; vence: string | null; proyecto_id: number; columna_id: number | null;
+  asignados: number[] | null; comentarios: number | null; creada: string | null; actualizada: string | null; brand_id: string | null;
+  proyecto_nombre: string; proyecto_url: string | null; tablero_id: number | null; columna_nombre: string | null;
+  columna_estado: string | null; sector: string | null; personas: unknown[] | null;
+};
+
 /** Las etapas en las que una tarea ya no está viva (terminada o en pausa). */
 export const ETAPAS_CERRADAS = new Set(["done", "not_now"]);
 
@@ -129,6 +139,38 @@ export const basecampRepo = {
     return { data: completas.filter((t) => !ETAPAS_CERRADAS.has(t.columna?.estado ?? "")).slice(0, limite), error: null };
   },
 
+  /**
+   * "Para arrancar": de a pocas, las tareas que se reconocen como de algún tipo y no tienen
+   * presentación (presentaciones_para_arrancar), sin el brief. Se pide una más para saber si hay más.
+   */
+  async paraArrancar(limite: number, desde = 0, buscar = "") {
+    const { data, error } = await supabase.rpc("presentaciones_para_arrancar", { p_limite: limite + 1, p_desde: desde, p_buscar: buscar.trim() || null });
+    if (error) return { data: [] as TareaParaArrancar[], hayMas: false, error };
+    const filas = (data ?? []) as FilaParaArrancar[];
+    const tareas = filas.slice(0, limite).map(
+      (f): TareaParaArrancar => ({
+        id: Number(f.id),
+        proyecto_id: Number(f.proyecto_id),
+        columna_id: f.columna_id != null ? Number(f.columna_id) : null,
+        titulo: f.titulo,
+        contenido: null,
+        app_url: f.app_url,
+        vence: f.vence,
+        completada: false,
+        asignados: (f.asignados ?? []).map(Number),
+        comentarios: f.comentarios ?? 0,
+        creada: f.creada,
+        actualizada: f.actualizada,
+        columna: f.columna_id != null ? { id: Number(f.columna_id), tablero_id: f.tablero_id != null ? Number(f.tablero_id) : null, nombre: f.columna_nombre ?? "", estado: f.columna_estado } as BcColumna : null,
+        sector: f.sector,
+        personas: (f.personas ?? []) as BcPersona[],
+        proyecto: { id: Number(f.proyecto_id), nombre: f.proyecto_nombre, app_url: f.proyecto_url },
+        brand_id: f.brand_id,
+      })
+    );
+    return { data: tareas, hayMas: filas.length > limite, error: null };
+  },
+
   proyectos: () => supabase.from("bc_proyectos").select("id, nombre, estado, app_url, brand_id, ignorado").order("nombre"),
 
   marcarIgnorado: (id: number, ignorado: boolean) => supabase.from("bc_proyectos").update({ ignorado }).eq("id", id),
@@ -145,4 +187,20 @@ export function mesDelTitulo(titulo: string): number | null {
   const nombres = [/enero/, /febrero/, /marzo/, /abril/, /mayo/, /junio/, /julio/, /agosto/, /se?tiembre|sept?\b/, /octubre/, /noviembre/, /diciembre/];
   const i = nombres.findIndex((rx) => rx.test(t));
   return i >= 0 ? i + 1 : null;
+}
+
+/**
+ * El mes y el año de una tarea por su título ("Plani Octubre", "Leads enero 2027"). Si no dice el
+ * año, el más cercano a hoy: en diciembre, "Plani Enero" es del año que viene.
+ */
+export function periodoDelTitulo(titulo: string, hoy = new Date()): { anio: number; mes: number } | null {
+  const mes = mesDelTitulo(titulo);
+  if (!mes) return null;
+  const dice = titulo.match(/\b(20\d{2})\b/);
+  if (dice) return { anio: Number(dice[1]), mes };
+  const ahora = hoy.getFullYear() * 12 + hoy.getMonth();
+  const anio = [hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].sort(
+    (a, b) => Math.abs(a * 12 + mes - 1 - ahora) - Math.abs(b * 12 + mes - 1 - ahora)
+  )[0];
+  return { anio, mes };
 }

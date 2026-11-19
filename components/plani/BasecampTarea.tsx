@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import { ArrowUpRight, CalendarClock, ChevronDown, Link2Off, MessageSquare, Search } from "lucide-react";
+import { Avatar, BasecampMark } from "@/components/tareas/comun";
 import { useTipos } from "@/hooks/useTipos";
 import { basecampRepo, ETAPA_LABEL, type BcPersona, type TareaCompleta } from "@/lib/plani/basecamp";
 import { tipoDeTitulo } from "@/lib/plani/tipos";
@@ -10,15 +11,8 @@ import { aDate } from "@/lib/plani/fechas";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 
-/** El logo de Basecamp, simplificado (para marcar lo que viene de ahí). */
-export function BasecampMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={cn("h-4 w-4 shrink-0", className)}>
-      <circle cx="12" cy="12" r="10" fill="#1d2d35" />
-      <path d="M5.5 15.2c1.7-2.6 3.4-4.4 4.8-4.4 1.5 0 1.9 2 3.3 2 1 0 2.3-1.3 4.9-4.6" fill="none" stroke="#ffd100" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
+/** El logo oficial de Basecamp, el mismo del Board (para marcar lo que viene de ahí). */
+export { BasecampMark };
 
 export function Personas({ personas, max = 4 }: { personas: BcPersona[]; max?: number }) {
   if (!personas.length) return <span className="text-xs italic text-muted-foreground">Sin asignar</span>;
@@ -26,14 +20,10 @@ export function Personas({ personas, max = 4 }: { personas: BcPersona[]; max?: n
     <span className="flex items-center">
       <span className="flex -space-x-1.5">
         {personas.slice(0, max).map((p) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={p.id}
-            src={p.avatar_url ?? undefined}
-            alt={p.nombre}
-            title={p.cargo ? `${p.nombre} · ${p.cargo}` : p.nombre}
-            className="h-6 w-6 rounded-full bg-secondary object-cover ring-2 ring-card"
-          />
+          <span key={p.id} title={p.cargo ? `${p.nombre} · ${p.cargo}` : p.nombre}>
+            {/* Sin foto, sus iniciales (en vez de una imagen rota). */}
+            <Avatar nombre={p.nombre} url={p.avatar_url} className="h-6 w-6 text-[9px] ring-2 ring-card" />
+          </span>
         ))}
       </span>
       <span className="ml-2 truncate text-xs text-muted-foreground">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, Plug, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, Plug, Plus, Search } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { ClientMark } from "@/components/clients/ClientMark";
 import { BarAction, BarButton, BarDivider, BarPopover, BarSearch, ContextBar, PanelTitle } from "@/components/shell/ContextBar";
@@ -12,23 +13,28 @@ import { useEquipo } from "@/hooks/useEquipo";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { useOAuthResult } from "@/hooks/useOAuthResult";
 import { useTipos } from "@/hooks/useTipos";
-import { basecampRepo, mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
-import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES } from "@/lib/plani/config";
+import { precargarPresentacion } from "@/hooks/usePlani";
+import { basecampRepo, periodoDelTitulo, type TareaParaArrancar } from "@/lib/plani/basecamp";
+import { ESTADOS, MESES, ROL_DE_ESTADO, ROL_DE_SECTOR } from "@/lib/plani/config";
 import { tipoDeTitulo, type TipoPresentacion } from "@/lib/plani/tipos";
 import { planiErrorMessage, planiRepo } from "@/lib/plani/repo";
-import type { PlaniEstado, PlaniResumen } from "@/lib/plani/types";
+import type { Medio, PlaniEstado, PlaniTarjeta } from "@/lib/plani/types";
 import { fold } from "@/lib/redaccion/text";
 import { hasSupabase } from "@/lib/supabase";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { BasecampMark, EtapaChip, Personas } from "./BasecampTarea";
-import { FormatDot, medioUrl } from "./bits";
+import { medioUrl } from "./bits";
 import { ConexionesPanel } from "./Conexiones";
 import { NuevaPlaniDialog, type NuevaPlaniInicial } from "./NuevaPlaniDialog";
 import { RevealTitle } from "./Reveal";
 import { TipoChip } from "./TipoChip";
 
 const TODOS = "";
+/** "Para arrancar" de a pocas: se ven 6 y el resto con "Ver más" (o buscando). */
+const POR_PAGINA = 6;
+/** Lo último que se trajo de cada mes: volver a un mes lo muestra al toque y se actualiza atrás. */
+const cacheTablero = new Map<string, PlaniTarjeta[]>();
 
 function hoyMes() {
   const d = new Date();
@@ -44,59 +50,75 @@ export function PlaniShell() {
   const { clients } = useClients();
   const { hayBasecamp, data: integraciones } = useIntegraciones();
   const { admin } = useEquipo();
-  const sync = useBasecampSync({ auto: true });
-  const [planis, setPlanis] = useState<PlaniResumen[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Sin sincronizar al abrir: los avisos de Basecamp ya mantienen todo al día (y si alguien
+  // sincroniza, "Para arrancar" se vuelve a pedir al terminar).
+  const sync = useBasecampSync();
   const [{ anio, mes }, setMes] = useState(hoyMes);
+  const [planis, setPlanis] = useState<PlaniTarjeta[] | null>(() => cacheTablero.get(`${hoyMes().anio}-${hoyMes().mes}`) ?? null);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState<string>(TODOS);
   const { tipos, tipoDe } = useTipos();
   const [nueva, setNueva] = useState<NuevaPlaniInicial | null>(null);
-  const [sugeridas, setSugeridas] = useState<TareaCompleta[] | null>(null);
-  const [brandsPorProyecto, setBrandsPorProyecto] = useState<Map<number, string>>(new Map());
+  const [sugeridas, setSugeridas] = useState<TareaParaArrancar[] | null>(null);
+  const [hayMas, setHayMas] = useState(false);
+  const [trayendo, setTrayendo] = useState(false);
+  const [buscarTarea, setBuscarTarea] = useState("");
 
   useOAuthResult();
 
+  // 1. El tablero: solo lo que muestran las tarjetas del mes.
   const cargar = useCallback(async () => {
-    const { data, error } = await planiRepo.list();
+    const { data, error } = await planiRepo.tablero(anio, mes);
     if (error) setError(planiErrorMessage(error));
     else {
       setError(null);
+      cacheTablero.set(`${anio}-${mes}`, data ?? []);
       setPlanis(data ?? []);
     }
-  }, []);
+  }, [anio, mes]);
 
   useEffect(() => {
+    setPlanis(cacheTablero.get(`${anio}-${mes}`) ?? null);
     cargar();
     window.addEventListener("focus", cargar);
     return () => window.removeEventListener("focus", cargar);
-  }, [cargar]);
+  }, [cargar, anio, mes]);
 
-  // Las tareas de Basecamp que se reconocen como de algún tipo y no tienen presentación todavía.
+  // 2. Después, "Para arrancar": de a 6, y buscando en la base (no entre lo que ya se trajo).
+  const pedido = useRef(0);
+  const traer = useCallback(async (desde: number, buscar: string) => {
+    const n = ++pedido.current;
+    setTrayendo(true);
+    const r = await basecampRepo.paraArrancar(POR_PAGINA, desde, buscar);
+    if (n !== pedido.current) return;
+    setTrayendo(false);
+    setSugeridas((prev) => (desde ? [...(prev ?? []), ...r.data] : r.data));
+    setHayMas(r.hayMas);
+  }, []);
+  const tableroListo = planis !== null;
   useEffect(() => {
-    if (!hayBasecamp || !planis || sync.corriendo || !tipos.length) return;
-    const vinculadas = new Set(planis.map((p) => p.bc_tarea_id).filter((x): x is number => x != null));
-    let vivo = true;
-    Promise.all([basecampRepo.sinPresentacion(vinculadas, tipos), basecampRepo.proyectos()]).then(([t, p]) => {
-      if (!vivo) return;
-      setSugeridas(t.data);
-      setBrandsPorProyecto(new Map(((p.data ?? []) as { id: number; brand_id: string | null }[]).filter((x) => x.brand_id).map((x) => [Number(x.id), x.brand_id!])));
-    });
-    return () => {
-      vivo = false;
-    };
-  }, [hayBasecamp, planis, sync.corriendo, tipos]);
+    if (!hayBasecamp || !tableroListo) return;
+    const t = setTimeout(() => traer(0, buscarTarea), buscarTarea ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [hayBasecamp, tableroListo, buscarTarea, sync.ultimo, traer]);
 
   const porCliente = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const q = fold(query.trim());
+  // Las del mes, y las de meses anteriores que todavía no están listas (siguen en curso).
+  const entra = useCallback(
+    (p: { anio: number; mes: number; estado: string }) =>
+      (p.anio === anio && p.mes === mes) || (p.anio * 12 + p.mes < anio * 12 + mes && p.estado !== "lista"),
+    [anio, mes]
+  );
   const delMes = useMemo(
     () =>
       (planis ?? [])
-        .filter((p) => p.anio === anio && p.mes === mes)
+        .filter(entra)
         .filter((p) => !tipoFiltro || p.tipo === tipoFiltro)
         .filter((p) => !q || fold(porCliente.get(p.brand_id)?.name ?? "").includes(q))
         .sort((a, b) => (porCliente.get(a.brand_id)?.name ?? "").localeCompare(porCliente.get(b.brand_id)?.name ?? "", "es")),
-    [planis, anio, mes, q, porCliente, tipoFiltro]
+    [planis, entra, q, porCliente, tipoFiltro]
   );
 
   // Lo que falta arrancar, con su tipo (y del tipo elegido arriba, si hay uno).
@@ -104,15 +126,39 @@ export function PlaniShell() {
     () =>
       (sugeridas ?? [])
         .map((t) => ({ tarea: t, tipo: tipoDeTitulo(t.titulo, tipos) }))
-        .filter((x): x is { tarea: TareaCompleta; tipo: TipoPresentacion } => !!x.tipo && (!tipoFiltro || x.tipo.id === tipoFiltro)),
+        .filter((x): x is { tarea: TareaParaArrancar; tipo: TipoPresentacion } => !!x.tipo && (!tipoFiltro || x.tipo.id === tipoFiltro)),
     [sugeridas, tipos, tipoFiltro]
   );
+
+  // 3. Con todo a la vista, se precargan las presentaciones de la etapa de cada uno (un diseñador,
+  // las que están en Diseño), para que abrirlas sea al toque.
+  const router = useRouter();
+  const { data: equipo } = useEquipo();
+  useEffect(() => {
+    if (!planis?.length || !equipo?.yo?.equipo_id || (hayBasecamp && sugeridas === null)) return;
+    const persona = equipo.personas.find((p) => p.id === equipo.yo?.equipo_id);
+    const sectores = persona?.puestos.flatMap((id) => equipo.puestos.find((x) => x.id === id)?.sectores ?? []) ?? [];
+    const roles = new Set(sectores.map((s) => ROL_DE_SECTOR[s]).filter(Boolean));
+    if (!roles.size) return;
+    const mias = planis.filter((p) => roles.has(ROL_DE_ESTADO[p.estado])).slice(0, 6);
+    let vivo = true;
+    (async () => {
+      for (const p of mias) {
+        if (!vivo) return;
+        router.prefetch(`/presentaciones/${p.id}`);
+        await precargarPresentacion(p.id).catch(() => undefined);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [planis, equipo, hayBasecamp, sugeridas, router]);
   // Cuántas hay de cada tipo este mes (para los chips del filtro).
   const delMesPorTipo = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of planis ?? []) if (p.anio === anio && p.mes === mes) m.set(p.tipo, (m.get(p.tipo) ?? 0) + 1);
+    for (const p of planis ?? []) if (entra(p)) m.set(p.tipo, (m.get(p.tipo) ?? 0) + 1);
     return m;
-  }, [planis, anio, mes]);
+  }, [planis, entra]);
 
   const mover = (d: number) =>
     setMes(({ anio, mes }) => {
@@ -214,7 +260,13 @@ export function PlaniShell() {
               return (
                 <Columna key={e.value} estado={e.value} count={items.length}>
                   {items.map((p) => (
-                    <PlaniCard key={p.id} plani={p} brand={porCliente.get(p.brand_id) ?? null} tipo={tipoDe(p.tipo)} />
+                    <PlaniCard
+                      key={p.id}
+                      plani={p}
+                      brand={porCliente.get(p.brand_id) ?? null}
+                      tipo={tipoDe(p.tipo)}
+                      deOtroMes={p.anio !== anio || p.mes !== mes ? `${MESES[p.mes - 1]}${p.anio !== anio ? ` ${p.anio}` : ""}` : null}
+                    />
                   ))}
                   {e.value === "redaccion" && (
                     <button
@@ -231,17 +283,36 @@ export function PlaniShell() {
           </Tablero>
         )}
 
-        {hayBasecamp && paraArrancar.length > 0 && (
+        {hayBasecamp && (sugeridas === null || paraArrancar.length > 0 || buscarTarea) && (
           <section className="mt-14" aria-label="Para arrancar">
-            <div className="mb-4 flex items-end gap-3 border-b border-foreground/15 pb-2">
+            <div className="mb-4 flex flex-wrap items-end gap-x-3 gap-y-2 border-b border-foreground/15 pb-2">
               <h2 className="font-display text-[2.4rem] leading-none">Para arrancar</h2>
-              <span className="flex items-center gap-1.5 pb-1 text-xs text-muted-foreground">
+              <span className="flex min-w-0 flex-1 items-center gap-1.5 pb-1 text-xs text-muted-foreground">
                 <BasecampMark className="h-3.5 w-3.5" /> Tareas de Basecamp que se reconocen por su título y todavía no tienen presentación
               </span>
+              <label className="relative mb-1 w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={buscarTarea}
+                  onChange={(e) => setBuscarTarea(e.target.value)}
+                  placeholder="Buscar tarea o marca…"
+                  aria-label="Buscar en Para arrancar"
+                  className="h-8 w-full rounded-full border border-black/[0.08] bg-card pl-8 pr-3 text-xs outline-none focus:border-foreground/25"
+                />
+              </label>
             </div>
+            {sugeridas === null ? (
+              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-busy>
+                {[0, 1, 2].map((i) => (
+                  <li key={i} className="skeleton h-36 rounded-[1.25rem]" />
+                ))}
+              </ul>
+            ) : paraArrancar.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{trayendo ? "Buscando…" : "No hay tareas con esa búsqueda."}</p>
+            ) : (
             <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {paraArrancar.map(({ tarea: t, tipo }) => {
-                const brandId = brandsPorProyecto.get(Number(t.proyecto_id)) ?? null;
+                const brandId = t.brand_id;
                 const brand = brandId ? porCliente.get(brandId) ?? null : null;
                 return (
                   <li key={t.id} className="flex flex-col gap-3 rounded-[1.25rem] border border-black/[0.06] bg-card/90 p-4">
@@ -261,7 +332,7 @@ export function PlaniShell() {
                       <button
                         type="button"
                         disabled={!brandId}
-                        onClick={() => setNueva({ brandId, tarea: t, tipo: tipo.id, anio, mes: mesDelTitulo(t.titulo) ?? mes })}
+                        onClick={() => setNueva({ brandId, tarea: t, tipo: tipo.id, ...(periodoDelTitulo(t.titulo) ?? { anio, mes }) })}
                         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:brightness-95 disabled:opacity-45"
                         title={brandId ? undefined : "Ese proyecto no está vinculado a ningún cliente"}
                       >
@@ -277,6 +348,19 @@ export function PlaniShell() {
                 );
               })}
             </ul>
+            )}
+            {hayMas && sugeridas && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => traer(sugeridas.length, buscarTarea)}
+                  disabled={trayendo}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border bg-card px-4 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+                >
+                  {trayendo && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Ver más
+                </button>
+              </div>
+            )}
           </section>
         )}
       </main>
@@ -308,23 +392,12 @@ function Columna({ estado, count, children }: { estado: PlaniEstado; count: numb
   );
 }
 
-function PlaniCard({ plani, brand, tipo }: { plani: PlaniResumen; brand: Brand | null; tipo: TipoPresentacion }) {
-  const piezas = plani.presentacion_piezas ?? [];
-  const total = piezas.length;
-  const conMaterial = piezas.filter((p) => (p.medios ?? []).some((m) => m.rol === "final")).length;
-  const programadas = piezas.filter((p) => p.programada).length;
-  // Una tira con las últimas piezas del feed que ya tienen imagen.
-  const feed = piezas
-    .filter((p) => p.formato !== "historia")
-    .sort((a, b) => b.fecha.localeCompare(a.fecha))
-    .map((p) => (p.medios ?? []).find((m) => m.rol === (p.formato === "reel" ? "portada" : "final")) ?? (p.medios ?? []).find((m) => m.rol !== "referencia"))
-    .filter(Boolean)
-    .slice(0, 3);
-
+function PlaniCard({ plani, brand, tipo, deOtroMes }: { plani: PlaniTarjeta; brand: Brand | null; tipo: TipoPresentacion; deOtroMes: string | null }) {
+  const total = plani.piezas;
   return (
     <Link
       href={`/presentaciones/${plani.id}`}
-      className="group flex flex-col gap-3 rounded-[1.25rem] border border-black/[0.06] bg-card p-3.5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04)] transition-[transform,box-shadow] duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_hsl(40_45%_20%/0.45)]"
+      className="group flex flex-col gap-3 self-start rounded-[1.25rem] border border-black/[0.06] bg-card p-3.5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04)] transition-[transform,box-shadow] duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_hsl(40_45%_20%/0.45)]"
     >
       <div className="flex items-center gap-2.5">
         {brand ? <ClientMark brand={brand} className="h-10 w-10 rounded-xl text-xs" pad="p-[14%]" /> : <span className="h-10 w-10 rounded-xl bg-secondary" />}
@@ -336,37 +409,49 @@ function PlaniCard({ plani, brand, tipo }: { plani: PlaniResumen; brand: Brand |
         </span>
         {plani.bc_tarea_id && <BasecampMark className="h-3.5 w-3.5 opacity-70" />}
       </div>
-      <TipoChip tipo={tipo} className="self-start" />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <TipoChip tipo={tipo} />
+        {deOtroMes && (
+          <span className="rounded-full bg-[#8A6A3B]/12 px-2 py-0.5 text-[11px] font-medium text-[#8A6A3B]" title="De un mes anterior que todavía no está lista">
+            {deOtroMes}
+          </span>
+        )}
+      </div>
 
-      {feed.length > 0 ? (
+      {/* Las imágenes que ya están subidas (si no hay ninguna, no ocupa lugar). */}
+      {plani.portadas.length > 0 && (
         <div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-lg">
-          {feed.map((m) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={m!.id} src={medioUrl(m!, 240)} alt="" className="aspect-[3/4] w-full bg-secondary object-cover" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+          {plani.portadas.map((m) => (
+            <Portada key={m.id} medio={m} />
           ))}
         </div>
-      ) : total > 0 ? (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          {FORMATO_ORDEN.map((f) => {
-            const n = piezas.filter((p) => p.formato === f).length;
-            return n ? (
-              <span key={f} className="inline-flex items-center gap-1">
-                <FormatDot formato={f} className="h-2 w-2" /> {n} {n === 1 ? FORMATOS[f].label.toLowerCase() : FORMATOS[f].plural.toLowerCase()}
-              </span>
-            ) : null;
-          })}
-        </div>
-      ) : (
-        <p className="text-[11px] italic text-muted-foreground">Sin piezas todavía</p>
       )}
 
       {total > 0 && (
         <div className="space-y-1">
-          <Barra valor={conMaterial} total={total} label="material" />
-          {programadas > 0 && <Barra valor={programadas} total={total} label="programadas" className="bg-emerald-700" />}
+          <Barra valor={plani.con_material} total={total} label="material" />
+          {plani.programadas > 0 && <Barra valor={plani.programadas} total={total} label="programadas" className="bg-emerald-700" />}
         </div>
       )}
     </Link>
+  );
+}
+
+/** Una imagen chica del feed, con un skeleton hasta que llega. */
+function Portada({ medio }: { medio: Medio }) {
+  const [lista, setLista] = useState(false);
+  return (
+    <span className={cn("relative block aspect-[3/4] overflow-hidden bg-secondary", !lista && "skeleton")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={medioUrl(medio, 240)}
+        alt=""
+        loading="lazy"
+        onLoad={() => setLista(true)}
+        onError={(e) => (e.currentTarget.style.visibility = "hidden")}
+        className={cn("h-full w-full object-cover transition-opacity duration-300", lista ? "opacity-100" : "opacity-0")}
+      />
+    </span>
   );
 }
 

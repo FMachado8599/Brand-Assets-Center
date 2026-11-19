@@ -130,6 +130,17 @@ export type PlaniResumen = Plani & {
   presentacion_piezas: Pick<Pieza, "id" | "formato" | "fecha" | "programada" | "estado_agencia" | "estado_cliente" | "medios">[];
 };
 
+/**
+ * Una presentación como la muestra el tablero (presentaciones_tablero): sus números y hasta 3
+ * imágenes del feed, sin las piezas enteras.
+ */
+export type PlaniTarjeta = Pick<Plani, "id" | "brand_id" | "tipo" | "titulo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id"> & {
+  piezas: number;
+  con_material: number;
+  programadas: number;
+  portadas: Medio[];
+};
+
 export type PiezaPatch = Partial<Omit<Pieza, "id" | "presentacion_id" | "created_at" | "updated_at">>;
 export type PlaniPatch = Partial<
   Pick<Plani, "titulo" | "tipo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id" | "notas" | "brand_id" | "compartida" | "share_token">
@@ -145,6 +156,12 @@ export type Comentario = {
   interno: boolean;
   resuelto: boolean;
   created_at: string;
+  /** El comentario al que responde (null = arranca una conversación). */
+  respuesta_a: string | null;
+  /** A quiénes del equipo nombra (@): les llega a la campanita. */
+  menciones?: string[];
+  /** Quién del equipo lo escribió (null = el cliente). */
+  autor_equipo_id?: string | null;
   /** En la página del cliente: lo escribió el cliente (y no alguien del estudio). */
   del_cliente?: boolean;
 };

@@ -84,6 +84,12 @@ on conflict (id) do nothing;
 -- Los de base que se crearon antes de las herramientas (si nadie las cambió todavía).
 update public.presentacion_tipos set herramientas = '{ads}' where id in ('leads', 'pauta') and herramientas = '{}';
 update public.presentacion_tipos set herramientas = '{gif}' where id = 'programatica' and herramientas = '{}';
+-- La carpeta de cada tipo adentro del mes, en el Drive (PAUTAS DIGITAL / 2026 / MARCA / 10_OCTUBRE / Plani).
+-- null = el nombre del tipo.
+alter table public.presentacion_tipos add column if not exists carpeta text;
+update public.presentacion_tipos set carpeta = 'Plani' where id = 'planificacion' and carpeta is null;
+update public.presentacion_tipos set carpeta = 'Anuncios' where id in ('leads', 'pauta') and carpeta is null;
+update public.presentacion_tipos set carpeta = 'Programática' where id = 'programatica' and carpeta is null;
 
 -- 2. La presentación ------------------------------------------------
 -- Una por tarea: cliente, tipo, mes. Puede haber más de una del mismo cliente y mes.
@@ -180,6 +186,10 @@ create table if not exists public.presentacion_comentarios (
   created_at timestamptz not null default now(),
   constraint presentacion_comentarios_texto check (char_length(texto) between 1 and 4000)
 );
+-- Responder a un comentario y nombrar a alguien del equipo (@Mathi). Los avisos salen de
+-- migracion-presentaciones-board.sql.
+alter table public.presentacion_comentarios add column if not exists respuesta_a uuid references public.presentacion_comentarios(id) on delete set null;
+alter table public.presentacion_comentarios add column if not exists menciones uuid[] not null default '{}';
 
 -- 5. Carpetas del Drive ---------------------------------------------
 -- Para no buscar en Drive cada vez dónde va un archivo: cliente, presentación y día → id de la carpeta.

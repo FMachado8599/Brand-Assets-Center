@@ -29,7 +29,19 @@ export type AppModule = {
   soon?: boolean;
   /** Las librerías (emojis, GIFs, íconos) van juntas en su propio grupo de la sidebar. */
   group?: "librerias";
+  /** En qué sección de la sidebar va (Inicio no tiene: va arriba de todo). */
+  seccion?: Seccion;
 };
+
+/** Las secciones de la sidebar, en orden: lo del día a día primero, el recreo al final. */
+export type Seccion = "trabajo" | "crear" | "archivos" | "librerias" | "recreo";
+export const SECCIONES: { id: Seccion; label: string; descripcion: string }[] = [
+  { id: "trabajo", label: "Trabajo", descripcion: "Las tareas, las presentaciones y los clientes" },
+  { id: "crear", label: "Crear", descripcion: "Textos, piezas y anuncios" },
+  { id: "archivos", label: "Archivos", descripcion: "Bajar, convertir y retocar" },
+  { id: "librerias", label: "Librerías", descripcion: "Emojis, GIFs e íconos" },
+  { id: "recreo", label: "Recreo", descripcion: "Juegos y música" },
+];
 
 /**
  * Registro único de módulos: de acá salen la sidebar, Inicio y el indicador de módulo activo. Las librerías
@@ -37,22 +49,30 @@ export type AppModule = {
  */
 export const MODULES: AppModule[] = [
   { href: "/", label: "Inicio", description: "Todas las herramientas", icon: House },
-  { href: "/tarjetas", label: "Tarjetas", description: "Textos con tipografía, para pegar", icon: StickyNote },
-  { href: "/library/emojis", label: "Emojis", description: "Emojis de Apple en PNG", icon: Smile, group: "librerias" },
-  { href: "/library/gifs", label: "GIFs", description: "GIFs y stickers de GIPHY, para bajar o pegar", icon: ImagePlay, group: "librerias" },
-  { href: "/library/iconos", label: "Íconos", description: "Íconos de Magnific en SVG y PNG", icon: Shapes, group: "librerias" },
-  { href: "/gif", label: "GIF", description: "Banners animados desde frames", icon: Film },
-  { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw },
-  { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine },
-  { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase },
-  { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban },
-  { href: "/presentaciones", label: "Presentaciones", description: "El material de cada tarea, listo para el cliente: planis, ads, programática…", icon: Presentation },
-  { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine },
-  { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone },
-  { href: "/retoque", label: "Retoque", description: "Quitale el fondo a una imagen con Magnific", icon: WandSparkles },
-  { href: "/rest", label: "Rest", description: "Un recreo: juegos cortos con ranking del estudio", icon: Gamepad2 },
-  { href: "/spotify", label: "Spotify", description: "El Jam del estudio: qué suena y sumá canciones", icon: Disc3 },
+  { href: "/tarjetas", label: "Tarjetas", description: "Textos con tipografía, para pegar", icon: StickyNote, seccion: "crear" },
+  { href: "/library/emojis", label: "Emojis", description: "Emojis de Apple en PNG", icon: Smile, group: "librerias", seccion: "librerias" },
+  { href: "/library/gifs", label: "GIFs", description: "GIFs y stickers de GIPHY, para bajar o pegar", icon: ImagePlay, group: "librerias", seccion: "librerias" },
+  { href: "/library/iconos", label: "Íconos", description: "Íconos de Magnific en SVG y PNG", icon: Shapes, group: "librerias", seccion: "librerias" },
+  { href: "/gif", label: "GIF", description: "Banners animados desde frames", icon: Film, seccion: "crear" },
+  { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw, seccion: "archivos" },
+  { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine, seccion: "crear" },
+  { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase, seccion: "trabajo" },
+  { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban, seccion: "trabajo" },
+  { href: "/presentaciones", label: "Presentaciones", description: "El material de cada tarea, listo para el cliente: planis, ads, programática…", icon: Presentation, seccion: "trabajo" },
+  { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine, seccion: "archivos" },
+  { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone, seccion: "crear" },
+  { href: "/retoque", label: "Retoque", description: "Quitale el fondo a una imagen con Magnific", icon: WandSparkles, seccion: "archivos" },
+  { href: "/rest", label: "Rest", description: "Un recreo: juegos cortos con ranking del estudio", icon: Gamepad2, seccion: "recreo" },
+  { href: "/spotify", label: "Spotify", description: "El Jam del estudio: qué suena y sumá canciones", icon: Disc3, seccion: "recreo" },
 ];
+
+/** La sidebar: cada sección con sus módulos, en el orden de SECCIONES (y adentro, el de ORDEN_NAV). */
+const ORDEN_NAV = ["/board", "/presentaciones", "/clientes", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
+const posicion = (m: AppModule) => (ORDEN_NAV.includes(m.href) ? ORDEN_NAV.indexOf(m.href) : ORDEN_NAV.length + MODULES.indexOf(m));
+export const NAV = SECCIONES.map((s) => ({
+  ...s,
+  modulos: MODULES.filter((m) => m.seccion === s.id && !m.soon).sort((a, b) => posicion(a) - posicion(b)),
+}));
 
 /** Las librerías, en el orden en que aparecen en la sidebar y en la barra. */
 export const LIBRARIES = MODULES.filter((m) => m.group === "librerias");

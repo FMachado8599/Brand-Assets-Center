@@ -5,6 +5,7 @@ import { Hash, Smile } from "lucide-react";
 import { HashtagPanel } from "@/components/redaccion/HashtagPanel";
 import { WritingEditor, type HashtagOption, type WritingEditorHandle } from "@/components/redaccion/WritingEditor";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BotonPegar } from "@/components/ui/pegar";
 import { toast } from "@/components/ui/toaster";
 import { useBrandKits } from "@/hooks/useBrandKits";
 import { usePrediccion } from "@/hooks/usePrediccion";
@@ -106,7 +107,8 @@ export function CopyDialog({
             <Mockup pieza={pieza} brand={brand} />
           </div>
 
-          <div className="flex min-h-0 flex-col">
+          <div className="relative flex min-h-0 flex-col">
+            <BotonPegar onTexto={(t) => editor.current?.insert(t)} className="absolute right-2 top-2 z-10" />
             <div
               className={cn(
                 "min-h-[16rem] flex-1 overflow-y-auto rounded-2xl border border-black/[0.08] bg-card focus-within:border-foreground/25",
