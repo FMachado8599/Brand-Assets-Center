@@ -13,6 +13,7 @@ import {
   armarContexto,
   cargaDe,
   claveOrden,
+  TONO,
   designadoDe,
   ejecutaSector,
   etapaDe,
@@ -30,7 +31,7 @@ import { fold } from "@/lib/redaccion/text";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useArrastre, type Destino } from "./arrastre";
-import { Avatar, BoardNav } from "./comun";
+import { Avatar, BoardNav, InfoBoton, PILDORA } from "./comun";
 import { SelectSimple } from "./equipo/piezas";
 import { Indicador } from "./MiTablero";
 import { LeyendaTonos, TareaCard } from "./TareaCard";
@@ -208,36 +209,57 @@ export function EquipoFilas() {
       </ContextBar>
 
       <main className="px-4 pb-16 pt-[6.5rem] sm:px-6">
-        <div className="mb-5 flex flex-wrap items-end gap-x-4 gap-y-3">
-          <div>
-            <h1 className="font-display text-4xl leading-none tracking-[-0.01em]">Equipo</h1>
-            <p className="mt-1 text-xs text-muted-foreground">Cada fila es una persona · a la izquierda, lo más prioritario</p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[{ id: TODOS, nombre: "Todos" }, ...pestanas].map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setElegido(s.id === miSector ? AUTO : s.id)}
-                title={s.id === miSector ? "Tu sector" : undefined}
-                aria-pressed={sectorActual === s.id}
-                className={cn(
-                  "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                  sectorActual === s.id ? "border-foreground bg-foreground text-background" : "bg-card hover:border-foreground/30"
-                )}
-              >
-                {s.nombre}
-              </button>
-            ))}
-          </div>
+        <div className="mb-5 flex flex-wrap items-center justify-end gap-2">
+          <SelectSimple
+            value={sectorActual}
+            onChange={(v) => setElegido(!v || v === miSector ? AUTO : v)}
+            opciones={[{ id: TODOS, nombre: "Todos los sectores" }, ...pestanas].map((s) => ({
+              value: s.id,
+              label: s.id === miSector && s.id !== TODOS ? `${s.nombre} · el tuyo` : s.nombre,
+            }))}
+            className={PILDORA}
+          />
           {equipo && equipo.hubs.length > 0 && (
-            <div className="w-44">
-              <SelectSimple value={hub} onChange={setHub} opciones={equipo.hubs.map((h) => ({ value: h.id, label: h.nombre }))} ninguno="Todos los hubs" />
-            </div>
+            <SelectSimple
+              value={hub}
+              onChange={setHub}
+              opciones={equipo.hubs.map((h) => ({ value: h.id, label: h.nombre }))}
+              ninguno="Todos los hubs"
+              className={PILDORA}
+            />
           )}
-          <div className="ml-auto">
-            <LeyendaTonos tonos={TONOS_LEYENDA} />
-          </div>
+          <InfoBoton>
+            <p>
+              Cada fila es una persona del sector elegido; a la izquierda, lo más prioritario. Arrastrá una tarjeta a otra fila para
+              pasársela a esa persona.
+            </p>
+            <div>
+              <p className="mb-1.5 font-medium text-foreground">Colores</p>
+              <LeyendaTonos tonos={TONOS_LEYENDA} />
+            </div>
+            <div>
+              <p className="mb-1.5 font-medium text-foreground">Carga</p>
+              <p className="mb-1.5 text-muted-foreground">Lo que tiene en sus manos: no cuenta lo que espera a otro ni lo pausado.</p>
+              <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
+                {[
+                  { label: "Libre", hasta: "hasta 3", color: TONO.finalizada.fg },
+                  { label: "Normal", hasta: "4 a 6", color: "#6B6862" },
+                  { label: "Cargada", hasta: "7 a 9", color: TONO.pronto.fg },
+                  { label: "Saturada", hasta: "10 o más", color: TONO.vencida.fg },
+                ].map((c) => (
+                  <li key={c.label} className="flex items-center gap-1.5">
+                    <span className="font-semibold" style={{ color: c.color }}>
+                      {c.label}
+                    </span>
+                    <span className="text-muted-foreground">{c.hasta}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {equipo && equipo.hubs.length > 0 && (
+              <p className="text-muted-foreground">Con un hub elegido se ven solo sus marcas y, en Diseño, solo su gente.</p>
+            )}
+          </InfoBoton>
         </div>
 
         {falta ? (

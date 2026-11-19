@@ -63,14 +63,35 @@ export type TareaFlujo = TareaBoard & {
   vigente_origen: "manual" | "ia" | null;
   /** vigente_hasta o, si no tiene, la fecha de entrega de Basecamp. */
   vigencia: string | null;
+  /** La fecha de entrega que se puso en la app. Manda sobre la de Basecamp (vence). */
+  entrega: string | null;
 };
 
-export const etapaDe = (t: TareaFlujo): Etapa => t.etapa ?? etapaDesdeBasecamp(t);
+/** Lo que hace falta de una tarea para saber su etapa y qué tan urgente es (ej: desde una notificación). */
+export type TareaTono = Pick<TareaFlujo, "etapa" | "estado" | "columna" | "tablero" | "completada" | "pausada" | "vence" | "entrega">;
+
+export const etapaDe = (t: Omit<TareaTono, "pausada" | "vence" | "entrega">): Etapa => t.etapa ?? etapaDesdeBasecamp(t);
+
+/**
+ * La fecha de Basecamp casi nunca se actualiza: si venció hace más de estos días y nadie puso una
+ * fecha en la app, se toma como vieja. No se pone roja ni sube en las notificaciones: pide una fecha nueva.
+ */
+export const FECHA_VIEJA_DIAS = 14;
+
+export type Fecha = { fecha: string | null; origen: "app" | "basecamp" | null; vieja: boolean };
+
+/** La fecha de entrega que vale: la de la app y, si no hay, la de Basecamp (que puede estar vieja). */
+export function fechaDe(t: Pick<TareaFlujo, "vence" | "entrega">, hoy = new Date()): Fecha {
+  if (t.entrega) return { fecha: t.entrega, origen: "app", vieja: false };
+  if (!t.vence) return { fecha: null, origen: null, vieja: false };
+  const limite = new Date(hoy.getTime() - FECHA_VIEJA_DIAS * 86_400_000).toISOString().slice(0, 10);
+  return { fecha: t.vence, origen: "basecamp", vieja: t.vence < limite };
+}
 
 export type Movimiento = {
   id: number;
   tarea_id: number;
-  tipo: "etapa" | "responsable" | "pausa" | "fecha" | "validacion";
+  tipo: "etapa" | "responsable" | "pausa" | "fecha" | "entrega" | "validacion";
   de: string | null;
   a: string | null;
   nota: string | null;
@@ -87,15 +108,18 @@ const diaDe = (iso: string) => Math.floor(new Date(`${iso}T00:00:00Z`).getTime()
 /**
  * La clave con la que se ordena una columna: la prioridad que se puso arrastrando o, si nadie la
  * tocó, la fecha de entrega (las que vencen antes, arriba). Están en la misma escala, así que una
- * tarea arrastrada queda entre las dos que tenía al lado.
+ * tarea arrastrada queda entre las dos que tenía al lado. Las de fecha vieja van después de las que
+ * tienen fecha, y las sin fecha al final.
  */
-export function claveOrden(t: Pick<TareaFlujo, "orden" | "vence" | "id">) {
+export function claveOrden(t: Pick<TareaFlujo, "orden" | "vence" | "entrega" | "id">) {
   if (t.orden != null) return t.orden;
-  if (t.vence) return diaDe(t.vence);
+  const f = fechaDe(t);
+  if (f.fecha && !f.vieja) return diaDe(f.fecha);
+  if (f.fecha) return 900_000 + diaDe(f.fecha) / 100_000;
   return 1_000_000 + (t.id % 100_000) / 100_000;
 }
 
-export const ordenarPorPrioridad = <T extends Pick<TareaFlujo, "orden" | "vence" | "id">>(lista: T[]) =>
+export const ordenarPorPrioridad = <T extends Pick<TareaFlujo, "orden" | "vence" | "entrega" | "id">>(lista: T[]) =>
   [...lista].sort((a, b) => claveOrden(a) - claveOrden(b));
 
 /** La prioridad para soltar entre dos tareas (o arriba de todo, o abajo de todo). */
@@ -236,30 +260,36 @@ export function validadoresDe(t: TareaFlujo, ctx: Contexto): Persona[] {
 /* ───────────── Prioridad a la vista ───────────── */
 
 /** El color de cada tarjeta: lo urgente primero (como en STATUS). */
-export type Tono = "vencida" | "pronto" | "esperando" | "curso" | "nueva" | "pausada" | "finalizada";
+export type Tono = "vencida" | "pronto" | "esperando" | "vieja" | "curso" | "nueva" | "pausada" | "finalizada";
 
 export const TONO: Record<Tono, { label: string; fg: string; bg: string }> = {
   vencida: { label: "Vencida", fg: "#C0301A", bg: "rgba(247, 62, 18, 0.17)" },
   pronto: { label: "Vence pronto", fg: "#A86A0C", bg: "rgba(246, 176, 40, 0.26)" },
   esperando: { label: "Esperando", fg: "#5F4BD0", bg: "rgba(156, 135, 245, 0.24)" },
+  vieja: { label: "Fecha vieja", fg: "#8A6A3B", bg: "rgba(168, 128, 70, 0.12)" },
   curso: { label: "En curso", fg: "#2563C9", bg: "rgba(86, 150, 244, 0.22)" },
   nueva: { label: "Por empezar", fg: "#6B6862", bg: "transparent" },
   pausada: { label: "En pausa", fg: "#6B6862", bg: "rgba(32, 32, 32, 0.07)" },
   finalizada: { label: "Terminada", fg: "#0F8A70", bg: "rgba(21, 189, 153, 0.22)" },
 };
 
-export const TONOS_LEYENDA: Tono[] = ["vencida", "pronto", "curso", "esperando", "nueva", "pausada"];
+export const TONOS_LEYENDA: Tono[] = ["vencida", "pronto", "curso", "esperando", "vieja", "nueva", "pausada"];
 
 const diaISO = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Terminada > en pausa > vencida > vence hoy o mañana > esperando a otro > en curso > por empezar. */
-export function tonoDe(t: TareaFlujo, hoy = new Date()): Tono {
+/**
+ * Terminada > en pausa > esperando a otro > vencida > vence hoy o mañana > fecha vieja > en curso > por empezar.
+ * Lo que espera a otro (validación, cliente) no se pone rojo: no está en manos de quien la tiene.
+ */
+export function tonoDe(t: TareaTono, hoy = new Date()): Tono {
   const etapa = etapaDe(t);
   if (etapa === "finalizada") return "finalizada";
   if (t.pausada) return "pausada";
-  if (t.vence && t.vence < diaISO(hoy)) return "vencida";
-  if (t.vence && t.vence <= diaISO(new Date(hoy.getTime() + 86_400_000))) return "pronto";
   if (etapa === "validacion" || etapa === "cliente") return "esperando";
+  const f = fechaDe(t, hoy);
+  if (f.vieja) return "vieja";
+  if (f.fecha && f.fecha < diaISO(hoy)) return "vencida";
+  if (f.fecha && f.fecha <= diaISO(new Date(hoy.getTime() + 86_400_000))) return "pronto";
   if (etapa === "entrada") return "nueva";
   return "curso";
 }
@@ -283,7 +313,7 @@ export function visible(t: TareaFlujo, hoy = new Date().toISOString().slice(0, 1
 /* ───────────── Base ───────────── */
 
 const COLUMNAS =
-  "id, titulo, app_url, vence, completada, asignados, comentarios, creada, actualizada, proyecto_id, proyecto, brand_id, columna_id, columna, estado, tablero_id, tablero, etapa, responsable_id, orden, pausada, pausa_motivo, vigente_hasta, vigente_origen, vigencia";
+  "id, titulo, app_url, vence, completada, asignados, comentarios, creada, actualizada, proyecto_id, proyecto, brand_id, columna_id, columna, estado, tablero_id, tablero, etapa, responsable_id, orden, pausada, pausa_motivo, vigente_hasta, vigente_origen, vigencia, entrega";
 
 async function hacer(q: PromiseLike<{ error: { message: string } | null }>) {
   const { error } = await q;
@@ -367,6 +397,8 @@ export const flujoRepo = {
     hacer(supabase.rpc("tarea_pausar", { p_tarea: id, p_pausada: pausada, p_motivo: motivo ?? null })),
   vigencia: (id: number, fecha: string | null) =>
     hacer(supabase.rpc("tarea_vigencia", { p_tarea: id, p_fecha: fecha, p_origen: "manual", p_nota: null })),
+  /** La fecha de entrega de la app (null = volver a la de Basecamp). */
+  entrega: (id: number, fecha: string | null) => hacer(supabase.rpc("tarea_entrega", { p_tarea: id, p_fecha: fecha, p_nota: null })),
   validar: (id: number, nota?: string) => hacer(supabase.rpc("tarea_validar", { p_tarea: id, p_nota: nota ?? null })),
 
   /** La IA lee el título y el brief y pone hasta cuándo vale el trabajo. Solo cambia esa fecha. */

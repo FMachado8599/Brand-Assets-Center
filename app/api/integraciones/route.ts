@@ -3,7 +3,7 @@ import { createSupabaseServer, faltaSupabase, hasSupabaseEnv } from "@/lib/supab
 import { hasBasecampEnv } from "@/lib/integraciones/basecamp";
 import { hasSecret } from "@/lib/integraciones/crypto";
 import { hasGoogleEnv } from "@/lib/integraciones/google";
-import { borrarConexion, leerPublicas, type Proveedor } from "@/lib/integraciones/store";
+import { borrarConexion, esAdminApp, leerPublicas, type Proveedor } from "@/lib/integraciones/store";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,16 @@ export async function GET() {
     return NextResponse.json({
       listo: { secreto: hasSecret(), basecamp: hasBasecampEnv(), google: hasGoogleEnv() },
       basecamp,
-      google: google ? { ...google, datos: { raiz_url: google.datos?.raiz_url ?? null } } : null,
+      google: google
+        ? {
+            ...google,
+            datos: {
+              raiz_url: google.datos?.raiz_url ?? null,
+              raiz_nombre: google.datos?.raiz_propia ? (google.datos?.raiz_nombre ?? null) : null,
+              completo: google.datos?.completo === true,
+            },
+          }
+        : null,
       sync: sync.data ?? null,
     });
   } catch (e) {
@@ -43,7 +52,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Proveedor desconocido" }, { status: 400 });
   }
   try {
-    await borrarConexion(createSupabaseServer(), proveedor as Proveedor);
+    const db = createSupabaseServer();
+    if (!(await esAdminApp(db))) {
+      return NextResponse.json({ error: `Solo un admin de la app puede desconectar ${proveedor === "basecamp" ? "Basecamp" : "el Drive"}` }, { status: 403 });
+    }
+    await borrarConexion(db, proveedor as Proveedor);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

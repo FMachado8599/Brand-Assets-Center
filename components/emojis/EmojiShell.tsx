@@ -11,6 +11,7 @@ import {
   BarSearch,
   ContextBar,
 } from "@/components/shell/ContextBar";
+import { LibrarySwitcher } from "@/components/library/LibrarySwitcher";
 import { toast } from "@/components/ui/toaster";
 import { useDebounced } from "@/hooks/useDebounced";
 import { usePagedEmojis, type EmojiSource } from "@/hooks/usePagedEmojis";
@@ -99,7 +100,7 @@ export function EmojiShell({ categories }: { categories: CategorySummary[] }) {
       const qs = new URLSearchParams();
       if (category) qs.set("c", category.key);
       if (subgroup) qs.set("s", subgroup.key);
-      const href = qs.toString() ? `/emojis?${qs}` : "/emojis";
+      const href = qs.toString() ? `/library/emojis?${qs}` : "/library/emojis";
       // Cambiar de subcategoría reemplaza el historial; entrar o salir de una categoría lo suma (así anda "atrás").
       if (category && active?.key === category.key) router.replace(href, { scroll: false });
       else router.push(href, { scroll: false });
@@ -245,6 +246,7 @@ export function EmojiShell({ categories }: { categories: CategorySummary[] }) {
   return (
     <>
       <ContextBar>
+        <LibrarySwitcher />
         <BarSearch
           value={query}
           onChange={setQuery}

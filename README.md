@@ -6,13 +6,17 @@ Un solo lugar para las herramientas del día a día del estudio:
 | --- | --- | --- |
 | Inicio | `/` | Portada con todas las herramientas y el ingreso con Google |
 | **Tarjetas** | `/tarjetas` | Textos con su formato y su tipografía, listos para pegar |
-| **Emojis** | `/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
+| **Librerías** | `/library` | Emojis, GIFs e íconos para copiar o bajar, cada uno en su sección. `/library` abre la última que usaste |
+| ↳ **Emojis** | `/library/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
+| ↳ **GIFs** | `/library/gifs` | GIFs y stickers de GIPHY: copiarlos para pegar en un chat, un mail o una presentación, o bajarlos en GIF, MP4 o WEBP |
+| ↳ **Íconos** | `/library/iconos` | Íconos de Magnific: copiar el SVG (Figma e Illustrator lo pegan en vectores) o el PNG, o bajarlos |
 | **GIF** | `/gif` | Banners animados a partir de frames (lo que antes era Programática) |
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 | **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
+| **Retoque** | `/retoque` | Quitarle el fondo a una imagen con Magnific: sale en PNG transparente, del mismo tamaño |
 | **Rest** | `/rest` | Un recreo: el juego del dino y el buscaminas, con ranking semanal del estudio |
 | **Spotify** | `/spotify` | El Jam del estudio: qué suena, la cola y sumar canciones, también desde la burbuja flotante en toda la app |
 
@@ -22,7 +26,7 @@ La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su
 
 ## Cómo se usa: sidebar + barra contextual
 
-- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra.
+- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra. Las librerías (Emojis, GIFs, Íconos) van aparte, al final, bajo **Librerías**.
 - **La barra flotante del centro** cambia según el módulo: es desde donde se hace todo (buscar, filtrar, agregar, exportar, configurar). Al pasar de un módulo a otro se transforma en lugar de recargarse.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
@@ -59,8 +63,10 @@ Abrí http://localhost:3000
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
-| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Presentaciones) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
+| `MAGNIFIC_API_KEY` | Retoque y Librerías → Íconos | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") y para buscar íconos |
+| `GIPHY_API_KEY` | Librerías → GIFs | Sí, para buscar GIFs (ver "Librerías") |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -107,7 +113,7 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 - **`main`** es producción: Vercel publica cada push.
 - **`new-feature`** junta lo que está listo para ir a producción. Su preview (`brand-assets-center-git-new-feature-…vercel.app`) es donde se revisa antes de pasarlo.
-- **Cada feature tiene su rama**, que sale de `new-feature` (hoy: `board`, `redaccion-ia`, `influencers`, `feat/planificacion`). Una feature nueva es una rama nueva.
+- **Cada feature tiene su rama**, que sale de `new-feature` (hoy: `board`, `redaccion-ia`, `influencers`, `feat/planificacion`, `gif`). Una feature nueva es una rama nueva.
 
 **El recorrido de una feature:**
 
@@ -128,7 +134,7 @@ Para correr lo mismo en local: `pnpm exec tsc --noEmit`, `NEXT_DIST_DIR=.next-bu
 Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
 
 - Favoritos y recientes de emojis.
-- Ajustes de Emojis, GIF y Conversor.
+- Ajustes de Emojis, GIFs, Íconos, GIF y Conversor.
 - Redacciones, y los emojis y hashtags de cada cliente.
 - Las tarjetas que creás quedan a tu nombre y en Filtros aparece **Solo mis tarjetas**. El tablero sigue siendo compartido: todos ven y editan todo, como antes.
 
@@ -180,13 +186,50 @@ select * from visitas_por_usuario;  -- quién entra y cuándo fue la última vez
 
 ---
 
+## Librerías
+
+Los assets de todos los días, cada uno en su sección: **Emojis**, **GIFs** e **Íconos**. En la sidebar van juntos, aparte de las herramientas, y en Inicio son una sola tarjeta.
+
+- **Cada librería tiene su ruta** (`/library/emojis`, `/library/gifs`, `/library/iconos`). `/library` abre la última que usaste en ese navegador (la primera vez, Emojis). `/emojis` sigue andando: lleva a `/library/emojis`.
+- **Lo primero de la barra** es el selector de librería (`components/library/LibrarySwitcher.tsx`): pasa de una a otra sin abrir la sidebar. Después vienen el buscador y los controles de cada una.
+- **Pensadas para usarse desde otras herramientas**: la búsqueda de cada librería es una función (`fetchGifs` en `lib/library/gifs.client.ts`, `fetchIcons` en `lib/library/iconos.client.ts`) y `hooks/usePagedSearch.ts` arma la búsqueda paginada con cualquiera de las dos. Copiar y bajar también son funciones sueltas (`copyGif`, `downloadGif`, `copySvg`, `copyPng`, `downloadIcon`). Un selector de GIFs dentro de Ads o de íconos dentro de Tarjetas se arma con eso, sin tocar la librería. En el registro (`lib/modules.ts`) las librerías son los módulos con `group: "librerias"`.
+
+### GIFs
+
+GIFs y stickers de [GIPHY](https://developers.giphy.com/). Sin búsqueda se ven las tendencias.
+
+- **GIFs / Stickers** en la barra (se recuerda): los stickers tienen el fondo transparente y se ven sobre un cuadriculado.
+- **Al pasar el mouse**: copiar o bajar el GIF. **Tocándolo** se abre en grande, con cada formato y lo que pesa:
+  - **GIF**: el de siempre. **MP4**: para presentaciones (pesa mucho menos y anda en Keynote, PowerPoint y Slides; los stickers no tienen, porque el MP4 no tiene transparencia). **WEBP**: animado y liviano, para la web.
+  - **Copiar GIF**: el portapapeles solo acepta imágenes quietas (PNG), así que se copia como HTML (una imagen que apunta a GIPHY) más su link. Gmail, Docs, Slides y Notion pegan el GIF animado; Slack y los chats pegan el link y lo muestran. También se puede copiar el link de la página de GIPHY.
+- Las descargas pasan por `/api/library/gifs/archivo` (edge) para salir con su nombre; solo baja archivos de GIPHY (`media*.giphy.com`, `i.giphy.com`).
+- La búsqueda la hace el servidor (`lib/library/giphy.server.ts`, con la key) y cada búsqueda queda una hora en la caché de datos de Next (las tendencias, diez minutos): si dos personas buscan lo mismo, GIPHY recibe un solo pedido. Se filtra hasta la clasificación PG-13 y se busca en español.
+- **GIPHY pide que se vea "Powered by GIPHY"** donde se usa su API: está arriba de los resultados y en el detalle (`components/library/gifs/PoweredByGiphy.tsx`; si se suma el logo oficial, va ahí).
+
+**Activarlo**: crear una app (tipo *API*) en [developers.giphy.com/dashboard](https://developers.giphy.com/dashboard) y cargar su key como `GIPHY_API_KEY` en `.env.local` y en Vercel. La key de prueba (*beta*) es gratis pero deja pocos pedidos por hora; para el uso de todo el estudio conviene pedir la de producción desde el mismo panel (GIPHY revisa la app y pide ver la atribución).
+
+### Íconos
+
+Los íconos de [Magnific](https://www.magnific.com/api) (los de Flaticon). Sin búsqueda se ven los destacados.
+
+- **Estilo y tamaño** en la barra (se recuerda): todos, contorno, relleno, contorno a color o a mano; y el tamaño de los PNG (64, 128, 256 o 512 px).
+- **Al pasar el mouse**: copiar o bajar el SVG. **Tocándolo** se abre el detalle: SVG (copiar o bajar) y PNG transparente del tamaño elegido (copiar o bajar).
+- **Copiar SVG** copia el código: Figma e Illustrator lo pegan en vectores. **Copiar PNG** copia la imagen.
+- **Buscar no gasta nada**: las miniaturas son públicas. **Copiar o bajar sí**: cada formato de cada ícono cuenta como una descarga del plan de Magnific. Por eso se pide solo al usarlo, y una sola vez por página abierta (copiar el SVG y después bajarlo es una sola descarga).
+- Cómo funciona: `GET /api/library/iconos` busca (`GET /v1/icons` de Magnific, con la búsqueda guardada una hora en la caché) y `POST /api/library/iconos/descarga` pide el archivo (`GET /v1/icons/{id}/download`). Magnific devuelve un link que vence en minutos; la página lo baja por `/api/magnific/archivo`, la misma ruta firmada de Retoque (ver ahí). Un SVG servido desde nuestro dominio podría traer scripts: esa ruta lo manda con una CSP que no deja correr nada.
+- **A confirmar con la key real**: el filtro de estilo usa `filters[shape]` (como la API de Freepik). Si Magnific lo nombra distinto, "Todos" sigue andando y el resto devuelve un error que se ve en la página; se corrige en `lib/library/iconos.ts`.
+
+**Activarlo**: usa la misma `MAGNIFIC_API_KEY` de Retoque. Revisá que el plan incluya la API de íconos (*Icons API*).
+
+---
+
 ## Emojis
 
 Cerca de 1850 emojis de Apple, con nombres y etiquetas **en español y en inglés**, agrupados por categoría.
 
 **Al entrar** se ven tus **favoritos**, los **recientes** (los últimos 16 que copiaste o bajaste) y las **categorías** (cada una con su primer emoji de portada). No se carga ningún listado hasta que elegís una categoría o buscás.
 
-- **Categoría** (`/emojis?c=…`): trae los emojis de a 60 con **Cargar más**. Mientras llegan se ve un esqueleto y la página aparece entera, de una, cuando cargaron todas sus imágenes. El botón "atrás" del navegador vuelve al inicio.
+- **Categoría** (`/library/emojis?c=…`): trae los emojis de a 60 con **Cargar más**. Mientras llegan se ve un esqueleto y la página aparece entera, de una, cuando cargaron todas sus imágenes. El botón "atrás" del navegador vuelve al inicio.
 - **Búsqueda**: el esqueleto aparece en cascada y los emojis lo van reemplazando **en orden** (izquierda a derecha, arriba a abajo), a medida que cargan.
 - **Click** en un emoji → copia el PNG al portapapeles (o el carácter, si lo cambiás en ajustes).
 - **Buscar + Enter** → copia el primer resultado sin tocar el mouse (si la búsqueda todavía no llegó, lo copia apenas llega).
@@ -222,19 +265,36 @@ Si te olvidás del paso 2 funciona igual: el servidor calcula el índice en memo
 
 Soltás todos los frames juntos y sale un GIF por banner. Todo pasa en el navegador: las imágenes no se suben a ningún lado.
 
-**Cómo nombrar los archivos:** `[prefijo_]ANCHOxALTO_ORDEN[-DURACIÓN].ext`
+**Cómo se agrupan:** los archivos que se llaman igual y terminan en un número son frames del mismo GIF, y el número es el orden.
 
 ```
-300x250_1.jpg           frame 1, duración por defecto
-300x250_2-1.5s.jpg      frame 2, 1,5 segundos
-728x90-1-800ms.png      guion o guion bajo, en segundos o milisegundos
-verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
+banner_1.jpg  banner_2.jpg      un GIF «banner» (separador _, -, espacio, punto o nada)
+Frame 1.png   Frame (2).png     también vale el (2) de las copias
+300x250_1.jpg 300x250_2.jpg     con la medida en el nombre, el GIF se llama «300x250»
+verano_300x600_2-1.5s.jpg       prefijo, medida y duración opcional al final (-1.5s o -800ms)
+summer_1_es.jpg                 si no termina en número se usa el último: GIF «summer_es»
 ```
 
-- Se agrupan por medida (y prefijo) y se ordenan por número. Avisa si falta un frame, si hay uno repetido o si una imagen no tiene la proporción del nombre.
-- En **Frames** de cada grupo se cambia la duración de cada uno, se reordenan o se quitan.
-- **Ajustes** (en la barra): duración por defecto, loop, calidad (cantidad de colores), **peso máximo** y **ajustar al peso máximo**.
-- **Exportar** baja todos en un ZIP; cada tarjeta también baja su GIF suelto. Una vez generado, la tarjeta muestra el **GIF final** (con su compresión real), no los frames originales.
+- Las mayúsculas y los separadores no cuentan: `Banner-1` y `banner_2` van juntos.
+- Si el nombre no dice la medida, se usa la de la imagen, y los de distinta medida van en GIF distintos (un GIF tiene una sola). Si dos GIF quedan con el mismo nombre se les suma la medida (`Frame_300x250`, `Frame_728x90`).
+- Avisa si falta un número del orden, si hay uno repetido o si una imagen no tiene la proporción del GIF.
+
+**Sueltas:** lo dudoso no se agrupa solo. Una imagen sin número, o la única con ese nombre, queda en **Sueltas**, arriba de los GIF:
+
+- Arrastrar una suelta sobre otra arma un GIF nuevo con las dos (se llama como la de abajo); soltarla sobre la tarjeta de un GIF la suma al final.
+- También se eligen con un clic, en el orden que van, y **Armar GIF con N**.
+- En los dos casos se abre **Ordenar** para acomodarlas.
+
+**Ordenar** (en cada tarjeta) es el popup del GIF:
+
+- Los frames se arrastran al lugar que van (con el teclado: ↑ ↓ sobre el elegido). Al ordenar a mano el número del nombre deja de mandar y se van los avisos de orden.
+- Las sueltas aparecen abajo: se arrastran al lugar exacto de la lista o se suman al final con **+**. Un frame arrastrado hasta ahí (o con el botón de sacar) sale del GIF y queda suelto; si el GIF queda con uno solo, ese también vuelve a sueltas.
+- El nombre de arriba se edita: es el del archivo que se descarga.
+- Cada frame tiene su duración (vacío = la de por defecto) y se puede quitar.
+
+**Ajustes** (en la barra): duración por defecto, loop, calidad (cantidad de colores), **peso máximo** y **ajustar al peso máximo**.
+
+**Exportar** baja todos en un ZIP (las sueltas no); cada tarjeta también baja su GIF suelto. Una vez generado, la tarjeta muestra el **GIF final** (con su compresión real), no los frames originales.
 
 ### Compresión
 
@@ -243,7 +303,7 @@ verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
 
 Probado con 6 banners de 2–3 frames (300x250, 300x600, 728x90, 160x600, 320x50, 970x250): GIF válidos, duraciones y loop correctos, y todos dentro de 150 KB.
 
-Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos.
+Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos. Y ya no hace falta la medida en el nombre: un archivo que no sigue el formato queda suelto en vez de descartado.
 
 ---
 
@@ -275,7 +335,7 @@ El botón amarillo de la barra (o `Ctrl + Enter`) copia con formato: donde se en
 
 Las dos burbujas al costado del texto (☺ y #) abren un panel. Arriba del panel se elige de qué cliente mostrar: arranca en el del texto, pero se puede cambiar para ver o cargar los de otro sin tocar el texto (un aviso indica que no es el del texto, con **Volver**).
 
-- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
+- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/library/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
 - **Hashtags**: los del cliente (uno o todos de un click: inserta solo los que faltan), los que ya escribiste en este texto (con un botón para guardarlos en el cliente) y los recientes de tus otras redacciones.
 
 ### Atajos
@@ -313,6 +373,13 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
 - **La ficha** (`/clientes/<id>`), donde se edita todo y se guarda solo:
   - **Logo**: se suelta o se elige (SVG, PNG, JPG, WEBP o GIF, hasta 5 MB). Se elige sobre qué fondo se ve (claro, oscuro o su color: un logo blanco no se ve sobre papel), y se descarga o se cambia desde ahí.
   - **Foto de perfil como logo**: debajo del logo aparece cada una de sus redes con su foto de perfil; marcar una (como un checkbox) la sube como logo, y desmarcarla lo quita. Una foto de perfil se muestra redonda en toda la app, como en la red. Cada red la da de un tamaño: Facebook 720 px, YouTube 900, X 400, LinkedIn 200, Instagram y TikTok solo 100 (sin iniciar sesión no la dan más grande: se avisa que se puede ver borrosa).
+  - **Logos** (todos los del cliente, cada uno con sus formatos): se sueltan o se eligen muchos archivos de una vez (SVG, AI, EPS, PDF, PNG, JPG, WEBP o GIF, hasta 50 MB cada uno).
+    - **Los que se llaman igual son el mismo logo**: `horizontal.svg`, `horizontal.png` y `horizontal.ai` quedan como un logo «Horizontal» con tres formatos. Sin importar mayúsculas, tildes ni separadores (`Logo_Horizontal` = `logo-horizontal`), y sin el nombre del cliente adelante (`Changan_Isotipo.pdf` → «Isotipo»). Un archivo que se llama como un logo que ya estaba se le suma; si ese logo ya tenía ese formato, lo reemplaza.
+    - **Los formatos son etiquetas**: cada una descarga ese archivo (al pasar el mouse dice su medida y su peso). Los vectoriales (SVG, AI, EPS, PDF) van primero y en negro. El **+** suma otro formato al logo, se llame como se llame el archivo (también se le puede soltar encima). Arriba se filtra por formato («solo los SVG») y **Descargar** baja lo que se ve en un .zip, con una carpeta por grupo.
+    - **Cada grupo ocupa una fila**: si tiene más de 4 logos, se ven los primeros 3 y en el cuarto lugar **+N más**, con una muestra de los que faltan; un click lo abre entero y **Mostrar menos** lo vuelve a cerrar. El grupo que recibe logos nuevos se abre solo, para verlos.
+    - **Grupos**: se crean con **Nuevo grupo** (un nombre o uno de los de siempre: Principal, Horizontal, Isotipo, Negativo…), se renombran en el lugar y se suben o bajan desde su menú. Los logos se arrastran de un grupo a otro, o antes de otro logo para ordenarlos; también con **Mover a** en el menú de cada logo. Archivos soltados en un grupo entran en ese grupo. Eliminar un grupo deja sus logos sin grupo (o los borra, si se elige así).
+    - **Cada logo**: nombre editable, el fondo sobre el que se ve (claro, oscuro o su color; al subirlo se elige solo: un logo blanco con transparencia va sobre oscuro), **Usar como logo del cliente** (pasa a ser el de arriba, su cara en toda la app; lo marca la estrella), **Juntar con** otro logo (para dos archivos con nombres distintos que son el mismo logo), **Quitar un formato**, descargar todos sus formatos en un .zip y eliminarlo.
+    - Si el cliente no tenía logo arriba, el primero que se sube con vista previa pasa a serlo. Un logo que se había subido solo arriba se suma a la lista con **Sumarlo**. AI, EPS y PDF no tienen vista previa: se ve el nombre del formato.
   - **Nombre, color y notas**: el color es el que lo identifica en las listas. Las notas son libres (tono, contactos, links).
   - **Redes**: Instagram, TikTok, Facebook, YouTube, X y LinkedIn. Se pega el link al perfil (la red sale sola del link) o se escribe el usuario y se elige la red. Cada una abre su perfil. En Ads, elegir el cliente pone su usuario de Instagram.
   - **Colores**: la paleta, con nombre para cada color. Un click copia el HEX (o el RGB). Si hay logo, sugiere sus colores para sumarlos de un click. La estrella marca el color del cliente.
@@ -320,11 +387,13 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
   - **Productos**: se agregan y se quitan ahí.
   - **Tarjetas** y **Redacciones**: las suyas, con atajos para crear una nueva para el cliente. Las redacciones son las tuyas (las de los demás no se ven).
   - **Emojis y hashtags**: los que guardaste para el cliente desde los paneles de Redacción. Un click copia.
-  - **Eliminar cliente**: borra su ficha, su logo y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
+  - **Eliminar cliente**: borra su ficha, sus logos y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
 
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+Para los **logos** (varios por cliente, en grupos y con sus formatos), corré `supabase/migracion-logos.sql`: suma a `brands` los logos (`logos`) y sus grupos (`logo_groups`), y deja que el bucket `logos` acepte PDF, AI y EPS de hasta 50 MB. Se puede repetir. Sin ella, la ficha avisa en Logos y todo lo demás (incluido el logo de arriba) anda igual. Cada logo y cada archivo están en `lib/types.ts` (`BrandLogo`, `LogoFile`); cómo se juntan los archivos por nombre, se mueven y se borran los que quedan sin usar, en `lib/clients/logos.ts`; la pantalla, en `components/clients/profile/LogosSection.tsx` y `LogoTile.tsx`.
 
 Para las **redes**, después corré `supabase/migracion-redes.sql`: suma a `brands` las cuentas (`socials`) y de cuál salió el logo (`logo_from`). Se puede repetir. Sin ella, la ficha avisa en Redes y todo lo demás (incluido subir un logo a mano) anda igual. La foto de perfil la busca `GET /api/clientes/foto?red=…&cuenta=…` (solo con sesión del estudio): lee la página pública de cada red y devuelve la imagen, solo si viene del CDN de esa red.
 
@@ -451,7 +520,7 @@ Cada archivo que alguien baja (o sube a Drive) desde Descargas queda anotado en 
 
 ### Drive: activarlo (una sola vez)
 
-En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOOGLE_OAUTH_CLIENT_ID`):
+En el proyecto de Google Cloud del cliente OAuth que ya usa Presentaciones (`GOOGLE_OAUTH_CLIENT_ID`):
 
 1. **APIs y servicios → Biblioteca**: habilitar *Google Drive API* y *Google Picker API*.
 2. **Credenciales → Crear credenciales → Clave de API**: restringirla a *Google Picker API* y, en "Restricciones de aplicaciones", a sitios web: el dominio de producción, el de testing/preview y `http://localhost:3000`. Va en `GOOGLE_PICKER_API_KEY`.
@@ -467,7 +536,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 
 **Cómo se usa**
 
-1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
+1. **Agregar pieza** (barra de arriba): se elige qué es, como en Presentaciones: **post**, **carrusel**, **reel** o **historia**.
 2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
 3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
 4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Arriba de cada teléfono va su nombre (y, si Meta lo adapta, cómo) y debajo sus acciones: **ver en pantalla completa**, copiar o descargar ese mockup. Tocar el teléfono también lo abre en grande, sobre un fondo oscuro y del tamaño que entre en la ventana (en un carrusel, con sus flechas); se cierra con la X, tocando afuera o con `Esc`.
@@ -506,6 +575,32 @@ Los mockups adaptados lo dicen debajo del teléfono.
 **Descargas**: cada teléfono copia o descarga su mockup; cada fila baja todos los suyos (un `.zip` si son varios); **descargar todo** arma un `.zip` con una carpeta por pieza (`01 Post - nombre/Feed.png`, `02 Carrusel - nombre/Feed - 2 de 5.png`…). Son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes); de un video sale el cuadro que se está viendo (o, en lote, uno de adentro). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes).
 
 **Cómo está hecho**: los tipos de pieza, los mockups, qué se marca por defecto y dónde va el creativo están en `lib/ads/placements.ts`; los textos en los dos idiomas en `lib/ads/text.ts`; la zona segura (con la columna de íconos) y qué texto cae afuera, en `lib/ads/safe.ts`; la búsqueda de texto, en `lib/ads/textScan.ts`. Cada mockup se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías): en pantalla el creativo va en un `<img>`/`<video>` debajo (así los videos se reproducen) y al descargar se dibuja adentro. Las piezas y la lectura de archivos están en `components/ads/pieces.ts`; el diálogo en `AddPieceDialog.tsx`, cada fila en `PieceRow.tsx` y la configuración en `AdsSettings.tsx`. Nada se sube a ningún lado: los archivos se abren en el navegador.
+
+---
+
+## Retoque
+
+Quitarle el fondo a una imagen con la API de [Magnific](https://www.magnific.com/api) (lo que antes era la API de Freepik). Sale un PNG con el fondo transparente, del mismo tamaño que la original (hasta 25 MP). Es el primer retoque: el módulo está pensado para sumar más (agrandar, cambiar la luz, ampliar el formato…).
+
+- **Agregar**: elegir, arrastrar o pegar (Ctrl+V, desde cualquier parte de la página) una o varias imágenes. Se procesan solas apenas entran, de a dos (Magnific limita los pedidos simultáneos). Cada imagen gasta créditos de Magnific.
+- **Cada tarjeta** muestra en qué paso va (preparando, subiendo, quitando el fondo, bajando el PNG) y, al terminar, el resultado. **Pasando el mouse** (o el dedo) por la imagen se ve la original de un lado de la línea, para comparar los bordes. Se copia (para pegar en Figma, Illustrator o un chat) o se descarga como `nombre (sin fondo).png`. Si falla dice por qué y se puede reintentar.
+- **La barra**: agregar imágenes; sobre qué ver el resultado (cuadriculado para ver la transparencia, blanco o negro para ver los bordes; se recuerda en la cuenta); vaciar la lista; y **Descargar** (con varias, un ZIP `Sin fondo.zip`).
+- **Lo que acepta Magnific**: JPG o PNG de hasta 20 MB y 25 MP. Lo demás (WEBP, GIF, AVIF, una foto enorme) la página lo pasa a JPG, y si hace falta lo achica, antes de subirlo; la tarjeta lo avisa con un ícono ámbar. HEIC solo si el navegador lo abre (Safari sí, Chrome no): si no, pasarla a JPG en el Conversor.
+
+### Cómo funciona
+
+Magnific solo recibe imágenes **por URL**, así que la imagen tiene que estar un rato en internet:
+
+1. La página la prepara (`lib/retoque/prepare.client.ts`) y la sube al bucket **privado** `retoque` de Supabase, en la carpeta de la cuenta de quien la sube (`<id de la cuenta>/<uuid>.jpg`).
+2. `POST /api/retoque/fondo` (`app/api/retoque/fondo/route.ts`) firma un link a esa imagen que vence a los 10 minutos y se lo pasa a Magnific (`POST /v1/ai/beta/remove-background`, que contesta al toque, sin tarea para consultar después). Al terminar, salga bien o mal, **borra la imagen subida** (y lo que haya quedado de más de una hora, por si alguien cerró la pestaña a mitad de camino).
+3. Magnific devuelve la URL del PNG, que vence a los 5 minutos. El servidor no la baja: le da a la página un link firmado a `/api/magnific/archivo` (edge), que lo trae de Magnific y se lo pasa a la página, que lo guarda en memoria para mostrarlo, copiarlo o meterlo en el ZIP. Esa ruta solo baja URLs que firmó una ruta nuestra (con la key de Magnific como clave, `lib/magnific/firma.ts`), así que no es un proxy abierto, y solo les manda la key a los dominios de Magnific. La usan también los íconos de Librerías.
+
+La key vive solo en el servidor (`lib/magnific/api.ts`, header `x-magnific-api-key`; el pedido de quitar fondo está en `lib/retoque/fondo.ts`). Los errores de Magnific se traducen ahí (key inválida, sin créditos, plan sin la función, demasiados pedidos). La cola de cada página está en `hooks/useRetoqueQueue.ts` y la pantalla en `components/retoque/`.
+
+### Activarlo (una sola vez)
+
+1. Sacar una API key en [magnific.com/api](https://www.magnific.com/api) y cargarla como `MAGNIFIC_API_KEY` en `.env.local` y en Vercel (**Settings → Environment Variables**, sin `NEXT_PUBLIC_`). Después, *Redeploy*.
+2. En Supabase → SQL Editor, correr `supabase/migracion-retoque.sql` (después de `migracion-acceso.sql`). Crea el bucket privado `retoque` (JPG y PNG, hasta 20 MB) con la regla de que cada uno solo sube, lee y borra en su carpeta. Se puede correr más de una vez. Sin ella, las tarjetas avisan que falta correrla.
 
 ---
 
@@ -574,6 +669,76 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 
 ---
 
+## Board: notificaciones de Basecamp
+
+La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en el Board) y muestra **primero lo que es para vos**. Veinte comentarios de algo que no es tuyo nunca tapan una mención o una tarea tuya que vence mañana.
+
+- **A quién le llega.** Cada aviso se reparte solo a quien le importa, con un motivo: **te nombraron** (@vos), **te la asignaron** (en Basecamp, o te la pasaron en el Board), **tu tarea** (asignada, tomada o sos el designado de esa etapa), **tu conversación** (la creaste, comentaste o te nombraron ahí) o **tu marca** (algo de una marca tuya, en tu sector: una card de Medios de Amstel no le llega a la redactora de Amstel; Cuentas sigue todos los tableros de sus marcas). A quien no le corresponde nada de eso, no le llega nada. Lo que hace uno mismo no le avisa.
+- **Cómo se ordena.** Se agrupa por conversación ("5 comentarios" es una fila). Arriba, **Para vos, ahora**: menciones, asignaciones y novedades en algo tuyo vencido o que vence hoy o mañana. Después **tus tareas y conversaciones**. Lo de **tus marcas** que no es tuyo no aparece en "Para mí" (ni suma al número de la campanita): está en **Todo**, plegado. Dentro de cada grupo manda un puntaje: el motivo (mención 5, asignación 4, tu tarea 3, tu conversación 2, tu marca 1) más lo urgente de la tarea (vencida +4, vence pronto +2).
+- **Filtros**: Para mí · Menciones · Todo, y el orden: **Prioridad** o **Recientes**. Se recuerdan en la cuenta de cada uno.
+- Tocar una fila la abre en Basecamp (en la respuesta exacta) y la marca como leída; si es una card, **Ver en el Board** abre la tarea. Con la app abierta, solo lo de "Para vos, ahora" muestra además un aviso.
+- **Solo si me citan / ocultar.** En cualquier tarea (en su detalle, o con la campanita tachada de cada fila) cada uno elige que de esa tarea solo le llegue lo que lo nombra o se la pasa. **Ocultarla** además la saca de su tablero (se ve con *Ocultas*). Lo elige cada uno para sí, queda en la base (sirve en todos lados) y lo que no se tiene que avisar ni se guarda.
+- **Fechas que sirven.** Casi ninguna fecha de Basecamp está al día. Cada tarea puede tener su **fecha de entrega en la app** (en su detalle; Basecamp no se toca), que manda sobre la de Basecamp. Si la de Basecamp venció hace más de 14 días y no hay otra, la tarea queda como **Fecha vieja**: no se pone roja ni sube en la campanita, y en Mi tablero un botón las junta para ponerles fecha. Lo que espera a otro (validación o cliente) tampoco se pone rojo.
+- Los avisos llegan al instante por **webhooks** de Basecamp, que además dejan la card al día en el Board (columna, asignados, comentarios) sin esperar a la sincronización.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-notificaciones.sql`, después de `migracion-integraciones.sql`, `migracion-board.sql`, `migracion-equipo.sql` y `migracion-flujo.sql`. Se puede repetir.
+2. Que la app publicada sepa su dirección: en Vercel alcanza con el dominio de producción; si no, `APP_URL=https://…` (tiene que ser https: Basecamp no avisa a otra cosa).
+3. Sincronizar Basecamp desde la app publicada (Board → Basecamp → Actualizar). El paso **Avisos al instante** registra un webhook en cada proyecto activo y guarda el hash de la llave. Abajo de la sincronización dice en cuántos proyectos quedaron.
+
+Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
+
+**Modo de prueba en un preview.** Para probar los avisos antes de producción, en una sola rama:
+
+1. Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: crear el secreto. Vercel lo pasa a los deploys como `VERCEL_AUTOMATION_BYPASS_SECRET`, y Basecamp lo manda en la URL para pasar la protección del preview.
+2. Agregar `BASECAMP_WEBHOOKS_EN_PREVIEW=1` en el entorno Preview, solo para esa rama.
+3. Volver a hacer el deploy de la rama y sincronizar desde su link fijo. Los webhooks quedan apuntando a ese link (`VERCEL_BRANCH_URL`) hasta que se sincronice desde producción, que los vuelve a apuntar a la app publicada.
+
+### La conexión con Basecamp (solo admins)
+
+Hay dos cuentas de Basecamp distintas:
+
+- **La del estudio**: una sola, la autoriza un **admin de Basecamp** y trae todo (proyectos, tareas, gente y los avisos al instante). La ven y la manejan solo los admins de la app, en Board → Basecamp.
+- **La personal de cada uno**: su persona de Basecamp, que se vincula sola por el mail. De ahí salen sus tareas y sus notificaciones. No hay que conectar nada.
+
+Si quien administra la app no es admin de Basecamp, en Board → Basecamp genera un **link para un admin de Basecamp**. Se lo manda (ej: a Milena), ella lo abre, autoriza con su cuenta y listo: no necesita entrar a la app. El link vale 24 h y una sola vez; generar otro invalida el anterior. Después la conexión se renueva sola. Si la cuenta que autorizó no es admin de Basecamp, la página lo avisa: la app solo ve los proyectos donde está esa persona.
+
+- **Roles**: los admins de Basecamp pasan a ser admins de la app al sincronizar. Si un admin le cambia el rol a alguien a mano, queda fijo y la sincronización no lo vuelve a tocar.
+- **Organización y Basecamp** son solo para admins (la base también lo frena: solo un admin lee la conexión, sincroniza o genera el link). Las designaciones de marcas ahora las carga un admin.
+- Activarlo: correr `supabase/migracion-basecamp-conexion.sql` después de `migracion-notificaciones.sql`. En un preview, el link solo lo puede abrir quien tenga acceso al preview en Vercel: para mandárselo a alguien de afuera, usar **Share** en el deploy.
+
+### Cómo funciona por dentro
+
+- Basecamp no firma los avisos: la URL (`/api/basecamp/webhook?llave=…`) lleva una llave que sale de `INTEGRACIONES_SECRET`. En la base queda solo su hash, y `bc_recibir_evento` (la única puerta, sin sesión) valida cada aviso contra él. Cambiar `INTEGRACIONES_SECRET` invalida la llave hasta la próxima sincronización, que la actualiza en cada webhook.
+- Basecamp reintenta hasta 10 veces un aviso que no conteste 2xx y después **apaga el webhook**. La sincronización revisa cada proyecto una vez por día y lo vuelve a prender.
+- Las menciones se reconocen por el `<bc-attachment sgid="…">` de Basecamp (adentro viene el id de la persona).
+- Cada uno ve solo sus notificaciones (RLS). Se guardan 45 días; los eventos, 90.
+
+## Presentaciones
+
+Donde se prepara el material de una tarea para mostrárselo al cliente. Cada presentación es de un **tipo**: Planificación (el contenido orgánico del mes), Pauta, Leads / Ads, Programática / YouTube, o uno nuevo que se crea desde la app ("Otro tipo" al crear una). El tipo se ve siempre como una etiqueta de color.
+
+- **Desde Basecamp**: cada tipo tiene palabras con las que se lo reconoce en el título de una tarea ("plani", "leads", "programatica"…). Las tareas vivas que coinciden y todavía no tienen presentación aparecen en *Para arrancar*. Basecamp solo se lee: la app nunca escribe ahí. Se ven de a 6, con *Ver más* y un buscador (por tarea o marca); la búsqueda la hace la base.
+- **Por rol**: cada uno abre la vista de su sector (Redacción, Diseño o CM) y ve lo suyo. Redacción: copys, indicaciones, links e **inspiración** (imágenes que sube para Diseño; el cliente no las ve y no entran en la descarga). Diseño: lo que pidió Redacción y el material final para subir al Drive. CM: el material para bajar y lo programado.
+- **Etapas que mueven el Board**: con "Redacción lista → Diseño" (y así en cada etapa) la presentación pasa de etapa y, si está vinculada a una tarea, la tarea pasa a esa etapa en el Board y al designado de la marca en ese sector le llega el aviso. Solo en la app: Basecamp no se toca. Si hay ajustes, se vuelve a la etapa anterior desde el mismo paso a paso. Desde la tarea en el Board se abre su presentación.
+- **Y al revés**: si la tarea cambia de etapa en el Board (alguien la arrastra) o la card pasa de columna en Basecamp, la presentación pasa a la etapa que corresponde. Las tareas con presentación siguen a Basecamp en el momento en que llega el aviso (las demás, al abrir el Board, como siempre). Si la card se mueve en Basecamp, manda Basecamp.
+- **Las herramientas de la app, adentro**: cada tipo dice qué herramientas usa (se elige al crearlo). Con **Ads** (Leads, Pauta), cada pieza se ve como el anuncio real, en Feed, Reels o Historia según los lugares que elige Redacción, con el título y el botón (CTA); el cliente lo ve igual en su link. Con **GIF** (Programática), aparece el formato **Banner** con su medida (300×250, 728×90… o una a mano), y Diseño arma el GIF ahí mismo con los frames, con un peso máximo (150 KB por defecto); el GIF queda como material final.
+- **Comentarios**: en cada pieza y en los generales. Se puede **responder** a un comentario (queda abajo, en el mismo hilo) y **nombrar con @** a alguien del equipo. A la campanita le llega a quien nombraste, a los designados de la marca (Redacción, Diseño, CM y Cuentas), a quien tiene la tarea y a los que ya comentaron esa pieza; tocar el aviso abre la presentación en esa pieza. Lo que comenta el cliente también avisa.
+- **El mes** sale de la tarea ("Plani Octubre" es de octubre; en diciembre, "Plani Enero" es del año que viene). Se cambia en *Más*, y al vincular una tarea de otro mes la presentación pasa a ese. En el tablero, las de meses anteriores que no están listas siguen apareciendo, con su mes marcado.
+- **Drive**: el material va a las carpetas del estudio, como ya las ordenan: **PAUTAS DIGITAL / 2026 / MARCA / 10_OCTUBRE / Plani** (o *Anuncios*, según la carpeta de cada tipo), en una carpeta por día. La marca se busca por nombre (sin importar mayúsculas ni tildes) y se recuerda; el año, el mes y la carpeta del tipo se crean si faltan. Si la marca no aparece, lo que se sube queda en *Sin carpeta* hasta que alguien elija la carpeta (la sugerida, pegando un link o buscándola) y ahí se mueve, sin volver a subir nada. **Sin carpeta no se pasa de Diseño a Revisión.** Nadie necesita acceso propio al Drive: la app muestra todo con la conexión del estudio.
+- **Rápido**: el tablero trae solo lo que muestra cada tarjeta (sus números y hasta 3 imágenes), no las piezas enteras, y no espera a sincronizar Basecamp. Cuando ya está todo a la vista, precarga las presentaciones de tu etapa (si sos de Diseño, las que están en Diseño), así abrirlas es al toque.
+- **Para el cliente**: un link privado (`/p/<token>`) donde la ve, comenta y aprueba sin cuenta. Las credenciales del Drive nunca salen del servidor: la base solo confirma que el archivo es de esa presentación, y el servidor abre el Drive con una llave propia (sale de `INTEGRACIONES_SECRET`, que tiene que estar como *Sensitive* en Vercel).
+- **Descargas**: el material baja de a pedazos y va directo a un archivo en la compu (en Chrome y Edge), así ni un .zip de varios GB pasa por la memoria del navegador.
+
+En el código se sigue llamando `plani` (empezó como la planificación del mes): `components/plani`, `lib/plani`.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql`, `supabase/migracion-presentaciones-cliente.sql` y `supabase/migracion-presentaciones-board.sql`, en ese orden (después de `migracion-integraciones.sql`, `migracion-equipo.sql`, `migracion-flujo.sql` y `migracion-notificaciones.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
+2. En Google Cloud, en el cliente OAuth del Drive: sumar el permiso `https://www.googleapis.com/auth/drive` en la pantalla de consentimiento (*Data access*) y dejar la app **en producción** (*In production*): en "Testing" la conexión se vence cada 7 días. Como Google no la revisó, al conectar muestra "Google no verificó esta app": *Avanzado → Ir a …*. Solo lo ve quien conecta.
+3. Un admin conecta el Drive del estudio (Presentaciones → Basecamp y Drive) con la cuenta que tiene PAUTAS DIGITAL, y pega el link de esa carpeta como raíz. Además de lo anterior, necesita `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e `INTEGRACIONES_SECRET`, y la dirección de vuelta `/api/auth/google/callback` en el cliente OAuth de Google Cloud.
+
 ## Stack
 
-Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional)
+Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional) · Magnific (Retoque e Íconos) · GIPHY (GIFs)

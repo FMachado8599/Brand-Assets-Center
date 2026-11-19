@@ -1,29 +1,23 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+// Solo tipos (se borran al compilar): el cliente no carga nada del servidor.
+import type { BasecampDatos } from "@/lib/integraciones/basecamp";
+import type { SyncResumen } from "@/lib/integraciones/basecamp-sync";
 
+/** La fila de bc_sync, tal como la devuelve /api/integraciones. */
 export type SyncInfo = {
   ultimo: string | null;
   ultimo_error: string | null;
   corriendo_desde: string | null;
   tareas_hasta: string | null;
-  resumen: {
-    personas?: number;
-    proyectos?: number;
-    clientesNuevos?: string[];
-    vinculados?: string[];
-    miembros?: number | null;
-    tareas?: number;
-    columnas?: number;
-    completa?: boolean;
-    requests?: number;
-  } | null;
+  resumen: SyncResumen | null;
 };
 
 export type Integraciones = {
   listo: { secreto: boolean; basecamp: boolean; google: boolean };
-  basecamp: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: Record<string, unknown> } | null;
-  google: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: { raiz_url?: string | null } } | null;
+  basecamp: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: BasecampDatos } | null;
+  google: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: { raiz_url?: string | null; raiz_nombre?: string | null; completo?: boolean } } | null;
   sync: SyncInfo | null;
 };
 
@@ -68,7 +62,10 @@ export function useIntegraciones() {
   return {
     ...snap,
     driveOk: Boolean(snap.data?.google),
+    /** La conexión se ve (solo la ven los admins): se puede sincronizar o desconectar. */
     basecampOk: Boolean(snap.data?.basecamp),
+    /** Hay datos de Basecamp para leer (tareas, proyectos): para todo el estudio, sea admin o no. */
+    hayBasecamp: Boolean(snap.data?.basecamp || snap.data?.sync?.ultimo),
     refresh: refreshIntegraciones,
   };
 }

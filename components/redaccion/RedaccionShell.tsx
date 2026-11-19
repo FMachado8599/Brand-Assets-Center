@@ -32,6 +32,7 @@ import {
 import { toast } from "@/components/ui/toaster";
 import { useBrandKits, useBrands } from "@/hooks/useBrandKits";
 import { useRedacciones } from "@/hooks/useRedacciones";
+import { usePrediccion } from "@/hooks/usePrediccion";
 import { slim, useSharedEmojis } from "@/hooks/useSharedEmojis";
 import { copyPlain, copyRich } from "@/lib/cards/clipboard";
 import { charFor, type CategorySummary, type EmojiEntry } from "@/lib/emojis/types";
@@ -363,6 +364,13 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
 
   const inText = useMemo(() => extractHashtags(text), [text]);
 
+  /** Texto predictivo con el vocabulario del cliente del texto: sus planis y las otras redacciones suyas. */
+  const otrosDelCliente = useMemo(
+    () => store.items.filter((r) => r.brandId === brandId && r.id !== currentId).map((r) => r.body),
+    [store.items, brandId, currentId]
+  );
+  const predecir = usePrediccion(brandId, otrosDelCliente);
+
   /** Hashtags de tus otras redacciones, de la más nueva a la más vieja. */
   const recentTags = useMemo(() => {
     const seen = new Set<string>();
@@ -570,6 +578,7 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
                   emojiPool={emojiPool}
                   hashtagPool={hashtagPool}
                   onEmojiUsed={emojis.remember}
+                  predecir={predecir}
                   placeholder="Escribí acá…  ( : + nombre para emojis · # para hashtags )"
                   className="flex-1"
                 />

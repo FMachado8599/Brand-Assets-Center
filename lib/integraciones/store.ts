@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "./crypto";
+import { ReconectarError } from "./reconectar";
 
 export type Proveedor = "basecamp" | "google" | "influencity";
 
@@ -41,13 +42,24 @@ export async function leerConexion(db: SupabaseClient, proveedor: Proveedor): Pr
   const { data, error } = await db.from("integraciones").select("*").eq("proveedor", proveedor).maybeSingle<Row>();
   if (error) throw new Error(error.message);
   if (!data) return null;
+  let accessToken: string;
+  let refreshToken: string | null;
+  try {
+    accessToken = decrypt(data.access_token);
+    refreshToken = data.refresh_token ? decrypt(data.refresh_token) : null;
+  } catch {
+    const nombre = proveedor === "basecamp" ? "Basecamp" : proveedor === "google" ? "Google Drive" : proveedor;
+    throw new ReconectarError(
+      `La conexión con ${nombre} no se puede usar acá: se hizo desde otro lado. Volvé a conectar ${nombre} (lo hace un admin).`
+    );
+  }
   return {
     proveedor: data.proveedor,
     cuenta_id: data.cuenta_id,
     cuenta_nombre: data.cuenta_nombre,
     conectada_por: data.conectada_por,
-    accessToken: decrypt(data.access_token),
-    refreshToken: data.refresh_token ? decrypt(data.refresh_token) : null,
+    accessToken,
+    refreshToken,
     expira: data.expira ? new Date(data.expira) : null,
     datos: data.datos ?? {},
     conectada: data.conectada,
@@ -114,6 +126,12 @@ export async function guardarDatos(db: SupabaseClient, proveedor: Proveedor, dat
 export async function borrarConexion(db: SupabaseClient, proveedor: Proveedor) {
   const { error } = await db.from("integraciones").delete().eq("proveedor", proveedor);
   if (error) throw new Error(error.message);
+}
+
+/** Si quien hace el pedido es admin de la app (equipo.rol). false si todavía no existe la función. */
+export async function esAdminApp(db: SupabaseClient) {
+  const { data, error } = await db.rpc("es_admin");
+  return !error && data === true;
 }
 
 /** El origen público de la app (para armar las URLs de vuelta de OAuth). */

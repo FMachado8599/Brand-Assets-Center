@@ -33,6 +33,9 @@ create table if not exists public.tarea_flujo (
   updated_by uuid references public.equipo(id) on delete set null
 );
 create index if not exists tarea_flujo_responsable_idx on public.tarea_flujo (responsable_id);
+-- La fecha de entrega que se pone en la app (Cuentas). Manda sobre la de Basecamp, que casi nunca
+-- se actualiza: así una tarea solo se pone roja cuando de verdad se pasó. null = la de Basecamp.
+alter table public.tarea_flujo add column if not exists entrega date;
 
 -- Todo lo que le pasa a una tarea: cambios de etapa (en la app o en Basecamp), quién la tomó,
 -- pausas, fechas y validaciones. Es lo que siguen Cuentas.
@@ -48,6 +51,10 @@ create table if not exists public.tarea_movimientos (
   creado timestamptz not null default now()
 );
 create index if not exists tarea_movimientos_tarea_idx on public.tarea_movimientos (tarea_id, creado desc);
+-- 'entrega': cambió la fecha de entrega de la app (las tablas viejas no lo tenían).
+alter table public.tarea_movimientos drop constraint if exists tarea_movimientos_tipo_check;
+alter table public.tarea_movimientos add constraint tarea_movimientos_tipo_check
+  check (tipo in ('etapa', 'responsable', 'pausa', 'fecha', 'entrega', 'validacion'));
 
 -- 2. De Basecamp a la etapa de la app ------------------------------------
 -- null = no cambia la etapa (Not now: la tarea queda en pausa donde estaba; columnas propias de un
@@ -313,6 +320,31 @@ begin
 end;
 $$;
 
+-- La fecha de entrega de la app. null = volver a la de Basecamp. Basecamp no se toca.
+create or replace function public.tarea_entrega(p_tarea bigint, p_fecha date, p_nota text default null)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  yo uuid := public.flujo_chequear();
+  antes date;
+begin
+  if yo is null then
+    raise exception 'Para cambiar la fecha tenés que estar en el equipo';
+  end if;
+  perform public.flujo_asegurar(p_tarea);
+  select entrega into antes from public.tarea_flujo where tarea_id = p_tarea;
+  if antes is not distinct from p_fecha then
+    return;
+  end if;
+  update public.tarea_flujo
+     set entrega = p_fecha,
+         updated_at = now(),
+         updated_by = yo
+   where tarea_id = p_tarea;
+  insert into public.tarea_movimientos (tarea_id, tipo, de, a, nota, autor_id)
+  values (p_tarea, 'entrega', antes::text, p_fecha::text, nullif(trim(p_nota), ''), yo);
+end;
+$$;
+
 -- "Lo vi y está bien": queda en el historial; la tarea pasa a Cliente cuando alguien la mueve.
 create or replace function public.tarea_validar(p_tarea bigint, p_nota text default null)
 returns void language plpgsql security definer set search_path = '' as $$
@@ -335,6 +367,8 @@ revoke execute on function public.tarea_asignar(bigint, uuid, double precision) 
 revoke execute on function public.tarea_pausar(bigint, boolean, text) from anon;
 revoke execute on function public.tarea_vigencia(bigint, date, text, text) from anon;
 revoke execute on function public.tarea_validar(bigint, text) from anon;
+revoke execute on function public.tarea_entrega(bigint, date, text) from public, anon;
+grant execute on function public.tarea_entrega(bigint, date, text) to authenticated;
 
 -- 5. Para leer de una ------------------------------------------------------
 create or replace view public.board_flujo with (security_invoker = true) as
@@ -346,7 +380,8 @@ select b.*,
        f.pausa_motivo,
        f.vigente_hasta,
        f.vigente_origen,
-       coalesce(f.vigente_hasta, b.vence) as vigencia
+       coalesce(f.vigente_hasta, b.vence) as vigencia,
+       f.entrega
   from public.board_tareas b
   left join public.tarea_flujo f on f.tarea_id = b.id;
 

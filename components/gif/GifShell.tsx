@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Download, FileWarning, HelpCircle, ImagePlus, Loader2, Settings2, Trash2, Upload, X } from "lucide-react";
 import { BarAction, BarButton, BarDivider, BarPopover, ContextBar } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
@@ -9,28 +9,65 @@ import { useGifProject } from "@/hooks/useGifProject";
 import { useStoredState } from "@/hooks/useStoredState";
 import { formatMs } from "@/lib/gif/parse";
 import { DEFAULT_GIF_SETTINGS, type GifSettings } from "@/lib/gif/types";
+import type { Frame } from "@/lib/gif/types";
 import { cn } from "@/lib/utils";
+import { isFileDrag, useFrameDrag } from "./drag";
 import { GifSettingsPanel, NamingGuide } from "./GifPanels";
 import { GroupCard } from "./GroupCard";
 import { GroupDialog } from "./GroupDialog";
+import { LooseTray } from "./LooseTray";
 
 const ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
 
 export function GifShell() {
   const [settings, setSettings] = useStoredState<GifSettings>("gif:ajustes", DEFAULT_GIF_SETTINGS);
   const project = useGifProject(settings);
-  const { groups, invalid, frames } = project;
+  const { groups, loose, invalid, frames } = project;
   const [onlyWarnings, setOnlyWarnings] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [exporting, setExporting] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
+  /** Hay archivos de la compu arrastrándose sobre la página. */
+  const [fileOver, setFileOver] = useState(false);
+  /** Las sueltas elegidas con un clic, en el orden en que van a quedar en el GIF. */
+  const [selected, setSelected] = useState<string[]>([]);
+  const drag = useFrameDrag();
   const inputRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
 
   const withWarnings = groups.filter((g) => g.warnings.length);
   const visible = onlyWarnings ? withWarnings : groups;
-  const editingGroup = groups.find((g) => g.key === editing) ?? null;
+  // Se busca entre todos los grupos: si al ordenar queda uno solo, el diálogo sigue abierto para sumarle otra.
+  const editingGroup = project.all.find((g) => g.key === editing) ?? null;
   const hasContent = frames.length > 0 || invalid.length > 0;
+  const framesInGifs = groups.reduce((n, g) => n + g.frames.length, 0);
+  const draggingLoose = !!drag.id && loose.some((f) => f.id === drag.id);
+
+  // Si el GIF que se estaba ordenando ya no existe (se quitaron todos sus frames), se cierra del todo: si
+  // no, volvería a abrirse solo al subir otra vez un archivo con ese nombre.
+  useEffect(() => {
+    if (editing && !editingGroup) setEditing(null);
+  }, [editing, editingGroup]);
+
+  // Si una elegida se agrupó o se quitó, deja de estar elegida.
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = prev.filter((id) => loose.some((f) => f.id === id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [loose]);
+
+  /** Arma un GIF con sueltas: la primera pone el grupo y las demás se suman detrás, en ese orden. */
+  const combine = (target: Frame, ids: string[]) => {
+    drag.end();
+    project.addToGroup(ids, target.groupKey);
+    setSelected([]);
+    setEditing(target.groupKey);
+  };
+
+  const makeGif = () => {
+    const [first, ...rest] = selected.map((id) => loose.find((f) => f.id === id)).filter(Boolean);
+    if (first && rest.length) combine(first, rest.map((f) => f.id));
+  };
 
   const pick = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -76,13 +113,15 @@ export function GifShell() {
     <div
       className="min-h-screen"
       onDragOver={(e) => {
+        if (!isFileDrag(e)) return;
         e.preventDefault();
-        setDragging(true);
+        setFileOver(true);
       }}
-      onDragLeave={(e) => e.currentTarget === e.target && setDragging(false)}
+      onDragLeave={(e) => e.currentTarget === e.target && setFileOver(false)}
       onDrop={(e) => {
+        if (!isFileDrag(e)) return;
         e.preventDefault();
-        setDragging(false);
+        setFileOver(false);
         pick(e.dataTransfer.files);
       }}
     >
@@ -100,7 +139,7 @@ export function GifShell() {
           disabled={!withWarnings.length && !onlyWarnings}
           onClick={() => setOnlyWarnings((v) => !v)}
         />
-        <BarPopover label="Cómo nombrar los archivos" icon={HelpCircle} className="w-80">
+        <BarPopover label="Cómo se arman los GIF" icon={HelpCircle} className="w-80">
           <NamingGuide />
         </BarPopover>
         {hasContent && <BarButton label="Vaciar" icon={Trash2} onClick={clearAll} />}
@@ -130,7 +169,8 @@ export function GifShell() {
             <div className="mb-6 text-center">
               <h2 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">GIFs desde frames</h2>
               <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-                Soltá todas las imágenes de una vez: se agrupan por medida, se ordenan por número y sale un GIF por banner.
+                Soltá todas las imágenes de una vez: las que se llaman igual y terminan en número (banner_1, banner_2…) forman
+                un GIF. Las demás quedan sueltas y se agrupan arrastrando una sobre otra.
               </p>
             </div>
             <button
@@ -138,7 +178,7 @@ export function GifShell() {
               onClick={() => inputRef.current?.click()}
               className={cn(
                 "flex w-full flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-foreground/10 bg-card/80 px-6 py-14 text-center shadow-sm transition-colors hover:border-primary",
-                dragging && "border-primary bg-primary/10"
+                fileOver && "border-primary bg-primary/10"
               )}
             >
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/25">
@@ -149,7 +189,7 @@ export function GifShell() {
               </span>
               <span className="text-sm text-muted-foreground">o arrastralos acá · JPG, PNG, WebP</span>
               <span className="mt-1 flex flex-wrap justify-center gap-1.5">
-                {["300x250_1.jpg", "300x250_2-1.5s.jpg", "728x90-1-800ms.png"].map((n) => (
+                {["banner_1.jpg", "banner_2.jpg", "300x250_2-1.5s.jpg"].map((n) => (
                   <code key={n} className="rounded-full bg-secondary px-2.5 py-0.5 font-mono text-[11px] text-foreground/80">
                     {n}
                   </code>
@@ -161,10 +201,11 @@ export function GifShell() {
             </p>
           </div>
         ) : (
-          <div className={cn("flex flex-col gap-6", dragging && "opacity-60")}>
+          <div className={cn("flex flex-col gap-6", fileOver && "opacity-60")}>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <Stat>{frames.length} frames</Stat>
+              <Stat>{framesInGifs} frames</Stat>
               <Stat>{groups.length} GIF</Stat>
+              {loose.length > 0 && <Stat>{loose.length} sueltas</Stat>}
               {withWarnings.length > 0 && <Stat tone="warn">{withWarnings.length} con avisos</Stat>}
               {invalid.length > 0 && <Stat tone="error">{invalid.length} sin leer</Stat>}
               <Stat>
@@ -181,6 +222,19 @@ export function GifShell() {
               )}
             </div>
 
+            {loose.length > 0 && (
+              <LooseTray
+                frames={loose}
+                drag={drag}
+                selected={selected}
+                onToggle={(id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
+                onClearSelection={() => setSelected([])}
+                onCombine={(target, id) => combine(target, [id])}
+                onMakeGif={makeGif}
+                onRemove={project.removeFrame}
+              />
+            )}
+
             {visible.length > 0 && (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {visible.map((group) => (
@@ -193,6 +247,13 @@ export function GifShell() {
                     onEdit={() => setEditing(group.key)}
                     onDownload={() => safely(() => project.downloadGroup(group))}
                     onMeasure={() => safely(() => project.render(group))}
+                    canDrop={draggingLoose}
+                    onDropFrame={() => {
+                      if (!drag.id) return;
+                      drag.end();
+                      project.addToGroup([drag.id], group.key);
+                      setEditing(group.key);
+                    }}
                   />
                 ))}
               </div>
@@ -228,7 +289,7 @@ export function GifShell() {
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Renombralos con el formato <code className="font-mono">300x250_1.jpg</code> y volvé a subirlos: se reemplazan solos.
+                  Se aceptan JPG, PNG, WebP y GIF. Si los arreglás y los volvés a subir con el mismo nombre, se reemplazan solos.
                 </p>
               </section>
             )}
@@ -238,11 +299,16 @@ export function GifShell() {
 
       <GroupDialog
         group={editingGroup}
+        loose={editingGroup ? loose.filter((f) => f.groupKey !== editingGroup.key) : []}
         settings={settings}
+        drag={drag}
         onClose={() => setEditing(null)}
         onDuration={project.setDuration}
         onMove={project.moveFrame}
+        onAdd={(id, at) => editingGroup && project.addToGroup([id], editingGroup.key, at)}
+        onUngroup={project.ungroup}
         onRemove={project.removeFrame}
+        onRename={(name) => editingGroup && project.rename(editingGroup.key, name)}
       />
     </div>
   );

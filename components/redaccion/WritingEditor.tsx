@@ -36,6 +36,7 @@ import { Hint } from "@/components/ui/tooltip";
 import { changeCase, cycleCase } from "@/lib/editor/changeCase";
 import { charFor, imageUrl, variantId, type EmojiEntry, type Tone } from "@/lib/emojis/types";
 import { around, findTrigger, RedaccionExtras, textSlice, type Trigger } from "@/lib/redaccion/editor";
+import { OCULTAR, Prediccion, prediccionKey } from "@/lib/redaccion/prediccion-ext";
 import { docToPlain, docToUnicode, docToWhatsApp, hasFormatting, type DocNode } from "@/lib/redaccion/export";
 import { fold } from "@/lib/redaccion/text";
 import type { SlimEmoji } from "@/lib/redaccion/types";
@@ -47,6 +48,11 @@ export type WritingEditorHandle = {
   focus: () => void;
   /** Lo mismo que Ctrl+E / Ctrl+H adentro del texto, para cuando el foco está en otro lado. */
   openList: (kind: Trigger["kind"]) => void;
+  /**
+   * Lo que hace Esc adentro del texto (cerrar la lista de emojis/hashtags o esconder la sugerencia en
+   * gris), para cuando Esc lo atrapa antes un diálogo. Devuelve si había algo para cerrar.
+   */
+  escape: () => boolean;
   /** El texto en cada formato de exportación (ver lib/redaccion/export). */
   exports: () => { html: string; plain: string; whatsapp: string; unicode: string; formatted: boolean } | null;
 };
@@ -66,6 +72,8 @@ type Props = {
   /** Hashtags para sugerir: los del cliente (o de todos, si el texto no tiene) y los usados en otros textos. */
   hashtagPool: HashtagOption[];
   onEmojiUsed: (emoji: SlimEmoji | EmojiEntry) => void;
+  /** Texto predictivo: lo que falta para seguir lo escrito (con el vocabulario del cliente), o null. */
+  predecir?: (antes: string) => string | null;
   placeholder?: string;
   className?: string;
 };
@@ -86,10 +94,11 @@ const matchesEmoji = (e: SlimEmoji | EmojiEntry, q: string) => fold(e.n).include
  *  - formato con los atajos de siempre (Ctrl+B, Ctrl+I, Ctrl+U, Shift+F3…) o la barra de arriba,
  *  - ":" + dos letras sugiere emojis (":fue" → 🔥) y "#" sugiere hashtags del cliente y recientes,
  *  - Ctrl+E y Ctrl+H abren esas listas donde está el cursor,
- *  - ↑↓ elige, Enter o Tab inserta, Esc cierra.
+ *  - ↑↓ elige, Enter o Tab inserta, Esc cierra,
+ *  - con `predecir`, sugiere en gris cómo seguir (Tab o → al final la acepta, Esc la descarta).
  */
 export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function WritingEditor(
-  { value, onChange, openKey, tone, emojiPool, hashtagPool, onEmojiUsed, placeholder, className },
+  { value, onChange, openKey, tone, emojiPool, hashtagPool, onEmojiUsed, predecir, placeholder, className },
   ref
 ) {
   const [trigger, setTrigger] = useState<Trigger | null>(null);
@@ -104,6 +113,9 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
   onChangeRef.current = onChange;
   const keyRef = useRef<(e: KeyboardEvent) => boolean>(() => false);
   const openListRef = useRef<(char: ":" | "#") => void>(() => {});
+  const escapeRef = useRef<() => boolean>(() => false);
+  const predecirRef = useRef(predecir);
+  predecirRef.current = predecir;
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -120,6 +132,7 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
       }),
       Underline,
       RedaccionExtras,
+      Prediccion.configure({ predecir: (antes: string) => predecirRef.current?.(antes) ?? null }),
       Placeholder.configure({ placeholder: placeholder ?? "Escribí acá…" }),
     ],
     content: value,
@@ -135,7 +148,10 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
     onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML(), docToPlain(editor.getJSON() as DocNode)),
     onTransaction: ({ editor }) => setTrigger(editor.isFocused ? findTrigger(editor.state) : null),
     onFocus: ({ editor }) => setTrigger(findTrigger(editor.state)),
-    onBlur: () => setTrigger(null),
+    onBlur: ({ editor }) => {
+      setTrigger(null);
+      if (prediccionKey.getState(editor.state)) editor.view.dispatch(editor.state.tr.setMeta(prediccionKey, OCULTAR));
+    },
   });
 
   // Otra redacción: contenido nuevo, historial de deshacer nuevo y el cursor al final.
@@ -179,6 +195,7 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
         view.dispatch(tr.scrollIntoView());
       },
       focus: () => editor?.view.focus(),
+      escape: () => escapeRef.current(),
       openList: (kind) => {
         if (!editor) return;
         editor.view.focus();
@@ -341,12 +358,40 @@ export const WritingEditor = forwardRef<WritingEditorHandle, Props>(function Wri
   };
   openListRef.current = openList;
 
+  escapeRef.current = () => {
+    if (!editor) return false;
+    if (trigger && (open || forced.current)) {
+      dismiss();
+      return true;
+    }
+    if (prediccionKey.getState(editor.state)) {
+      editor.view.dispatch(editor.state.tr.setMeta(prediccionKey, OCULTAR));
+      return true;
+    }
+    return false;
+  };
+
   keyRef.current = (e) => {
     if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
       const key = e.key.toLowerCase();
       if (key === "e" || key === "h") {
         e.preventDefault();
         openList(key === "e" ? ":" : "#");
+        return true;
+      }
+    }
+    // La sugerencia en gris (texto predictivo): Tab o → al final de la línea la acepta, Esc la descarta.
+    const fantasma = editor ? prediccionKey.getState(editor.state) : null;
+    if (fantasma && !open && editor) {
+      const { state, view } = editor;
+      const alFinal = state.selection.$from.parentOffset === state.selection.$from.parent.content.size;
+      const sinModificadores = !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey;
+      if (sinModificadores && (e.key === "Tab" || (e.key === "ArrowRight" && alFinal))) {
+        view.dispatch(state.tr.insertText(fantasma.text, fantasma.pos).scrollIntoView());
+        return true;
+      }
+      if (e.key === "Escape") {
+        view.dispatch(state.tr.setMeta(prediccionKey, OCULTAR));
         return true;
       }
     }

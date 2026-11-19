@@ -19,5 +19,16 @@ const nextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Los links viejos siguen andando: Emojis pasó a ser una de las librerías (con ?c=categoría) y
+  // Planificación, Presentaciones.
+  async redirects() {
+    return [
+      { source: "/emojis", destination: "/library/emojis", permanent: false },
+      // Planificación pasó a ser Presentaciones (la plani es uno de sus tipos).
+      { source: "/planificacion", destination: "/presentaciones", permanent: false },
+      { source: "/planificacion/:id/presentacion", destination: "/presentaciones/:id/presentar", permanent: false },
+      { source: "/planificacion/:path*", destination: "/presentaciones/:path*", permanent: false },
+    ];
+  },
 };
 export default nextConfig;

@@ -77,10 +77,10 @@ export function UserAvatar({ user, size }: { user: User | null; size: number }) 
   );
 }
 
-type TriggerProps = ButtonHTMLAttributes<HTMLButtonElement> & { user: User | null; ready: boolean };
+type TriggerProps = ButtonHTMLAttributes<HTMLButtonElement> & { user: User | null; ready: boolean; compact?: boolean };
 
 /** Botón flotante de arriba a la derecha (con etiqueta al pasar el mouse, como el resto de la barra). */
-const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, ready, className, ...props }, ref) => {
+const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, ready, compact, className, ...props }, ref) => {
   const label = user ? displayName(user).split(" ")[0] : "Ingresar";
   return (
     <Hint label={user ? "Tu cuenta" : "Iniciar sesión con Google"}>
@@ -89,7 +89,8 @@ const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, read
         type="button"
         aria-label={user ? `Tu cuenta: ${displayName(user)}` : "Iniciar sesión"}
         className={cn(
-          "floating-ink pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] data-[state=open]:scale-100 md:pr-4",
+          "floating-ink pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] data-[state=open]:scale-100",
+          !compact && "md:pr-4",
           className
         )}
         {...props}
@@ -99,7 +100,7 @@ const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, read
         ) : (
           <span className="block h-9 w-9 shrink-0 animate-pulse rounded-full bg-cream/15" />
         )}
-        <span className="hidden max-w-[7rem] truncate text-sm font-semibold tracking-tight md:inline">
+        <span className={cn("hidden max-w-[7rem] truncate text-sm font-semibold tracking-tight", !compact && "md:inline")}>
           {ready ? label : "Cuenta"}
         </span>
       </button>
@@ -108,7 +109,8 @@ const AccountTrigger = forwardRef<HTMLButtonElement, TriggerProps>(({ user, read
 });
 AccountTrigger.displayName = "AccountTrigger";
 
-export function AccountPill() {
+/** compact: solo la foto (al lado va la campanita y no entra el nombre sin descentrar la barra). */
+export function AccountPill({ compact = false }: { compact?: boolean }) {
   const account = useAccount();
   const [busy, setBusy] = useState(false);
   if (!account) return null;
@@ -126,7 +128,7 @@ export function AccountPill() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <AccountTrigger user={user} ready={ready} />
+        <AccountTrigger user={user} ready={ready} compact={compact && Boolean(user)} />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
         {user ? (

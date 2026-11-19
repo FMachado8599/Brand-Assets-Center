@@ -1,28 +1,33 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ReconectarError } from "./reconectar";
 import { leerConexion, renovarTokens, type Conexion } from "./store";
 
 /**
  * Basecamp (bc3): login de 37signals (Launchpad) y un cliente de la API con los cuidados que ya
  * se probaron en el panel de STATUS: User-Agent obligatorio, máximo 50 pedidos cada 10 s
- * (se usan 45), reintento en 429 respetando Retry-After y paginación por el header Link.
+ * (se usan 45), reintento en 429 respetando Retry-After, reintento con espera en los 5xx (como
+ * pide la guía de la API) y paginación por el header Link.
  */
 
 const LAUNCHPAD = "https://launchpad.37signals.com";
 
+/** Sin espacios ni saltos de línea de más (es fácil pegarlos en Vercel y Basecamp rechaza el id). */
+const leer = (name: string) => process.env[name]?.trim() || "";
+
 function env(name: string) {
-  const v = process.env[name];
+  const v = leer(name);
   if (!v) throw new Error(`Falta ${name} en las variables del servidor`);
   return v;
 }
 
-export const hasBasecampEnv = () => Boolean(process.env.BASECAMP_CLIENT_ID && process.env.BASECAMP_CLIENT_SECRET);
+export const hasBasecampEnv = () => Boolean(leer("BASECAMP_CLIENT_ID") && leer("BASECAMP_CLIENT_SECRET"));
 
 /** Basecamp exige identificarse: nombre de la app y un mail de contacto. */
-const userAgent = () => process.env.BASECAMP_USER_AGENT || "Herramientas Camara TBWA (fmachado@camaratbwa.com)";
+const userAgent = () => leer("BASECAMP_USER_AGENT") || "Herramientas Camara TBWA (fmachado@camaratbwa.com)";
 
 /** Tiene que coincidir EXACTO con el Redirect URI registrado en launchpad.37signals.com/integrations. */
 export function basecampRedirectUri(origin: string) {
-  return process.env.BASECAMP_REDIRECT_URI || `${origin}/api/auth/callback/basecamp`;
+  return leer("BASECAMP_REDIRECT_URI") || `${origin}/api/auth/callback/basecamp`;
 }
 
 export function basecampAuthorizeUrl(origin: string, state: string) {
@@ -71,13 +76,24 @@ async function refresh(refreshToken: string): Promise<TokenResponse> {
   const modern = await postToken({ grant_type: "refresh_token", ...shared });
   if (modern.ok) return modern.json();
   const legacy = await postToken({ type: "refresh", ...shared });
-  if (!legacy.ok) throw new Error(`No se pudo renovar el acceso a Basecamp (${legacy.status}). Hay que volver a conectarlo.`);
+  if (!legacy.ok) throw new ReconectarError(`Basecamp no dejó renovar el acceso (${legacy.status}). Volvé a conectar Basecamp.`);
   return legacy.json();
 }
 
 export type BasecampIdentity = {
   identity: { id: number; first_name: string; last_name: string; email_address: string };
   accounts: { id: number; name: string; product: string; href: string; app_href: string }[];
+};
+
+/** Lo que se guarda en integraciones.datos de la conexión con Basecamp: quién la conectó. */
+export type BasecampDatos = {
+  persona_id?: number;
+  persona?: string;
+  email?: string;
+  /** Si quien autorizó es admin de Basecamp (si no, faltan los proyectos donde no está). null: no se pudo saber. */
+  admin_basecamp?: boolean | null;
+  /** Se autorizó con el link que generó un admin de la app (quien autorizó no entró a la app). */
+  por_link?: boolean;
 };
 
 export async function basecampIdentity(accessToken: string): Promise<BasecampIdentity> {
@@ -89,6 +105,24 @@ export async function basecampIdentity(accessToken: string): Promise<BasecampIde
   return r.json();
 }
 
+/**
+ * Si la persona que autorizó es admin (o dueña) de esa cuenta de Basecamp. Una que no lo es solo ve
+ * los proyectos donde está: la app avisa que van a faltar datos. null si no se pudo saber.
+ */
+export async function basecampEsAdmin(accessToken: string, accountId: string | number): Promise<boolean | null> {
+  try {
+    const r = await fetch(`${leer("BASECAMP_API_URL") || "https://3.basecampapi.com"}/${accountId}/my/profile.json`, {
+      headers: { Authorization: `Bearer ${accessToken}`, "User-Agent": userAgent() },
+      cache: "no-store",
+    });
+    if (!r.ok) return null;
+    const p = (await r.json()) as { admin?: boolean; owner?: boolean };
+    return Boolean(p.admin || p.owner);
+  } catch {
+    return null;
+  }
+}
+
 /** Los tokens de Basecamp duran 2 semanas. */
 export const expiraDesde = (expiresIn?: number) => new Date(Date.now() + (expiresIn ?? 14 * 86400) * 1000);
 
@@ -96,6 +130,10 @@ export const expiraDesde = (expiresIn?: number) => new Date(Date.now() + (expire
 
 const WINDOW_MS = 10_000;
 const MAX_REQUESTS = 45;
+/** Reintentos ante un 429 o un 5xx antes de darse por vencido (un pedido no puede quedar colgado). */
+const MAX_REINTENTOS = 4;
+const REINTENTAR = new Set([500, 502, 503, 504]);
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Un cliente por pedido al servidor: lleva su propio límite de velocidad y renueva el token
@@ -125,11 +163,11 @@ export class Basecamp {
 
   base() {
     // BASECAMP_API_URL solo para probar contra una API simulada; en producción no se define.
-    return `${process.env.BASECAMP_API_URL || "https://3.basecampapi.com"}/${this.accountId}`;
+    return `${leer("BASECAMP_API_URL") || "https://3.basecampapi.com"}/${this.accountId}`;
   }
 
   private async renovar() {
-    if (!this.conexion.refreshToken) throw new Error("La conexión con Basecamp venció. Hay que volver a conectarla.");
+    if (!this.conexion.refreshToken) throw new ReconectarError("La conexión con Basecamp venció. Volvé a conectar Basecamp.");
     const t = await refresh(this.conexion.refreshToken);
     const expira = expiraDesde(t.expires_in);
     this.conexion = { ...this.conexion, accessToken: t.access_token, refreshToken: t.refresh_token ?? this.conexion.refreshToken, expira };
@@ -146,28 +184,59 @@ export class Basecamp {
     this.stamps.push(now);
   }
 
-  private async get(url: string, retried = false): Promise<Response> {
+  private async get(url: string): Promise<Response> {
+    return this.pedir(url);
+  }
+
+  /**
+   * Un pedido a la API. Un GET se reintenta en 429 y en los 5xx; un POST o un PUT solo en 429 (con
+   * un 5xx no se sabe si se hizo, y repetirlo podría duplicar, ej: dos webhooks).
+   */
+  private async pedir(url: string, envio?: { method: "POST" | "PUT"; body: unknown }, renovado = false, intento = 0): Promise<Response> {
     await this.throttle();
     this.requests++;
     const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${this.conexion.accessToken}`, "User-Agent": userAgent() },
+      method: envio?.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${this.conexion.accessToken}`,
+        "User-Agent": userAgent(),
+        ...(envio ? { "Content-Type": "application/json; charset=utf-8" } : {}),
+      },
+      body: envio ? JSON.stringify(envio.body) : undefined,
       cache: "no-store",
     });
-    if (r.status === 429) {
-      const wait = Number(r.headers.get("Retry-After") ?? "10");
-      await new Promise((res) => setTimeout(res, Math.min(wait, 30) * 1000));
-      return this.get(url, retried);
+    const reintentable = r.status === 429 || (!envio && REINTENTAR.has(r.status));
+    if (reintentable && intento < MAX_REINTENTOS) {
+      // 429: lo que diga Retry-After (en segundos). 5xx: 1 s, 2 s, 4 s, 8 s.
+      const retryAfter = Number(r.headers.get("Retry-After"));
+      const segundos = r.status === 429 ? (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 10) : 2 ** intento;
+      await esperar(Math.min(segundos, 30) * 1000);
+      return this.pedir(url, envio, renovado, intento + 1);
     }
-    if (r.status === 401 && !retried) {
+    if (r.status === 401 && !renovado) {
       await this.renovar();
-      return this.get(url, true);
+      return this.pedir(url, envio, true, intento);
     }
-    if (!r.ok) throw new Error(`Basecamp respondió ${r.status} en ${url.replace(this.base(), "")}`);
+    if (!r.ok) {
+      // Una cuenta vencida o suspendida responde 404 con el header Reason: dicho así se entiende.
+      if (r.status === 404 && /inactive/i.test(r.headers.get("Reason") ?? "")) {
+        throw new Error("La cuenta de Basecamp está inactiva (vencida o suspendida)");
+      }
+      throw new Error(`Basecamp respondió ${r.status} en ${url.replace(this.base(), "")}`);
+    }
     return r;
   }
 
   async one<T>(url: string): Promise<T> {
     return (await this.get(url)).json();
+  }
+
+  async post<T>(url: string, body: unknown): Promise<T> {
+    return (await this.pedir(url, { method: "POST", body })).json();
+  }
+
+  async put<T>(url: string, body: unknown): Promise<T> {
+    return (await this.pedir(url, { method: "PUT", body })).json();
   }
 
   /** Todas las páginas, siguiendo el header Link (las páginas crecen: 15, 30, 50, 100). */

@@ -11,11 +11,23 @@ import type { Proveedor } from "./store";
 
 const cookieName = (p: Proveedor) => `oauth_${p}`;
 
-export function empezarOAuth(request: NextRequest, proveedor: Proveedor, authorizeUrl: (state: string) => string) {
+type Guardado = { state: string; volver: string; invitacion?: string };
+
+/**
+ * volver: a qué pantalla volver (si no, el ?volver= del pedido). invitacion: la llave del link con el
+ * que alguien autoriza sin entrar a la app (Basecamp), para usarla a la vuelta.
+ */
+export function empezarOAuth(
+  request: NextRequest,
+  proveedor: Proveedor,
+  authorizeUrl: (state: string) => string,
+  opciones: { volver?: string; invitacion?: string } = {}
+) {
   const state = randomState();
-  const volver = safeNext(request.nextUrl.searchParams.get("volver"));
+  const volver = safeNext(opciones.volver ?? request.nextUrl.searchParams.get("volver"));
   const response = NextResponse.redirect(authorizeUrl(state));
-  response.cookies.set(cookieName(proveedor), JSON.stringify({ state, volver }), {
+  const guardado: Guardado = { state, volver, ...(opciones.invitacion ? { invitacion: opciones.invitacion } : {}) };
+  response.cookies.set(cookieName(proveedor), JSON.stringify(guardado), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -25,17 +37,22 @@ export function empezarOAuth(request: NextRequest, proveedor: Proveedor, authori
   return response;
 }
 
-/** Valida el state y devuelve a dónde volver; null si no coincide (o expiró). */
-export function terminarOAuth(request: NextRequest, proveedor: Proveedor) {
+/** Valida el state y devuelve a dónde volver y el link con el que se autorizó (si hubo); null si no coincide (o expiró). */
+export function leerOAuth(request: NextRequest, proveedor: Proveedor): { volver: string; invitacion: string | null } | null {
   const raw = request.cookies.get(cookieName(proveedor))?.value;
   const state = request.nextUrl.searchParams.get("state");
   if (!raw || !state) return null;
   try {
-    const saved = JSON.parse(raw) as { state: string; volver: string };
-    return saved.state === state ? safeNext(saved.volver) : null;
+    const saved = JSON.parse(raw) as Guardado;
+    return saved.state === state ? { volver: safeNext(saved.volver), invitacion: saved.invitacion ?? null } : null;
   } catch {
     return null;
   }
+}
+
+/** Valida el state y devuelve a dónde volver; null si no coincide (o expiró). */
+export function terminarOAuth(request: NextRequest, proveedor: Proveedor) {
+  return leerOAuth(request, proveedor)?.volver ?? null;
 }
 
 /** Vuelve a la pantalla de origen con el resultado en la URL (?basecamp=conectado o ?google=error&motivo=…). */

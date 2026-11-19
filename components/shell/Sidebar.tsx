@@ -6,9 +6,12 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { openNewClient } from "@/components/clients/newClient";
 import { Hint } from "@/components/ui/tooltip";
-import { MODULES, type AppModule } from "@/lib/modules";
+import { LIBRARY_HUB, MODULES, NAV, type AppModule } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
+
+/** El título de cada sección de la lista. */
+const SECCION_CLASE = "site-label mt-3 flex items-center gap-2 border-t border-cream/10 px-2 pb-1 pt-4 text-cream/45";
 
 /** Lo que tapa el degradé con la flecha: un módulo que queda ahí abajo no se ve entero. */
 const FADE = 44;
@@ -95,6 +98,76 @@ export function Sidebar({
   onOpenChange: (open: boolean) => void;
   current: AppModule;
 }) {
+  const item = (m: AppModule) => {
+    const active = m.href === current.href;
+    const body = (
+      <>
+        <span
+          className={cn(
+            "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors",
+            active ? "bg-primary text-primary-foreground" : "bg-cream/10 text-cream/70 group-hover:text-cream"
+          )}
+        >
+          <m.icon className="h-[18px] w-[18px]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2 font-display text-[1.35rem] leading-tight">
+            {m.label}
+            {m.soon && (
+              <span className="rounded-full bg-cream/10 px-1.5 py-px font-ui text-[10px] font-medium text-cream/50">
+                pronto
+              </span>
+            )}
+          </span>
+          <span className="block truncate text-xs text-cream/45">{m.description}</span>
+        </span>
+      </>
+    );
+
+    if (m.soon) {
+      return (
+        <div key={m.href} aria-disabled className="group flex items-center gap-3 rounded-2xl p-1.5 opacity-55">
+          {body}
+        </div>
+      );
+    }
+    const link = (
+      <Link
+        key={m.href}
+        href={m.href}
+        aria-current={active ? "page" : undefined}
+        onClick={() => onOpenChange(false)}
+        className={cn(
+          "group flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-cream/10",
+          active && "bg-cream/10",
+          m.href === "/clientes" && "pr-12"
+        )}
+      >
+        {body}
+      </Link>
+    );
+    if (m.href !== "/clientes") return link;
+    // Un cliente nuevo se crea desde cualquier módulo, sin ir a Clientes.
+    return (
+      <div key={m.href} className="relative">
+        {link}
+        <Hint label="Nuevo cliente" side="right">
+          <button
+            type="button"
+            aria-label="Nuevo cliente"
+            onClick={() => {
+              onOpenChange(false);
+              openNewClient();
+            }}
+            className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-cream/10 text-cream/70 transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </Hint>
+      </div>
+    );
+  };
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -117,75 +190,28 @@ export function Sidebar({
           </div>
 
           <ScrollingNav>
-            {MODULES.map((m) => {
-              const active = m.href === current.href;
-              const body = (
-                <>
-                  <span
-                    className={cn(
-                      "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors",
-                      active ? "bg-primary text-primary-foreground" : "bg-cream/10 text-cream/70 group-hover:text-cream"
-                    )}
-                  >
-                    <m.icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2 font-display text-[1.35rem] leading-tight">
-                      {m.label}
-                      {m.soon && (
-                        <span className="rounded-full bg-cream/10 px-1.5 py-px font-ui text-[10px] font-medium text-cream/50">
-                          pronto
-                        </span>
-                      )}
-                    </span>
-                    <span className="block truncate text-xs text-cream/45">{m.description}</span>
-                  </span>
-                </>
-              );
-
-              if (m.soon) {
-                return (
-                  <div key={m.href} aria-disabled className="group flex items-center gap-3 rounded-2xl p-1.5 opacity-55">
-                    {body}
-                  </div>
-                );
-              }
-              const link = (
+            {MODULES.filter((m) => !m.seccion).map(item)}
+            {/* Por sección: Trabajo, Crear, Archivos, Librerías y Recreo. El título de Librerías lleva a
+                /library, que abre la última que usaste. */}
+            {NAV.filter((s) => s.modulos.length).map((s) => [
+              s.id === "librerias" ? (
                 <Link
-                  key={m.href}
-                  href={m.href}
-                  aria-current={active ? "page" : undefined}
+                  key={`s-${s.id}`}
+                  href={LIBRARY_HUB.href}
                   onClick={() => onOpenChange(false)}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-cream/10",
-                    active && "bg-cream/10",
-                    m.href === "/clientes" && "pr-12"
-                  )}
+                  title={s.descripcion}
+                  className={cn(SECCION_CLASE, "transition-colors hover:text-cream")}
                 >
-                  {body}
+                  <LIBRARY_HUB.icon className="h-3.5 w-3.5" />
+                  {s.label}
                 </Link>
-              );
-              if (m.href !== "/clientes") return link;
-              // Un cliente nuevo se crea desde cualquier módulo, sin ir a Clientes.
-              return (
-                <div key={m.href} className="relative">
-                  {link}
-                  <Hint label="Nuevo cliente" side="right">
-                    <button
-                      type="button"
-                      aria-label="Nuevo cliente"
-                      onClick={() => {
-                        onOpenChange(false);
-                        openNewClient();
-                      }}
-                      className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-cream/10 text-cream/70 transition-colors hover:bg-primary hover:text-primary-foreground"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </Hint>
-                </div>
-              );
-            })}
+              ) : (
+                <p key={`s-${s.id}`} className={SECCION_CLASE} title={s.descripcion}>
+                  {s.label}
+                </p>
+              ),
+              ...s.modulos.map(item),
+            ])}
           </ScrollingNav>
 
           <div className="flex shrink-0 items-center justify-between px-2 pb-1 pt-3">
