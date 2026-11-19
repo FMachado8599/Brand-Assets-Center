@@ -63,7 +63,7 @@ Abrí http://localhost:3000
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
-| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Planificación) |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Presentaciones) |
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
 | `MAGNIFIC_API_KEY` | Retoque y Librerías → Íconos | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") y para buscar íconos |
 | `GIPHY_API_KEY` | Librerías → GIFs | Sí, para buscar GIFs (ver "Librerías") |
@@ -520,7 +520,7 @@ Cada archivo que alguien baja (o sube a Drive) desde Descargas queda anotado en 
 
 ### Drive: activarlo (una sola vez)
 
-En el proyecto de Google Cloud del cliente OAuth que ya usa Planificación (`GOOGLE_OAUTH_CLIENT_ID`):
+En el proyecto de Google Cloud del cliente OAuth que ya usa Presentaciones (`GOOGLE_OAUTH_CLIENT_ID`):
 
 1. **APIs y servicios → Biblioteca**: habilitar *Google Drive API* y *Google Picker API*.
 2. **Credenciales → Crear credenciales → Clave de API**: restringirla a *Google Picker API* y, en "Restricciones de aplicaciones", a sitios web: el dominio de producción, el de testing/preview y `http://localhost:3000`. Va en `GOOGLE_PICKER_API_KEY`.
@@ -536,7 +536,7 @@ Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y sa
 
 **Cómo se usa**
 
-1. **Agregar pieza** (barra de arriba): se elige qué es, como en Planificación: **post**, **carrusel**, **reel** o **historia**.
+1. **Agregar pieza** (barra de arriba): se elige qué es, como en Presentaciones: **post**, **carrusel**, **reel** o **historia**.
 2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
 3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
 4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Arriba de cada teléfono va su nombre (y, si Meta lo adapta, cómo) y debajo sus acciones: **ver en pantalla completa**, copiar o descargar ese mockup. Tocar el teléfono también lo abre en grande, sobre un fondo oscuro y del tamaño que entre en la ventana (en un carrusel, con sus flechas); se cierra con la X, tocando afuera o con `Esc`.
@@ -668,6 +668,76 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 - `SPOTIFY_ACCOUNTS_URL` y `SPOTIFY_API_URL` existen solo para probar contra una API simulada.
 
 ---
+
+## Board: notificaciones de Basecamp
+
+La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en el Board) y muestra **primero lo que es para vos**. Veinte comentarios de algo que no es tuyo nunca tapan una mención o una tarea tuya que vence mañana.
+
+- **A quién le llega.** Cada aviso se reparte solo a quien le importa, con un motivo: **te nombraron** (@vos), **te la asignaron** (en Basecamp, o te la pasaron en el Board), **tu tarea** (asignada, tomada o sos el designado de esa etapa), **tu conversación** (la creaste, comentaste o te nombraron ahí) o **tu marca** (algo de una marca tuya, en tu sector: una card de Medios de Amstel no le llega a la redactora de Amstel; Cuentas sigue todos los tableros de sus marcas). A quien no le corresponde nada de eso, no le llega nada. Lo que hace uno mismo no le avisa.
+- **Cómo se ordena.** Se agrupa por conversación ("5 comentarios" es una fila). Arriba, **Para vos, ahora**: menciones, asignaciones y novedades en algo tuyo vencido o que vence hoy o mañana. Después **tus tareas y conversaciones**. Lo de **tus marcas** que no es tuyo no aparece en "Para mí" (ni suma al número de la campanita): está en **Todo**, plegado. Dentro de cada grupo manda un puntaje: el motivo (mención 5, asignación 4, tu tarea 3, tu conversación 2, tu marca 1) más lo urgente de la tarea (vencida +4, vence pronto +2).
+- **Filtros**: Para mí · Menciones · Todo, y el orden: **Prioridad** o **Recientes**. Se recuerdan en la cuenta de cada uno.
+- Tocar una fila la abre en Basecamp (en la respuesta exacta) y la marca como leída; si es una card, **Ver en el Board** abre la tarea. Con la app abierta, solo lo de "Para vos, ahora" muestra además un aviso.
+- **Solo si me citan / ocultar.** En cualquier tarea (en su detalle, o con la campanita tachada de cada fila) cada uno elige que de esa tarea solo le llegue lo que lo nombra o se la pasa. **Ocultarla** además la saca de su tablero (se ve con *Ocultas*). Lo elige cada uno para sí, queda en la base (sirve en todos lados) y lo que no se tiene que avisar ni se guarda.
+- **Fechas que sirven.** Casi ninguna fecha de Basecamp está al día. Cada tarea puede tener su **fecha de entrega en la app** (en su detalle; Basecamp no se toca), que manda sobre la de Basecamp. Si la de Basecamp venció hace más de 14 días y no hay otra, la tarea queda como **Fecha vieja**: no se pone roja ni sube en la campanita, y en Mi tablero un botón las junta para ponerles fecha. Lo que espera a otro (validación o cliente) tampoco se pone rojo.
+- Los avisos llegan al instante por **webhooks** de Basecamp, que además dejan la card al día en el Board (columna, asignados, comentarios) sin esperar a la sincronización.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-notificaciones.sql`, después de `migracion-integraciones.sql`, `migracion-board.sql`, `migracion-equipo.sql` y `migracion-flujo.sql`. Se puede repetir.
+2. Que la app publicada sepa su dirección: en Vercel alcanza con el dominio de producción; si no, `APP_URL=https://…` (tiene que ser https: Basecamp no avisa a otra cosa).
+3. Sincronizar Basecamp desde la app publicada (Board → Basecamp → Actualizar). El paso **Avisos al instante** registra un webhook en cada proyecto activo y guarda el hash de la llave. Abajo de la sincronización dice en cuántos proyectos quedaron.
+
+Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
+
+**Modo de prueba en un preview.** Para probar los avisos antes de producción, en una sola rama:
+
+1. Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: crear el secreto. Vercel lo pasa a los deploys como `VERCEL_AUTOMATION_BYPASS_SECRET`, y Basecamp lo manda en la URL para pasar la protección del preview.
+2. Agregar `BASECAMP_WEBHOOKS_EN_PREVIEW=1` en el entorno Preview, solo para esa rama.
+3. Volver a hacer el deploy de la rama y sincronizar desde su link fijo. Los webhooks quedan apuntando a ese link (`VERCEL_BRANCH_URL`) hasta que se sincronice desde producción, que los vuelve a apuntar a la app publicada.
+
+### La conexión con Basecamp (solo admins)
+
+Hay dos cuentas de Basecamp distintas:
+
+- **La del estudio**: una sola, la autoriza un **admin de Basecamp** y trae todo (proyectos, tareas, gente y los avisos al instante). La ven y la manejan solo los admins de la app, en Board → Basecamp.
+- **La personal de cada uno**: su persona de Basecamp, que se vincula sola por el mail. De ahí salen sus tareas y sus notificaciones. No hay que conectar nada.
+
+Si quien administra la app no es admin de Basecamp, en Board → Basecamp genera un **link para un admin de Basecamp**. Se lo manda (ej: a Milena), ella lo abre, autoriza con su cuenta y listo: no necesita entrar a la app. El link vale 24 h y una sola vez; generar otro invalida el anterior. Después la conexión se renueva sola. Si la cuenta que autorizó no es admin de Basecamp, la página lo avisa: la app solo ve los proyectos donde está esa persona.
+
+- **Roles**: los admins de Basecamp pasan a ser admins de la app al sincronizar. Si un admin le cambia el rol a alguien a mano, queda fijo y la sincronización no lo vuelve a tocar.
+- **Organización y Basecamp** son solo para admins (la base también lo frena: solo un admin lee la conexión, sincroniza o genera el link). Las designaciones de marcas ahora las carga un admin.
+- Activarlo: correr `supabase/migracion-basecamp-conexion.sql` después de `migracion-notificaciones.sql`. En un preview, el link solo lo puede abrir quien tenga acceso al preview en Vercel: para mandárselo a alguien de afuera, usar **Share** en el deploy.
+
+### Cómo funciona por dentro
+
+- Basecamp no firma los avisos: la URL (`/api/basecamp/webhook?llave=…`) lleva una llave que sale de `INTEGRACIONES_SECRET`. En la base queda solo su hash, y `bc_recibir_evento` (la única puerta, sin sesión) valida cada aviso contra él. Cambiar `INTEGRACIONES_SECRET` invalida la llave hasta la próxima sincronización, que la actualiza en cada webhook.
+- Basecamp reintenta hasta 10 veces un aviso que no conteste 2xx y después **apaga el webhook**. La sincronización revisa cada proyecto una vez por día y lo vuelve a prender.
+- Las menciones se reconocen por el `<bc-attachment sgid="…">` de Basecamp (adentro viene el id de la persona).
+- Cada uno ve solo sus notificaciones (RLS). Se guardan 45 días; los eventos, 90.
+
+## Presentaciones
+
+Donde se prepara el material de una tarea para mostrárselo al cliente. Cada presentación es de un **tipo**: Planificación (el contenido orgánico del mes), Pauta, Leads / Ads, Programática / YouTube, o uno nuevo que se crea desde la app ("Otro tipo" al crear una). El tipo se ve siempre como una etiqueta de color.
+
+- **Desde Basecamp**: cada tipo tiene palabras con las que se lo reconoce en el título de una tarea ("plani", "leads", "programatica"…). Las tareas vivas que coinciden y todavía no tienen presentación aparecen en *Para arrancar*. Basecamp solo se lee: la app nunca escribe ahí. Se ven de a 6, con *Ver más* y un buscador (por tarea o marca); la búsqueda la hace la base.
+- **Por rol**: cada uno abre la vista de su sector (Redacción, Diseño o CM) y ve lo suyo. Redacción: copys, indicaciones, links e **inspiración** (imágenes que sube para Diseño; el cliente no las ve y no entran en la descarga). Diseño: lo que pidió Redacción y el material final para subir al Drive. CM: el material para bajar y lo programado.
+- **Etapas que mueven el Board**: con "Redacción lista → Diseño" (y así en cada etapa) la presentación pasa de etapa y, si está vinculada a una tarea, la tarea pasa a esa etapa en el Board y al designado de la marca en ese sector le llega el aviso. Solo en la app: Basecamp no se toca. Si hay ajustes, se vuelve a la etapa anterior desde el mismo paso a paso. Desde la tarea en el Board se abre su presentación.
+- **Y al revés**: si la tarea cambia de etapa en el Board (alguien la arrastra) o la card pasa de columna en Basecamp, la presentación pasa a la etapa que corresponde. Las tareas con presentación siguen a Basecamp en el momento en que llega el aviso (las demás, al abrir el Board, como siempre). Si la card se mueve en Basecamp, manda Basecamp.
+- **Las herramientas de la app, adentro**: cada tipo dice qué herramientas usa (se elige al crearlo). Con **Ads** (Leads, Pauta), cada pieza se ve como el anuncio real, en Feed, Reels o Historia según los lugares que elige Redacción, con el título y el botón (CTA); el cliente lo ve igual en su link. Con **GIF** (Programática), aparece el formato **Banner** con su medida (300×250, 728×90… o una a mano), y Diseño arma el GIF ahí mismo con los frames, con un peso máximo (150 KB por defecto); el GIF queda como material final.
+- **Comentarios**: en cada pieza y en los generales. Se puede **responder** a un comentario (queda abajo, en el mismo hilo) y **nombrar con @** a alguien del equipo. A la campanita le llega a quien nombraste, a los designados de la marca (Redacción, Diseño, CM y Cuentas), a quien tiene la tarea y a los que ya comentaron esa pieza; tocar el aviso abre la presentación en esa pieza. Lo que comenta el cliente también avisa.
+- **El mes** sale de la tarea ("Plani Octubre" es de octubre; en diciembre, "Plani Enero" es del año que viene). Se cambia en *Más*, y al vincular una tarea de otro mes la presentación pasa a ese. En el tablero, las de meses anteriores que no están listas siguen apareciendo, con su mes marcado.
+- **Drive**: el material va a las carpetas del estudio, como ya las ordenan: **PAUTAS DIGITAL / 2026 / MARCA / 10_OCTUBRE / Plani** (o *Anuncios*, según la carpeta de cada tipo), en una carpeta por día. La marca se busca por nombre (sin importar mayúsculas ni tildes) y se recuerda; el año, el mes y la carpeta del tipo se crean si faltan. Si la marca no aparece, lo que se sube queda en *Sin carpeta* hasta que alguien elija la carpeta (la sugerida, pegando un link o buscándola) y ahí se mueve, sin volver a subir nada. **Sin carpeta no se pasa de Diseño a Revisión.** Nadie necesita acceso propio al Drive: la app muestra todo con la conexión del estudio.
+- **Rápido**: el tablero trae solo lo que muestra cada tarjeta (sus números y hasta 3 imágenes), no las piezas enteras, y no espera a sincronizar Basecamp. Cuando ya está todo a la vista, precarga las presentaciones de tu etapa (si sos de Diseño, las que están en Diseño), así abrirlas es al toque.
+- **Para el cliente**: un link privado (`/p/<token>`) donde la ve, comenta y aprueba sin cuenta. Las credenciales del Drive nunca salen del servidor: la base solo confirma que el archivo es de esa presentación, y el servidor abre el Drive con una llave propia (sale de `INTEGRACIONES_SECRET`, que tiene que estar como *Sensitive* en Vercel).
+- **Descargas**: el material baja de a pedazos y va directo a un archivo en la compu (en Chrome y Edge), así ni un .zip de varios GB pasa por la memoria del navegador.
+
+En el código se sigue llamando `plani` (empezó como la planificación del mes): `components/plani`, `lib/plani`.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql`, `supabase/migracion-presentaciones-cliente.sql` y `supabase/migracion-presentaciones-board.sql`, en ese orden (después de `migracion-integraciones.sql`, `migracion-equipo.sql`, `migracion-flujo.sql` y `migracion-notificaciones.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
+2. En Google Cloud, en el cliente OAuth del Drive: sumar el permiso `https://www.googleapis.com/auth/drive` en la pantalla de consentimiento (*Data access*) y dejar la app **en producción** (*In production*): en "Testing" la conexión se vence cada 7 días. Como Google no la revisó, al conectar muestra "Google no verificó esta app": *Avanzado → Ir a …*. Solo lo ve quien conecta.
+3. Un admin conecta el Drive del estudio (Presentaciones → Basecamp y Drive) con la cuenta que tiene PAUTAS DIGITAL, y pega el link de esa carpeta como raíz. Además de lo anterior, necesita `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e `INTEGRACIONES_SECRET`, y la dirección de vuelta `/api/auth/google/callback` en el cliente OAuth de Google Cloud.
 
 ## Stack
 
