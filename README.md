@@ -131,7 +131,7 @@ Para correr lo mismo en local: `pnpm exec tsc --noEmit`, `NEXT_DIST_DIR=.next-bu
 
 ## Cuentas y visitas
 
-Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
+Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google o con mail y contraseña, con una cuenta **@camaratbwa.com** o de un dominio o mail que habilitó un admin (ver "Quién puede entrar" y "Entrar con mail y contraseña"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
 
 - Favoritos y recientes de emojis.
 - Ajustes de Emojis, GIFs, Íconos, GIF y Conversor.
@@ -169,9 +169,26 @@ Solo entran las cuentas **@camaratbwa.com** y las de la lista de excepciones. Ha
 2. **Las páginas** (`middleware.ts`): sin sesión, las herramientas mandan a Inicio con "Iniciá sesión con tu cuenta @camaratbwa.com" y, después de entrar, vuelven a la herramienta que se quería abrir. A una cuenta de afuera le cierra la sesión y le avisa "Esa cuenta no tiene acceso".
 3. **Las APIs**: sin sesión del estudio responden 401, así nadie de afuera usa el Conversor ni la búsqueda de emojis (cuestan plata). Quedan públicas Inicio, Privacidad, la vuelta del login, las visitas y las imágenes de emojis.
 
-- **Excepciones** (ej: un freelance): en el SQL Editor, `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');`, con el mail en minúsculas. Si vos entrás con una cuenta que no es @camaratbwa.com, agregala acá o te quedás afuera.
+- **Excepciones** (ej: un freelance, o todo un dominio): las carga un admin en **Board → Accesos** (mails sueltos y dominios). También se puede por SQL: `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');` o `insert into public.allowed_domains (domain) values ('agencia.com');`, en minúsculas.
 - **Sacarle el acceso a alguien**: borrarlo de `allowed_emails` (y, si querés, su usuario en Supabase → Authentication → Users).
 - **Ojo:** el correo de @camaratbwa.com no es de Google (está en `mail.camaratbwa.com`). Para entrar con Google, cada persona necesita una cuenta de Google creada con su mail de trabajo: al crear la cuenta, la opción "Usar mi dirección de correo electrónico actual".
+
+### Entrar con mail y contraseña
+
+Además de Google, cualquiera con acceso puede entrar con su mail y una contraseña (útil para quien no tiene cuenta de Google con su mail de trabajo, o para gente de afuera).
+
+- **Quién puede**: un admin elige en **Board → Accesos** dominios enteros (todos los @agencia.com) y mails sueltos (un freelance con Gmail). @camaratbwa.com está siempre. Sirve para Google y para contraseña.
+- **Crear la contraseña**: con un link de un solo uso. Lo genera un admin en Accesos (vale 72 horas: se copia y se manda por WhatsApp o Slack, y si hay mail configurado también llega por mail), o lo pide la persona en **/ingresar → "¿Primera vez o te olvidaste?"** (vale 1 hora, solo por mail). Quien ya entra con Google puede crearla desde su perfil.
+- **Cómo se guarda** (OWASP): la contraseña se normaliza (NFKC), se le aplica un **HMAC-SHA-256 con un pepper** que vive en `PASSWORD_PEPPER` (fuera de la base y del código) y eso pasa por **Argon2id** (64 MiB, 3 pasadas, paralelismo 1, salt aleatorio de 16 bytes). En la base queda solo el hash en formato PHC, que incluye el salt y los parámetros. Supabase no sabe nada de estas contraseñas: su propio ingreso con contraseña queda anulado (un trigger le vacía la suya a todos), así no hay puerta lateral.
+- **Política**: de 12 a 128 caracteres, cualquier carácter (una frase sirve), sin reglas de mayúsculas o símbolos. Se rechaza si contiene el mail o si aparece en filtraciones conocidas (Have I Been Pwned con k-anonimato: solo viajan 5 caracteres del SHA-1; si el servicio no responde, no frena).
+- **Fuerza bruta**: 5 fallos por cuenta o 20 por IP en 15 minutos frenan con "Demasiados intentos". Pedir links: 3 por mail y 10 por IP por hora. Los intentos se guardan como HMAC, sin el mail ni la IP en claro.
+- **Lo demás**: mismo mensaje y mismo tiempo de respuesta tenga o no cuenta el mail, los pedidos tienen que venir de la misma app (CSRF), las contraseñas no se loguean ni vuelven en ningún error, la clave de servicio nunca llega al navegador y los links se guardan como SHA-256 (el link en sí no queda en ningún lado).
+
+**Activarlo (por entorno):**
+
+1. Correr `supabase/migracion-acceso-contrasena.sql` (en el historial: `logic_acceso_contrasena`), después de `migracion-acceso.sql` y `migracion-equipo.sql`. Revisá antes cuántos usuarios tienen contraseña de Supabase (`select count(*) from auth.users where coalesce(encrypted_password, '') <> ''`): la migración se las vacía.
+2. En Vercel, como *Sensitive* y solo servidor: `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Project Settings → API keys) y `PASSWORD_PEPPER` (`openssl rand -base64 32`, uno distinto por entorno; guardalo también en un gestor de contraseñas: sin él nadie puede entrar con su contraseña). Opcional: `AUTH_MAIL_FROM` con un remitente de un dominio verificado en Resend, para mandar los links por mail.
+3. En Supabase → Authentication → Sign In / Providers, el proveedor **Email** tiene que estar activado (la sesión se inicia con un link mágico interno que no manda ningún mail).
 
 ### Visitas
 

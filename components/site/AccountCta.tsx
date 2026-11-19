@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ArrowDown, Check, Loader2, LogIn } from "lucide-react";
 import { useAccount } from "@/components/shell/AccountProvider";
-import { STUDIO_DOMAIN } from "@/lib/site";
 
 /**
  * Entrar con Google, sobre fondo oscuro. Con sesión iniciada: en la portada,
@@ -58,7 +58,9 @@ export function AccountCta({ greet = false }: { greet?: boolean }) {
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
         Entrar con Google
       </button>
-      <span className="site-label text-cream/45">Con tu cuenta @{STUDIO_DOMAIN}</span>
+      <Link href="/ingresar" className="site-label text-cream/45 underline-offset-4 transition-colors hover:text-cream hover:underline">
+        O con tu mail y contraseña
+      </Link>
     </div>
   );
 }

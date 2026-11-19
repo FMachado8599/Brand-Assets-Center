@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/toaster";
-import { STUDIO_DOMAIN } from "@/lib/site";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -91,9 +90,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (denied || login === "requerido" || login === "error" || hash.has("error")) {
       toast(
         denied
-          ? `Esa cuenta no tiene acceso: entrá con tu mail @${STUDIO_DOMAIN}`
+          ? "Esa cuenta no tiene acceso. Si tendría que tenerlo, pedíselo a un admin."
           : login === "requerido"
-            ? `Iniciá sesión con tu cuenta @${STUDIO_DOMAIN} para usar las herramientas`
+            ? "Iniciá sesión para usar las herramientas"
             : "No se pudo iniciar sesión con Google",
         "error"
       );

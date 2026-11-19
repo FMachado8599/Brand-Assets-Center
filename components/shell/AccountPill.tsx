@@ -3,12 +3,12 @@
 import { forwardRef, useEffect, useState, type ButtonHTMLAttributes } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import { Check, ChevronRight, Info, Loader2, LogIn, LogOut, Plane } from "lucide-react";
+import { Check, ChevronRight, Info, KeyRound, Loader2, LogIn, LogOut, Plane } from "lucide-react";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Hint, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMiPerfil } from "@/hooks/useMiPerfil";
 import { estadoVigente, fotoElegida, fueraDeOficina, textoFuera, type Perfil } from "@/lib/perfil";
-import { STUDIO, STUDIO_DOMAIN } from "@/lib/site";
+import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
 
@@ -201,7 +201,14 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
                   Continuar con Google
                 </button>
-                <p className="text-center text-[11px] text-muted-foreground">Con tu cuenta @{STUDIO_DOMAIN}</p>
+                <PopoverClose asChild>
+                  <Link
+                    href={`/ingresar?next=${encodeURIComponent(typeof window === "undefined" ? "/" : window.location.pathname + window.location.search)}`}
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-full border text-sm font-medium transition-colors hover:bg-secondary"
+                  >
+                    <KeyRound className="h-4 w-4" /> Con mail y contraseña
+                  </Link>
+                </PopoverClose>
               </div>
             ) : (
               <p className="rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
@@ -262,7 +269,7 @@ function SyncedList() {
 }
 
 /** La "G" de Google, como pide su guía de marca para los botones de inicio de sesión. */
-function GoogleMark() {
+export function GoogleMark() {
   return (
     <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden>
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />

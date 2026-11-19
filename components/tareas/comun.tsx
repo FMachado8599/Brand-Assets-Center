@@ -2,19 +2,20 @@
 
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Columns3, Info, Lock, Network, Rows3 } from "lucide-react";
+import { Columns3, Info, Lock, Network, Rows3, ShieldCheck } from "lucide-react";
 import { BarSegmented, ContextBar } from "@/components/shell/ContextBar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useEquipo } from "@/hooks/useEquipo";
 import { initials } from "@/lib/clients/color";
 import { cn } from "@/lib/utils";
 
-/** Las pestañas del Board, en la barra de arriba. Organización y Basecamp son solo de admins. */
+/** Las pestañas del Board, en la barra de arriba. Organización, Basecamp y Accesos son solo de admins. */
 const PESTANAS = [
   { value: "/board", label: "Mi tablero", icon: Columns3, soloAdmins: false },
   { value: "/board/equipo", label: "Equipo", icon: Rows3, soloAdmins: false },
   { value: "/board/organizacion", label: "Organización", icon: Network, soloAdmins: true },
   { value: "/board/basecamp", label: "Basecamp", icon: BasecampGlyph, soloAdmins: true },
+  { value: "/board/accesos", label: "Accesos", icon: ShieldCheck, soloAdmins: true },
 ] as const;
 
 type Pestana = (typeof PESTANAS)[number]["value"];
