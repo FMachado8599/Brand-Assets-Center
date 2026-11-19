@@ -17,6 +17,8 @@ export type TipoPresentacion = {
   palabras: string[];
   /** Las herramientas de la app que usa: ads (mockup del anuncio) y gif (banners con su GIF). */
   herramientas: Herramienta[];
+  /** Su carpeta adentro del mes en el Drive (ej: "Plani", "Anuncios"). null = el nombre del tipo. */
+  carpeta?: string | null;
   orden: number;
   creado_por: string | null;
 };
@@ -103,9 +105,9 @@ export function tipoDeTitulo(titulo: string, tipos: TipoPresentacion[]): TipoPre
 export const tiposRepo = {
   list: () => supabase.from("presentacion_tipos").select("*").order("orden").order("nombre").returns<TipoPresentacion[]>(),
 
-  create: (input: Pick<TipoPresentacion, "id" | "nombre" | "color" | "icono" | "palabras" | "herramientas"> & { descripcion?: string }) =>
+  create: (input: Pick<TipoPresentacion, "id" | "nombre" | "color" | "icono" | "palabras" | "herramientas" | "carpeta"> & { descripcion?: string }) =>
     supabase.from("presentacion_tipos").insert(input).select().single<TipoPresentacion>(),
 
-  update: (id: string, patch: Partial<Pick<TipoPresentacion, "nombre" | "descripcion" | "color" | "icono" | "palabras" | "herramientas">>) =>
+  update: (id: string, patch: Partial<Pick<TipoPresentacion, "nombre" | "descripcion" | "color" | "icono" | "palabras" | "herramientas" | "carpeta">>) =>
     supabase.from("presentacion_tipos").update(patch).eq("id", id).select().single<TipoPresentacion>(),
 };

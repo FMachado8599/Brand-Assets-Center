@@ -21,7 +21,16 @@ export async function GET() {
     return NextResponse.json({
       listo: { secreto: hasSecret(), basecamp: hasBasecampEnv(), google: hasGoogleEnv() },
       basecamp,
-      google: google ? { ...google, datos: { raiz_url: google.datos?.raiz_url ?? null } } : null,
+      google: google
+        ? {
+            ...google,
+            datos: {
+              raiz_url: google.datos?.raiz_url ?? null,
+              raiz_nombre: google.datos?.raiz_propia ? (google.datos?.raiz_nombre ?? null) : null,
+              completo: google.datos?.completo === true,
+            },
+          }
+        : null,
       sync: sync.data ?? null,
     });
   } catch (e) {

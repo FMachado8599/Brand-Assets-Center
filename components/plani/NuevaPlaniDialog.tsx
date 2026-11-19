@@ -299,6 +299,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
   const [icono, setIcono] = useState("presentacion");
   const [palabras, setPalabras] = useState("");
   const [herramientas, setHerramientas] = useState<Herramienta[]>([]);
+  const [carpeta, setCarpeta] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   const crear = async () => {
@@ -317,6 +318,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
       // Si no se ponen palabras, se lo reconoce por su nombre.
       palabras: normalizarPalabras(palabras.trim() ? palabras : limpio),
       herramientas,
+      carpeta: carpeta.trim() || null,
     });
     setGuardando(false);
     if (error || !data) return toast(planiErrorMessage(error ?? { message: "No se pudo crear el tipo" }), "error");
@@ -376,6 +378,15 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
           value={palabras}
           onChange={(e) => setPalabras(e.target.value)}
           placeholder="programática, youtube, display"
+          className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
+        />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs text-muted-foreground">Su carpeta en Drive, adentro del mes (si no ponés nada, el nombre)</span>
+        <input
+          value={carpeta}
+          onChange={(e) => setCarpeta(e.target.value)}
+          placeholder="Anuncios"
           className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
         />
       </label>

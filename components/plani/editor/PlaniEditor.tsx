@@ -61,6 +61,7 @@ import { FormatDot, medioUrl } from "../bits";
 import { HerramientasProvider } from "../herramientas";
 import { TipoChip } from "../TipoChip";
 import { HiloComentarios, pendientes, useGenteParaMencionar } from "../Comentarios";
+import { CarpetaDrive } from "./CarpetaDrive";
 import { PlaniEmojiProvider } from "../emojis";
 import { Lightbox } from "../Lightbox";
 import { Calendario, FeedGrid } from "../Overview";
@@ -156,6 +157,7 @@ function Editor({ id }: { id: string }) {
   );
 
   const otrosCopys = useMemo(() => piezas.map(copyTexto).filter(Boolean), [piezas]);
+  const [carpetaAbierta, setCarpetaAbierta] = useState(false);
 
   // Desde la campanita (?pieza=…): se va a esa pieza y se abren sus comentarios, una vez.
   const piezaPedida = useSearchParams().get("pieza");
@@ -310,6 +312,14 @@ function Editor({ id }: { id: string }) {
    */
   const pasarA = async (estado: PlaniEstado) => {
     if (!plani || estado === plani.estado) return;
+    // De Diseño en adelante, el material tiene que estar en su carpeta de Drive (la base también lo frena).
+    const orden = ESTADOS.map((e) => e.value);
+    const avanza = orden.indexOf(estado) > orden.indexOf("diseno") && orden.indexOf(estado) > orden.indexOf(plani.estado);
+    if (avanza && !plani.drive_carpeta_id && integraciones?.google) {
+      setCarpetaAbierta(true);
+      toast(`Antes de pasar a ${estadoInfo(estado).label}, elegí la carpeta de Drive`);
+      return;
+    }
     const cierre = CIERRE[plani.estado];
     const titulo = cierre?.siguiente === estado ? cierre.label : `Pasó a ${estadoInfo(estado).label}`;
     const r = await store.cambiarEstado(estado);
@@ -583,6 +593,16 @@ function Editor({ id }: { id: string }) {
             </span>
             <span className="ml-auto">{ESTADOS.find((e) => e.value === plani.estado)?.hint}</span>
           </div>
+        </div>
+
+        <div className="mt-4">
+          <CarpetaDrive
+            presentacionId={plani.id}
+            carpetaId={plani.drive_carpeta_id}
+            onCambio={(id) => store.updatePlani({ drive_carpeta_id: id })}
+            abrir={carpetaAbierta}
+            onAbrir={setCarpetaAbierta}
+          />
         </div>
 
         <div className="mt-4">

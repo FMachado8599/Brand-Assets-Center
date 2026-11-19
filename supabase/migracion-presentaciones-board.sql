@@ -84,6 +84,14 @@ begin
   if not found then
     raise exception 'Esa presentación no existe';
   end if;
+  -- De Diseño en adelante el material tiene que estar en su carpeta del Drive (si hay Drive conectado).
+  if array_position(v_orden, p_estado) > array_position(v_orden, 'diseno')
+     and array_position(v_orden, p_estado) > array_position(v_orden, v_p.estado)
+     and v_p.drive_carpeta_id is null
+     and exists (select 1 from public.integraciones i where i.proveedor = 'google') then
+    raise exception 'Antes de pasar a %, elegí la carpeta de Drive de la presentación', public.presentacion_estado_nombre(p_estado)
+      using errcode = 'P0001', hint = 'sin_carpeta';
+  end if;
   update public.presentaciones set estado = p_estado where id = p_presentacion;
 
   if v_p.bc_tarea_id is null or p_estado = v_p.estado then

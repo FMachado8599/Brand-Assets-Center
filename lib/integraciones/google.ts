@@ -15,7 +15,13 @@ const API = "https://www.googleapis.com/drive/v3";
 const UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const FOLDER = "application/vnd.google-apps.folder";
 
-export const DRIVE_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/drive.file"];
+/**
+ * Drive completo, no solo drive.file: la app trabaja sobre las carpetas que ya tiene el estudio
+ * (PAUTAS DIGITAL / 2026 / MARCA / 10_OCTUBRE / Plani), que no creó ella. Con drive.file no las ve.
+ * La conexión nunca sale del servidor y solo se navega adentro de la carpeta raíz que elige un admin.
+ */
+export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+export const DRIVE_SCOPES = ["openid", "email", DRIVE_SCOPE];
 export const ROOT_NAME = "Herramientas · Presentaciones";
 
 function env(name: string) {
@@ -111,6 +117,79 @@ export class Drive {
 
   get datos() {
     return this.conexion.datos;
+  }
+
+  /** Si la conexión tiene el permiso para ver las carpetas que no creó la app (ver DRIVE_SCOPE). */
+  get completo() {
+    return this.conexion.datos.completo === true;
+  }
+
+  /** Si un admin eligió la carpeta raíz del estudio (ej: PAUTAS DIGITAL). Si no, la app usa una propia. */
+  get raizElegida() {
+    return this.conexion.datos.raiz_propia === true && typeof this.conexion.datos.raiz === "string";
+  }
+
+  /** Guarda la carpeta raíz que eligió un admin. */
+  async elegirRaiz(carpeta: { id: string; name: string; webViewLink?: string }) {
+    const datos = { ...this.conexion.datos, raiz: carpeta.id, raiz_url: carpeta.webViewLink ?? null, raiz_nombre: carpeta.name, raiz_propia: true };
+    this.conexion = { ...this.conexion, datos };
+    await guardarDatos(this.db, "google", datos);
+  }
+
+  /** Las carpetas que hay adentro de una (sin las de la papelera), por nombre. */
+  async carpetasEn(padre: string) {
+    const q = `'${padre.replace(/'/g, "\\'")}' in parents and mimeType = '${FOLDER}' and trashed = false`;
+    const out: { id: string; name: string }[] = [];
+    let page: string | undefined;
+    do {
+      const url =
+        `${API}/files?q=${encodeURIComponent(q)}&fields=nextPageToken,files(id,name)&orderBy=name&pageSize=1000` +
+        `&supportsAllDrives=true&includeItemsFromAllDrives=true${page ? `&pageToken=${page}` : ""}`;
+      const r = await this.json<{ files: { id: string; name: string }[]; nextPageToken?: string }>(url);
+      out.push(...r.files);
+      page = r.nextPageToken;
+    } while (page && out.length < 5000);
+    return out;
+  }
+
+  /** Si una carpeta no tiene nada adentro (ni archivos ni carpetas, sin contar la papelera). */
+  async vacia(id: string) {
+    const q = `'${id}' in parents and trashed = false`;
+    const r = await this.json<{ files: unknown[] }>(
+      `${API}/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`
+    );
+    return r.files.length === 0;
+  }
+
+  /** Lo pasa a otra carpeta (sale de las que tenía). En Drive es instantáneo: no se vuelve a subir nada. */
+  async mover(id: string, a: string) {
+    const f = await this.json<{ parents?: string[] }>(`${API}/files/${encodeURIComponent(id)}?fields=parents&supportsAllDrives=true`);
+    const sacar = (f.parents ?? []).filter((p) => p !== a);
+    if (!sacar.length && f.parents?.includes(a)) return;
+    await this.json(
+      `${API}/files/${encodeURIComponent(id)}?addParents=${encodeURIComponent(a)}${sacar.length ? `&removeParents=${encodeURIComponent(sacar.join(","))}` : ""}&fields=id&supportsAllDrives=true`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "{}" }
+    );
+  }
+
+  /**
+   * El camino desde la raíz hasta una carpeta (la raíz incluida), o null si la carpeta no está
+   * adentro de la raíz. Sirve para mostrarla ("PAUTAS DIGITAL / 2026 / AVATR / …") y para no
+   * dejar navegar fuera de la raíz.
+   */
+  async ruta(id: string, raiz: string): Promise<{ id: string; name: string }[] | null> {
+    const camino: { id: string; name: string }[] = [];
+    let actual: string | undefined = id;
+    for (let i = 0; actual && i < 12; i++) {
+      const f: { id: string; name: string; parents?: string[]; trashed?: boolean } = await this.json(
+        `${API}/files/${encodeURIComponent(actual)}?fields=id,name,parents,trashed&supportsAllDrives=true`
+      );
+      if (f.trashed) return null;
+      camino.unshift({ id: f.id, name: f.name });
+      if (f.id === raiz) return camino;
+      actual = f.parents?.[0];
+    }
+    return null;
   }
 
   /** Un access token vigente (dura una hora; se renueva con el refresh token). */
