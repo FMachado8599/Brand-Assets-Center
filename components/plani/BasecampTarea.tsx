@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import { ArrowUpRight, CalendarClock, ChevronDown, Link2Off, MessageSquare, Search } from "lucide-react";
-import { BasecampMark } from "@/components/tareas/comun";
+import { Avatar, BasecampMark } from "@/components/tareas/comun";
 import { useTipos } from "@/hooks/useTipos";
 import { basecampRepo, ETAPA_LABEL, type BcPersona, type TareaCompleta } from "@/lib/plani/basecamp";
 import { tipoDeTitulo } from "@/lib/plani/tipos";
@@ -20,14 +20,10 @@ export function Personas({ personas, max = 4 }: { personas: BcPersona[]; max?: n
     <span className="flex items-center">
       <span className="flex -space-x-1.5">
         {personas.slice(0, max).map((p) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={p.id}
-            src={p.avatar_url ?? undefined}
-            alt={p.nombre}
-            title={p.cargo ? `${p.nombre} · ${p.cargo}` : p.nombre}
-            className="h-6 w-6 rounded-full bg-secondary object-cover ring-2 ring-card"
-          />
+          <span key={p.id} title={p.cargo ? `${p.nombre} · ${p.cargo}` : p.nombre}>
+            {/* Sin foto, sus iniciales (en vez de una imagen rota). */}
+            <Avatar nombre={p.nombre} url={p.avatar_url} className="h-6 w-6 text-[9px] ring-2 ring-card" />
+          </span>
         ))}
       </span>
       <span className="ml-2 truncate text-xs text-muted-foreground">

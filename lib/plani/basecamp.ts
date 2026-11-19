@@ -39,6 +39,16 @@ export type TareaCompleta = BcTarea & {
   proyecto: Pick<BcProyecto, "id" | "nombre" | "app_url"> | null;
 };
 
+/** Una tarea de "Para arrancar", con la marca de su proyecto. */
+export type TareaParaArrancar = TareaCompleta & { brand_id: string | null };
+
+type FilaParaArrancar = {
+  id: number; titulo: string; app_url: string | null; vence: string | null; proyecto_id: number; columna_id: number | null;
+  asignados: number[] | null; comentarios: number | null; creada: string | null; actualizada: string | null; brand_id: string | null;
+  proyecto_nombre: string; proyecto_url: string | null; tablero_id: number | null; columna_nombre: string | null;
+  columna_estado: string | null; sector: string | null; personas: unknown[] | null;
+};
+
 /** Las etapas en las que una tarea ya no está viva (terminada o en pausa). */
 export const ETAPAS_CERRADAS = new Set(["done", "not_now"]);
 
@@ -127,6 +137,38 @@ export const basecampRepo = {
       .slice(0, limite * 2);
     const completas = await completar(candidatas);
     return { data: completas.filter((t) => !ETAPAS_CERRADAS.has(t.columna?.estado ?? "")).slice(0, limite), error: null };
+  },
+
+  /**
+   * "Para arrancar": de a pocas, las tareas que se reconocen como de algún tipo y no tienen
+   * presentación (presentaciones_para_arrancar), sin el brief. Se pide una más para saber si hay más.
+   */
+  async paraArrancar(limite: number, desde = 0, buscar = "") {
+    const { data, error } = await supabase.rpc("presentaciones_para_arrancar", { p_limite: limite + 1, p_desde: desde, p_buscar: buscar.trim() || null });
+    if (error) return { data: [] as TareaParaArrancar[], hayMas: false, error };
+    const filas = (data ?? []) as FilaParaArrancar[];
+    const tareas = filas.slice(0, limite).map(
+      (f): TareaParaArrancar => ({
+        id: Number(f.id),
+        proyecto_id: Number(f.proyecto_id),
+        columna_id: f.columna_id != null ? Number(f.columna_id) : null,
+        titulo: f.titulo,
+        contenido: null,
+        app_url: f.app_url,
+        vence: f.vence,
+        completada: false,
+        asignados: (f.asignados ?? []).map(Number),
+        comentarios: f.comentarios ?? 0,
+        creada: f.creada,
+        actualizada: f.actualizada,
+        columna: f.columna_id != null ? { id: Number(f.columna_id), tablero_id: f.tablero_id != null ? Number(f.tablero_id) : null, nombre: f.columna_nombre ?? "", estado: f.columna_estado } as BcColumna : null,
+        sector: f.sector,
+        personas: (f.personas ?? []) as BcPersona[],
+        proyecto: { id: Number(f.proyecto_id), nombre: f.proyecto_nombre, app_url: f.proyecto_url },
+        brand_id: f.brand_id,
+      })
+    );
+    return { data: tareas, hayMas: filas.length > limite, error: null };
   },
 
   proyectos: () => supabase.from("bc_proyectos").select("id, nombre, estado, app_url, brand_id, ignorado").order("nombre"),

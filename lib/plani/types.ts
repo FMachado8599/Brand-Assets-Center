@@ -130,6 +130,17 @@ export type PlaniResumen = Plani & {
   presentacion_piezas: Pick<Pieza, "id" | "formato" | "fecha" | "programada" | "estado_agencia" | "estado_cliente" | "medios">[];
 };
 
+/**
+ * Una presentación como la muestra el tablero (presentaciones_tablero): sus números y hasta 3
+ * imágenes del feed, sin las piezas enteras.
+ */
+export type PlaniTarjeta = Pick<Plani, "id" | "brand_id" | "tipo" | "titulo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id"> & {
+  piezas: number;
+  con_material: number;
+  programadas: number;
+  portadas: Medio[];
+};
+
 export type PiezaPatch = Partial<Omit<Pieza, "id" | "presentacion_id" | "created_at" | "updated_at">>;
 export type PlaniPatch = Partial<
   Pick<Plani, "titulo" | "tipo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id" | "notas" | "brand_id" | "compartida" | "share_token">

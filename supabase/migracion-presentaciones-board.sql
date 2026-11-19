@@ -346,3 +346,98 @@ revoke execute on function public.presentacion_comentario_avisar() from public, 
 drop trigger if exists presentacion_comentario_avisar on public.presentacion_comentarios;
 create trigger presentacion_comentario_avisar after insert on public.presentacion_comentarios
   for each row execute function public.presentacion_comentario_avisar();
+
+-- 5. Para el tablero de Presentaciones: solo lo que se muestra ----------------------
+-- Las del mes (y las de meses anteriores que no están listas), con lo que muestra cada tarjeta:
+-- cuántas piezas, cuántas con material, cuántas programadas y hasta 3 imágenes del feed. Sin
+-- copys, indicaciones ni el material entero. security invoker: con los permisos de quien pide.
+create or replace function public.presentaciones_tablero(p_anio int, p_mes int)
+returns table (
+  id uuid, brand_id uuid, tipo text, titulo text, anio int, mes int, estado text, bc_tarea_id bigint,
+  drive_carpeta_id text, piezas int, con_material int, programadas int, portadas jsonb
+)
+language sql stable security invoker set search_path = '' as $$
+  select p.id, p.brand_id, p.tipo, p.titulo, p.anio, p.mes, p.estado, p.bc_tarea_id, p.drive_carpeta_id,
+         coalesce(s.piezas, 0), coalesce(s.con_material, 0), coalesce(s.programadas, 0), coalesce(f.portadas, '[]'::jsonb)
+    from public.presentaciones p
+    left join lateral (
+      select count(*)::int as piezas,
+             count(*) filter (where exists (select 1 from jsonb_array_elements(x.medios) m where m ->> 'rol' = 'final'))::int as con_material,
+             count(*) filter (where x.programada)::int as programadas
+        from public.presentacion_piezas x
+       where x.presentacion_id = p.id
+    ) s on true
+    left join lateral (
+      select jsonb_agg(q.m order by q.fecha desc) as portadas
+        from (
+          select r.fecha, r.m
+            from (
+              select x.fecha,
+                     coalesce(
+                       (select m from jsonb_array_elements(x.medios) m
+                         where m ->> 'rol' = case when x.formato = 'reel' then 'portada' else 'final' end limit 1),
+                       (select m from jsonb_array_elements(x.medios) m where m ->> 'rol' is distinct from 'referencia' limit 1)
+                     ) as m
+                from public.presentacion_piezas x
+               where x.presentacion_id = p.id and x.formato <> 'historia'
+            ) r
+           where r.m is not null
+           order by r.fecha desc
+           limit 3
+        ) q
+    ) f on true
+   where (p.anio = p_anio and p.mes = p_mes)
+      or (p.anio * 12 + p.mes < p_anio * 12 + p_mes and p.estado <> 'lista');
+$$;
+revoke execute on function public.presentaciones_tablero(int, int) from public, anon;
+grant execute on function public.presentaciones_tablero(int, int) to authenticated;
+
+-- "Para arrancar": las tareas vivas de Basecamp que se reconocen como de algún tipo (por las palabras
+-- de su título, enteras y sin tildes) y todavía no tienen presentación. Con lo que se muestra: la
+-- marca, el sector, la etapa y la gente; sin el brief. De a pocas (p_limite desde p_desde) y, si se
+-- busca, por el título de la tarea o el nombre del proyecto. security definer con el permiso chequeado
+-- una vez al principio (todo esto lo lee el estudio entero): con RLS fila por fila tardaba 25 veces más.
+drop function if exists public.presentaciones_para_arrancar(int);
+create or replace function public.presentaciones_para_arrancar(p_limite int default 6, p_desde int default 0, p_buscar text default null)
+returns table (
+  id bigint, titulo text, app_url text, vence date, proyecto_id bigint, columna_id bigint, asignados bigint[],
+  comentarios int, creada timestamptz, actualizada timestamptz, brand_id uuid, proyecto_nombre text, proyecto_url text,
+  tablero_id bigint, columna_nombre text, columna_estado text, sector text, personas jsonb
+)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.has_access() then
+    raise exception 'Solo el estudio' using errcode = '42501';
+  end if;
+  return query
+  with rx as (
+    select '\m(' || string_agg(regexp_replace(w, '([.*+?^${}()|\[\]\\])', '\\\1', 'g'), '|') || ')\M' as patron
+      from public.presentacion_tipos t, unnest(t.palabras) w
+     where length(btrim(w)) >= 2
+  )
+  select t.id, t.titulo, t.app_url, t.vence, t.proyecto_id, t.columna_id, t.asignados, t.comentarios, t.creada, t.actualizada,
+         pr.brand_id, pr.nombre, pr.app_url, c.tablero_id, c.nombre, c.estado, tb.nombre,
+         (select coalesce(jsonb_agg(jsonb_build_object('id', pe.id, 'nombre', pe.nombre, 'email', pe.email, 'avatar_url', pe.avatar_url, 'cargo', pe.cargo)), '[]'::jsonb)
+            from public.bc_personas pe where pe.id = any(t.asignados))
+    from public.bc_tareas t
+    join public.bc_proyectos pr on pr.id = t.proyecto_id and not pr.ignorado
+    left join public.bc_columnas c on c.id = t.columna_id
+    left join public.bc_tableros tb on tb.id = c.tablero_id
+    cross join rx
+   where not t.completada
+     and coalesce(c.estado, '') not in ('done', 'not_now')
+     and rx.patron is not null
+     and translate(lower(t.titulo), 'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc') ~ rx.patron
+     and not exists (select 1 from public.presentaciones p where p.bc_tarea_id = t.id)
+     and (
+       nullif(btrim(p_buscar), '') is null
+       or translate(lower(t.titulo || ' ' || pr.nombre), 'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc')
+          like '%' || translate(lower(btrim(p_buscar)), 'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc') || '%'
+     )
+   order by t.actualizada desc nulls last, t.id desc
+   limit greatest(1, least(coalesce(p_limite, 6), 100))
+   offset greatest(0, coalesce(p_desde, 0));
+end;
+$$;
+revoke execute on function public.presentaciones_para_arrancar(int, int, text) from public, anon;
+grant execute on function public.presentaciones_para_arrancar(int, int, text) to authenticated;
