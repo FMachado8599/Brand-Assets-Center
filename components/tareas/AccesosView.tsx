@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AtSign, Check, Copy, Globe, KeyRound, Link2, Loader2, Mail, Trash2, UserRound } from "lucide-react";
+import { AtSign, Check, Copy, Globe, Inbox, KeyRound, Link2, Loader2, Mail, Trash2, UserRound, X } from "lucide-react";
 import { pedirAuth } from "@/components/auth/piezas";
 import { ContextBar } from "@/components/shell/ContextBar";
 import { useConfirm } from "@/components/ui/confirm";
@@ -16,6 +16,7 @@ type Dominio = { domain: string; note: string | null; fijo: boolean };
 type MailPermitido = { email: string; note: string | null; tiene_cuenta: boolean; tiene_contrasena: boolean };
 type Datos = { dominios: Dominio[]; mails: MailPermitido[]; con_contrasena: string[] };
 type LinkGenerado = { email: string; link: string; enviado: boolean; horas: number };
+type Pedido = { id: string; email: string; nombre: string; created_at: string; permitido: boolean; ya_tiene_cuenta: boolean; ya_tiene_contrasena: boolean };
 
 /** Los errores de la base, en palabras de la app. */
 function mensaje(m: string) {
@@ -36,6 +37,13 @@ export function AccesosView() {
   const [configurado, setConfigurado] = useState<boolean | null>(null);
   const [link, setLink] = useState<LinkGenerado | null>(null);
   const [generando, setGenerando] = useState<string | null>(null);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [resolviendo, setResolviendo] = useState<string | null>(null);
+
+  const cargarPedidos = useCallback(async () => {
+    const r = await pedirAuth<{ pedidos?: Pedido[] }>("solicitudes");
+    setPedidos(r.pedidos ?? []);
+  }, []);
 
   const cargar = useCallback(async () => {
     const { data, error: e } = await supabase.rpc("accesos_listar");
@@ -48,8 +56,30 @@ export function AccesosView() {
 
   useEffect(() => {
     cargar();
+    cargarPedidos();
     pedirAuth<{ configurado: boolean }>("estado").then((r) => setConfigurado(Boolean(r.configurado)));
-  }, [cargar]);
+  }, [cargar, cargarPedidos]);
+
+  const resolver = async (p: Pedido, accion: "aprobar" | "rechazar") => {
+    const ok = await confirm(
+      accion === "aprobar"
+        ? {
+            title: `¿Aprobar a ${p.nombre}?`,
+            description: p.ya_tiene_cuenta
+              ? `${p.email} ya tiene cuenta${p.ya_tiene_contrasena ? " con contraseña" : " (entra con Google)"}: si aprobás, la contraseña de este pedido pasa a valer para esa cuenta. Aprobá solo si te lo pidió esa persona.`
+              : `Va a poder entrar con ${p.email} y la contraseña que eligió. Aprobá solo si sabés que el pedido es de esa persona (no hay mail que lo confirme).`,
+            confirmLabel: "Aprobar",
+          }
+        : { title: `¿Rechazar el pedido de ${p.nombre}?`, description: "Se descarta el pedido y su contraseña.", confirmLabel: "Rechazar", destructive: true }
+    );
+    if (!ok) return;
+    setResolviendo(p.id);
+    const r = await pedirAuth<{ ok?: boolean }>("solicitudes", { id: p.id, accion });
+    setResolviendo(null);
+    if (!r.ok) toast(r.error ?? "No se pudo", "error");
+    else toast(accion === "aprobar" ? `${p.nombre} ya puede entrar: avisale` : "Pedido rechazado");
+    await Promise.all([cargarPedidos(), cargar()]);
+  };
 
   const hacer = async (fn: () => PromiseLike<{ error: { message: string } | null }>, ok: string) => {
     const { error: e } = await fn();
@@ -97,6 +127,49 @@ export function AccesosView() {
         ) : (
           <div className="grid gap-4">
             {link && <LinkListo link={link} onCerrar={() => setLink(null)} />}
+
+            {pedidos.length > 0 && (
+              <Bloque titulo={`Pedidos para entrar · ${pedidos.length}`} icono={Inbox} hint="Gente que creó su cuenta en /ingresar y espera que la apruebes. Confirmá que es quien dice ser.">
+                <ul className="divide-y rounded-2xl border">
+                  {pedidos.map((p) => (
+                    <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{p.nombre}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {p.email} · {new Date(p.created_at).toLocaleString("es-UY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </span>
+                      <span className="flex-1" />
+                      {p.ya_tiene_cuenta && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                          {p.ya_tiene_contrasena ? "ya tiene cuenta con contraseña" : "ya entra con Google"}
+                        </span>
+                      )}
+                      {!p.permitido && <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">se suma a la lista</span>}
+                      <button
+                        type="button"
+                        disabled={resolviendo === p.id}
+                        onClick={() => resolver(p, "aprobar")}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12px] font-semibold text-background hover:opacity-90 disabled:opacity-40"
+                      >
+                        {resolviendo === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Aprobar
+                      </button>
+                      <Hint label="Rechazar">
+                        <button
+                          type="button"
+                          aria-label={`Rechazar a ${p.nombre}`}
+                          disabled={resolviendo === p.id}
+                          onClick={() => resolver(p, "rechazar")}
+                          className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </Hint>
+                    </li>
+                  ))}
+                </ul>
+              </Bloque>
+            )}
 
             <Bloque titulo="Dominios" icono={Globe} hint="Todo el que tenga un mail de estos dominios puede entrar.">
               <ul className="divide-y rounded-2xl border">

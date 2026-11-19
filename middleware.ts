@@ -18,7 +18,8 @@ import { studioSession } from "@/lib/access";
 // la fuerza bruta y responde lo mismo tenga o no cuenta el mail).
 const PUBLIC = new Set(["/privacidad", "/auth/callback", "/api/visits", "/api/sugerencias", "/api/basecamp/webhook",
   "/api/integraciones/basecamp/autorizar", "/api/auth/callback/basecamp", "/basecamp/autorizado",
-  "/ingresar", "/contrasena", "/api/auth/contrasena/ingresar", "/api/auth/contrasena/pedir", "/api/auth/contrasena/crear"]);
+  "/ingresar", "/contrasena", "/api/auth/contrasena/ingresar", "/api/auth/contrasena/pedir", "/api/auth/contrasena/crear",
+  "/api/auth/contrasena/registrarse", "/api/auth/contrasena/estado"]);
 // La plani compartida con un cliente (/p/<token>) y sus archivos: la llave es el link, no la sesión.
 // La base valida el token en cada pedido (supabase/migracion-plani-cliente.sql).
 const PUBLIC_PREFIXES = ["/p/", "/api/p/"];

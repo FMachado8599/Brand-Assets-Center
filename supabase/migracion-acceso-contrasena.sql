@@ -207,3 +207,24 @@ revoke execute on function public.accesos_quitar_dominio(text) from anon;
 revoke execute on function public.accesos_poner_mail(text, text) from anon;
 revoke execute on function public.accesos_quitar_mail(text) from anon;
 revoke execute on function public.auth_sin_contrasena_de_supabase() from anon, authenticated;
+
+-- 5. Pedidos para entrar (sin mail) ---------------------------------------
+-- Cualquiera puede pedir una cuenta desde /ingresar (nombre, mail y contraseña). Queda pendiente hasta
+-- que un admin la aprueba en Board → Accesos: recién ahí se habilita el mail, se crea la cuenta y la
+-- contraseña pasa a valer. Como no hay mail que confirme que el mail es suyo, la aprobación es el filtro.
+-- La contraseña del pedido ya se guarda con Argon2id (nunca en claro) y se borra si se rechaza.
+create table if not exists public.credencial_solicitudes (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (email = lower(email)),
+  nombre text not null check (char_length(nombre) between 1 and 80),
+  hash text check (hash like '$argon2id$%' and char_length(hash) <= 300),
+  pepper_version smallint not null default 1,
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'aprobada', 'rechazada')),
+  resuelta_por uuid references auth.users(id) on delete set null,
+  resuelta_en timestamptz,
+  created_at timestamptz not null default now()
+);
+-- Un solo pedido pendiente por mail (uno nuevo reemplaza al anterior).
+create unique index if not exists credencial_solicitudes_pendiente on public.credencial_solicitudes (email) where estado = 'pendiente';
+alter table public.credencial_solicitudes enable row level security;
+revoke all on public.credencial_solicitudes from anon, authenticated;
