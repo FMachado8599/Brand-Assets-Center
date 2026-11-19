@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -30,6 +31,14 @@ export function createSupabaseServer() {
       },
     },
   });
+}
+
+/**
+ * Cliente sin sesión (como el navegador sin entrar), para rutas que llama alguien de afuera: los avisos
+ * de Basecamp o quien autoriza con un link. Solo puede usar las funciones públicas de la base.
+ */
+export function createSupabaseAnon() {
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 /** Solo rutas internas ("/library/emojis?c=…"), nunca "//otro-sitio.com": evita redirecciones abiertas. */

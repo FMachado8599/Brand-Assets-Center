@@ -1,12 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { ArrowUpRight, Loader2, Plug, Plus } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { useData } from "@/components/data/DataProvider";
-import { BarAction, BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar";
+import { BasecampMark } from "@/components/plani/BasecampTarea";
+import { ConexionesPanel } from "@/components/plani/Conexiones";
+import { BarAction, BarDivider, BarPopover, BarSearch, ContextBar, PanelTitle } from "@/components/shell/ContextBar";
+import { useBasecampSync } from "@/hooks/useBasecampSync";
+import { useEquipo } from "@/hooks/useEquipo";
+import { useIntegraciones } from "@/hooks/useIntegraciones";
+import { useOAuthResult } from "@/hooks/useOAuthResult";
+import { basecampRepo } from "@/lib/plani/basecamp";
 import { useClients } from "@/hooks/useClients";
 import { useRedacciones } from "@/hooks/useRedacciones";
 import { fold } from "@/lib/redaccion/text";
@@ -29,6 +36,20 @@ export function ClientsShell() {
   const { cards, products } = useData();
   const redacciones = useRedacciones();
   const [query, setQuery] = useState("");
+  const { hayBasecamp, data: integraciones } = useIntegraciones();
+  const { admin } = useEquipo();
+  const sync = useBasecampSync({ auto: true });
+  // Los clientes que vienen de un proyecto de Basecamp llevan su marquita.
+  const [deBasecamp, setDeBasecamp] = useState<Set<string>>(new Set());
+
+  useOAuthResult();
+
+  useEffect(() => {
+    if (!hayBasecamp || sync.corriendo) return;
+    basecampRepo.proyectos().then(({ data }) =>
+      setDeBasecamp(new Set(((data ?? []) as { brand_id: string | null; ignorado: boolean }[]).filter((p) => p.brand_id && !p.ignorado).map((p) => p.brand_id!)))
+    );
+  }, [hayBasecamp, sync.corriendo]);
 
   const counts = useMemo(() => {
     const tally = (ids: (string | null)[]) => {
@@ -61,6 +82,16 @@ export function ClientsShell() {
           onEnter={() => visible.length === 1 && router.push(`/clientes/${visible[0].id}`)}
         />
         <BarDivider />
+        <BarPopover
+          label="Basecamp y Drive"
+          glyph={sync.corriendo ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Plug className="h-[18px] w-[18px]" />}
+          badge={integraciones && admin && (!integraciones.basecamp || !integraciones.google) ? 1 : undefined}
+          align="end"
+          className="w-80"
+        >
+          <PanelTitle title="Conexiones del estudio" hint="Los proyectos de Basecamp se suman solos como clientes." />
+          <ConexionesPanel />
+        </BarPopover>
         <BarAction label="Nuevo cliente" icon={Plus} onClick={() => create()} />
       </ContextBar>
 
@@ -113,6 +144,7 @@ export function ClientsShell() {
               <ClientCard
                 key={client.id}
                 client={client}
+                basecamp={deBasecamp.has(client.id)}
                 stats={[
                   [client.logos?.length ?? 0, "logo", "logos"],
                   [counts.cards.get(client.id) ?? 0, "tarjeta", "tarjetas"],
@@ -145,7 +177,7 @@ function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{children}</div>;
 }
 
-function ClientCard({ client, stats }: { client: Brand; stats: [number, string, string][] }) {
+function ClientCard({ client, stats, basecamp }: { client: Brand; stats: [number, string, string][]; basecamp?: boolean }) {
   const palette = client.palette?.length ? client.palette.map((c) => c.hex) : [client.color];
   const summary = stats.filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
 
@@ -162,7 +194,14 @@ function ClientCard({ client, stats }: { client: Brand; stats: [number, string, 
       </div>
       <div className="flex items-start gap-2 p-4">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-display text-[1.75rem] leading-tight">{client.name}</h2>
+          <h2 className="flex items-center gap-2 font-display text-[1.75rem] leading-tight">
+            <span className="truncate">{client.name}</span>
+            {basecamp && (
+              <span title="Viene de Basecamp" className="shrink-0">
+                <BasecampMark className="h-3.5 w-3.5 opacity-70" />
+              </span>
+            )}
+          </h2>
           <p className={cn("mt-0.5 truncate text-xs text-muted-foreground", !summary.length && "italic")}>
             {summary.length ? summary.slice(0, 3).join(" · ") : "Ficha por completar"}
           </p>
