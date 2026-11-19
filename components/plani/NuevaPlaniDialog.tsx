@@ -10,7 +10,7 @@ import { toast } from "@/components/ui/toaster";
 import { useClients } from "@/hooks/useClients";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { agregarTipo, useTipos } from "@/hooks/useTipos";
-import { mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
+import { periodoDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
 import { MESES } from "@/lib/plani/config";
 import { planiErrorMessage, planiRepo } from "@/lib/plani/repo";
 import { COLORES_TIPO, HERRAMIENTAS, ICONOS, iconoDe, idDeNombre, normalizarPalabras, tipoDeTitulo, tiposRepo, type Herramienta } from "@/lib/plani/tipos";
@@ -59,9 +59,10 @@ export function NuevaPlaniDialog({
   useEffect(() => {
     if (!open) return;
     setBrandId(inicial?.brandId ?? null);
-    const desdeTarea = inicial?.tarea ? mesDelTitulo(inicial.tarea.titulo) : null;
-    setAnio(inicial?.anio ?? base.anio);
-    setMes(inicial?.mes ?? desdeTarea ?? base.mes);
+    // El mes: el de la tarea (por su título) manda; si no, el pedido o el que viene.
+    const desdeTarea = inicial?.tarea ? periodoDelTitulo(inicial.tarea.titulo) : null;
+    setAnio(desdeTarea?.anio ?? inicial?.anio ?? base.anio);
+    setMes(desdeTarea?.mes ?? inicial?.mes ?? base.mes);
     // El tipo: el pedido, el de la tarea (por su título) o Planificación.
     const delTitulo = inicial?.tarea ? tipoDeTitulo(inicial.tarea.titulo, tipos) : null;
     setTipo(inicial?.tipo ?? delTitulo?.id ?? "planificacion");
@@ -243,6 +244,12 @@ export function NuevaPlaniDialog({
                   onPick={(t) => {
                     setTarea(t);
                     setEligiendoTarea(false);
+                    // La tarea dice de qué mes es: se sigue eso.
+                    const periodo = periodoDelTitulo(t.titulo);
+                    if (periodo) {
+                      setAnio(periodo.anio);
+                      setMes(periodo.mes);
+                    }
                   }}
                 />
               ) : (

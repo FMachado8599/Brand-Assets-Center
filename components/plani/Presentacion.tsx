@@ -17,7 +17,7 @@ import type { Aprobacion, Comentario, Medio, Pieza, Plani } from "@/lib/plani/ty
 import type { Brand } from "@/lib/types";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
-import { HiloComentarios, pendientes } from "./Comentarios";
+import { HiloComentarios, pendientes, useGenteParaMencionar, type ExtraComentario, type Mencionable } from "./Comentarios";
 import { Lightbox } from "./Lightbox";
 import { copyDe, finales, Mockup, portadaDe, PortadaMockup, type MockupBrand } from "./Mockups";
 import { AnuncioMockup } from "./AnuncioMockup";
@@ -38,7 +38,9 @@ type Props = {
   brand: MockupBrand;
   modo: "estudio" | "cliente";
   comentarios: Comentario[];
-  onComentar: (piezaId: string | null, texto: string, paraCliente: boolean) => Promise<boolean>;
+  onComentar: (piezaId: string | null, texto: string, paraCliente: boolean, extra?: ExtraComentario) => Promise<boolean>;
+  /** Estudio: a quién se puede nombrar con @ en los comentarios. */
+  gente?: { personas: Mencionable[]; yo: string | null };
   onResolver?: (id: string, resuelto: boolean) => void;
   onBorrar?: (id: string) => void;
   yo?: string | null;
@@ -65,7 +67,7 @@ export function PresentacionVista({ herramientas = [], ...props }: Props & { her
   );
 }
 
-function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver }: Props) {
+function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver, gente }: Props) {
   const deck = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(0);
   const [full, setFull] = useState(false);
@@ -267,7 +269,8 @@ function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar
             yo={yo}
             nombre={nombre}
             vacio={modo === "cliente" ? "Escribí lo que quieras cambiar o comentar." : "Sin comentarios todavía."}
-            onEnviar={(texto, paraCliente) => onComentar(hilo || null, texto, paraCliente)}
+            gente={gente}
+            onEnviar={(texto, paraCliente, extra) => onComentar(hilo || null, texto, paraCliente, extra)}
             onResolver={onResolver}
             onBorrar={onBorrar}
           />
@@ -290,6 +293,7 @@ export function Presentacion({ id }: { id: string }) {
   const { plani, piezas, loading, error } = usePlani(id);
   const { clients } = useClients();
   const comentarios = useComentarios(id);
+  const gente = useGenteParaMencionar();
   const brand = plani ? clients.find((c) => c.id === plani.brand_id) ?? null : null;
   const { tipoDe } = useTipos();
   const tipo = tipoDe(plani?.tipo ?? "");
@@ -315,7 +319,8 @@ export function Presentacion({ id }: { id: string }) {
       brand={brand ?? { name: "Cliente", color: "#52525B", logo_url: null, logo_bg: "light" }}
       modo="estudio"
       comentarios={comentarios.items}
-      onComentar={(piezaId, texto, paraCliente) => comentarios.comentar(piezaId, texto, !paraCliente)}
+      onComentar={(piezaId, texto, paraCliente, extra) => comentarios.comentar(piezaId, texto, !paraCliente, extra)}
+      gente={gente}
       onResolver={comentarios.resolver}
       onBorrar={comentarios.borrar}
       yo={comentarios.yo}

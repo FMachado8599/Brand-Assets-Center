@@ -50,7 +50,7 @@ export async function leerConexion(db: SupabaseClient, proveedor: Proveedor): Pr
   } catch {
     const nombre = proveedor === "basecamp" ? "Basecamp" : proveedor === "google" ? "Google Drive" : proveedor;
     throw new ReconectarError(
-      `La conexión guardada con ${nombre} no se puede abrir en este entorno (se guardó con otra INTEGRACIONES_SECRET). Volvé a conectar ${nombre}.`
+      `La conexión con ${nombre} no se puede usar acá: se hizo desde otro lado. Volvé a conectar ${nombre} (lo hace un admin).`
     );
   }
   return {

@@ -180,6 +180,10 @@ create table if not exists public.presentacion_comentarios (
   created_at timestamptz not null default now(),
   constraint presentacion_comentarios_texto check (char_length(texto) between 1 and 4000)
 );
+-- Responder a un comentario y nombrar a alguien del equipo (@Mathi). Los avisos salen de
+-- migracion-presentaciones-board.sql.
+alter table public.presentacion_comentarios add column if not exists respuesta_a uuid references public.presentacion_comentarios(id) on delete set null;
+alter table public.presentacion_comentarios add column if not exists menciones uuid[] not null default '{}';
 
 -- 5. Carpetas del Drive ---------------------------------------------
 -- Para no buscar en Drive cada vez dónde va un archivo: cliente, presentación y día → id de la carpeta.

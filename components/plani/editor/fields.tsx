@@ -1,7 +1,8 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type ReactNode, type TextareaHTMLAttributes } from "react";
-import { ExternalLink, Link2, Plus, X } from "lucide-react";
+import { Link2, Plus, X } from "lucide-react";
+import { BotonPegar, pegarEn } from "@/components/ui/pegar";
 import type { Link } from "@/lib/plani/types";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,10 @@ export function Field({ label, hint, children, action, className }: { label: str
   );
 }
 
-/** Un textarea que crece con lo que se escribe (sin barra de scroll adentro). */
+/**
+ * Un textarea que crece con lo que se escribe (sin barra de scroll adentro), con un botón de Pegar
+ * arriba a la derecha (aparece al pasar o al escribir).
+ */
 export function AutoText({ className, value, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -28,17 +32,27 @@ export function AutoText({ className, value, ...props }: TextareaHTMLAttributes<
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight + 2}px`;
   }, [value]);
+  const editable = !props.disabled && !props.readOnly;
   return (
-    <textarea
-      ref={ref}
-      value={value}
-      rows={2}
-      className={cn(
-        "block w-full resize-none overflow-hidden rounded-xl border border-black/[0.08] bg-background/60 px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-black/15 focus:border-foreground/25 focus:bg-card",
-        className
+    <div className="group/texto relative">
+      <textarea
+        ref={ref}
+        value={value}
+        rows={2}
+        className={cn(
+          "block w-full resize-none overflow-hidden rounded-xl border border-black/[0.08] bg-background/60 px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-black/15 focus:border-foreground/25 focus:bg-card",
+          editable && "pr-[4.5rem]",
+          className
+        )}
+        {...props}
+      />
+      {editable && (
+        <BotonPegar
+          onTexto={(t) => ref.current && pegarEn(ref.current, t)}
+          className="absolute right-1.5 top-1.5 opacity-0 focus-visible:opacity-100 group-focus-within/texto:opacity-100 group-hover/texto:opacity-100"
+        />
       )}
-      {...props}
-    />
+    </div>
   );
 }
 
@@ -143,7 +157,6 @@ export function LinkList({
               <a href={l.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 py-1.5 pr-2 hover:underline" title={l.url}>
                 <Link2 className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <span className="truncate">{l.label || hostDe(l.url)}</span>
-                {!onChange && <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />}
               </a>
               {onChange && (
                 <button

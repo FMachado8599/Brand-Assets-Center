@@ -146,3 +146,19 @@ export function mesDelTitulo(titulo: string): number | null {
   const i = nombres.findIndex((rx) => rx.test(t));
   return i >= 0 ? i + 1 : null;
 }
+
+/**
+ * El mes y el año de una tarea por su título ("Plani Octubre", "Leads enero 2027"). Si no dice el
+ * año, el más cercano a hoy: en diciembre, "Plani Enero" es del año que viene.
+ */
+export function periodoDelTitulo(titulo: string, hoy = new Date()): { anio: number; mes: number } | null {
+  const mes = mesDelTitulo(titulo);
+  if (!mes) return null;
+  const dice = titulo.match(/\b(20\d{2})\b/);
+  if (dice) return { anio: Number(dice[1]), mes };
+  const ahora = hoy.getFullYear() * 12 + hoy.getMonth();
+  const anio = [hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].sort(
+    (a, b) => Math.abs(a * 12 + mes - 1 - ahora) - Math.abs(b * 12 + mes - 1 - ahora)
+  )[0];
+  return { anio, mes };
+}

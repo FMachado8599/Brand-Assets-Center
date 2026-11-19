@@ -38,6 +38,9 @@ export type Notificacion = {
   autor: string | null;
   autor_avatar: string | null;
   app_url: string | null;
+  /** Las de una presentación (ej: un comentario): cuál, y adónde lleva adentro de la app. */
+  presentacion_id?: string | null;
+  enlace?: string | null;
   proyecto: string | null;
   brand_id: string | null;
   brand_name: string | null;
@@ -135,7 +138,8 @@ function nivelDe(motivo: Motivo, noLeidas: number, urgente: boolean): Nivel {
 }
 
 /** Una conversación: el hilo de Basecamp, o la tarea (lo del Board y lo de Basecamp de la misma card van juntos). */
-const claveDe = (n: Notificacion) => (n.hilo_id ?? n.tarea_id) != null ? `h${n.hilo_id ?? n.tarea_id}` : `n${n.id}`;
+const claveDe = (n: Notificacion) =>
+  n.presentacion_id ? `p${n.presentacion_id}` : (n.hilo_id ?? n.tarea_id) != null ? `h${n.hilo_id ?? n.tarea_id}` : `n${n.id}`;
 
 export function agrupar(lista: Notificacion[], hoy = new Date()): Grupo[] {
   const porClave = new Map<string, Notificacion[]>();

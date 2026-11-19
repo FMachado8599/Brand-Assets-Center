@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CalendarPlus,
@@ -35,6 +35,7 @@ import {
 import { useConfirm } from "@/components/ui/confirm";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
+import { periodoDelTitulo } from "@/lib/plani/basecamp";
 import { useClients } from "@/hooks/useClients";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { useComentarios } from "@/hooks/useComentarios";
@@ -59,7 +60,7 @@ import { BasecampMark, BasecampTarea, TareaPicker } from "../BasecampTarea";
 import { FormatDot, medioUrl } from "../bits";
 import { HerramientasProvider } from "../herramientas";
 import { TipoChip } from "../TipoChip";
-import { HiloComentarios, pendientes } from "../Comentarios";
+import { HiloComentarios, pendientes, useGenteParaMencionar } from "../Comentarios";
 import { PlaniEmojiProvider } from "../emojis";
 import { Lightbox } from "../Lightbox";
 import { Calendario, FeedGrid } from "../Overview";
@@ -125,6 +126,7 @@ function Editor({ id }: { id: string }) {
   const [lightbox, setLightbox] = useState<{ medios: Medio[]; index: number } | null>(null);
   const [bajando, setBajando] = useState<number | null>(null);
   const comentarios = useComentarios(id);
+  const gente = useGenteParaMencionar();
 
   const brand = plani ? clients.find((c) => c.id === plani.brand_id) ?? null : null;
   const { tipoDe } = useTipos();
@@ -154,6 +156,17 @@ function Editor({ id }: { id: string }) {
   );
 
   const otrosCopys = useMemo(() => piezas.map(copyTexto).filter(Boolean), [piezas]);
+
+  // Desde la campanita (?pieza=…): se va a esa pieza y se abren sus comentarios, una vez.
+  const piezaPedida = useSearchParams().get("pieza");
+  const [conComentarios, setConComentarios] = useState<string | null>(null);
+  const yaFue = useRef(false);
+  useEffect(() => {
+    if (!piezaPedida || yaFue.current || !porId.has(piezaPedida)) return;
+    yaFue.current = true;
+    setConComentarios(piezaPedida);
+    setTimeout(() => irAPieza(piezaPedida), 300);
+  }, [piezaPedida, porId, irAPieza]);
 
   const crear = useCallback(
     async (fecha: string, formato: Formato, extra: Partial<Pieza> = {}) => {
@@ -247,6 +260,13 @@ function Editor({ id }: { id: string }) {
   };
 
   const linkCliente = plani?.share_token && typeof window !== "undefined" ? `${window.location.origin}/p/${plani.share_token}` : "";
+  // El mes de la presentación (si se armó con el que no era). Las piezas no se mueven: las de otro
+  // día quedan marcadas como fuera del mes.
+  const cambiarPeriodo = async (anio: number, mes: number) => {
+    if (anio === plani.anio && mes === plani.mes) return;
+    if (await store.updatePlani({ anio, mes })) toast(`Ahora es de ${MESES[mes - 1]} ${anio}`);
+  };
+
   const compartir = async (on: boolean) => {
     if (!plani) return;
     const ok = await store.updatePlani({ compartida: on, share_token: plani.share_token ?? nuevoToken() });
@@ -343,7 +363,8 @@ function Editor({ id }: { id: string }) {
               modo="estudio"
               yo={comentarios.yo}
               compacto
-              onEnviar={(texto, paraCliente) => comentarios.comentar(null, texto, !paraCliente)}
+              gente={gente}
+              onEnviar={(texto, paraCliente, extra) => comentarios.comentar(null, texto, !paraCliente, extra)}
               onResolver={comentarios.resolver}
               onBorrar={comentarios.borrar}
             />
@@ -351,6 +372,31 @@ function Editor({ id }: { id: string }) {
           </BarPopover>
           <BarPopover label="Más" icon={MoreHorizontal} align="end" className="w-72">
             <PanelTitle title="Presentación" hint={`${tipo.nombre} · ${MESES[plani.mes - 1]} ${plani.anio}`} />
+            <label className="mb-3 flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Mes</span>
+              <select
+                value={plani.mes}
+                onChange={(e) => cambiarPeriodo(plani.anio, Number(e.target.value))}
+                className="h-8 flex-1 rounded-full border border-black/[0.08] bg-card px-3 text-sm"
+              >
+                {MESES.map((m, i) => (
+                  <option key={m} value={i + 1}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={plani.anio}
+                onChange={(e) => cambiarPeriodo(Number(e.target.value), plani.mes)}
+                className="h-8 rounded-full border border-black/[0.08] bg-card px-3 text-sm"
+              >
+                {[plani.anio - 1, plani.anio, plani.anio + 1].map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="mb-3 rounded-xl bg-secondary/60 p-3">
               <div className="flex items-center gap-2">
                 <Share2 className="h-4 w-4" />
@@ -634,6 +680,7 @@ function Editor({ id }: { id: string }) {
                       onOpen={abrir}
                       comentarios={comentarios}
                       otrosCopys={otrosCopys}
+                      abrirComentarios={conComentarios}
                     />
                   ))}
                 </div>
@@ -669,7 +716,11 @@ function Editor({ id }: { id: string }) {
             brandId={plani.brand_id}
             mes={plani.mes}
             onPick={(t) => {
-              store.updatePlani({ bc_tarea_id: t.id });
+              // Si la tarea dice otro mes ("Plani Octubre"), la presentación pasa a ese.
+              const periodo = periodoDelTitulo(t.titulo);
+              const cambia = periodo && (periodo.anio !== plani.anio || periodo.mes !== plani.mes);
+              store.updatePlani(cambia ? { bc_tarea_id: t.id, anio: periodo.anio, mes: periodo.mes } : { bc_tarea_id: t.id });
+              if (cambia) toast(`Pasó a ${MESES[periodo.mes - 1]} ${periodo.anio}, como la tarea`);
               setPickTarea(false);
               toast("Tarea vinculada");
             }}

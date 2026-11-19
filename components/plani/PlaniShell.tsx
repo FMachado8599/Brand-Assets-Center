@@ -12,7 +12,7 @@ import { useEquipo } from "@/hooks/useEquipo";
 import { useIntegraciones } from "@/hooks/useIntegraciones";
 import { useOAuthResult } from "@/hooks/useOAuthResult";
 import { useTipos } from "@/hooks/useTipos";
-import { basecampRepo, mesDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
+import { basecampRepo, periodoDelTitulo, type TareaCompleta } from "@/lib/plani/basecamp";
 import { ESTADOS, FORMATOS, FORMATO_ORDEN, MESES } from "@/lib/plani/config";
 import { tipoDeTitulo, type TipoPresentacion } from "@/lib/plani/tipos";
 import { planiErrorMessage, planiRepo } from "@/lib/plani/repo";
@@ -89,14 +89,20 @@ export function PlaniShell() {
 
   const porCliente = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const q = fold(query.trim());
+  // Las del mes, y las de meses anteriores que todavía no están listas (siguen en curso).
+  const entra = useCallback(
+    (p: { anio: number; mes: number; estado: string }) =>
+      (p.anio === anio && p.mes === mes) || (p.anio * 12 + p.mes < anio * 12 + mes && p.estado !== "lista"),
+    [anio, mes]
+  );
   const delMes = useMemo(
     () =>
       (planis ?? [])
-        .filter((p) => p.anio === anio && p.mes === mes)
+        .filter(entra)
         .filter((p) => !tipoFiltro || p.tipo === tipoFiltro)
         .filter((p) => !q || fold(porCliente.get(p.brand_id)?.name ?? "").includes(q))
         .sort((a, b) => (porCliente.get(a.brand_id)?.name ?? "").localeCompare(porCliente.get(b.brand_id)?.name ?? "", "es")),
-    [planis, anio, mes, q, porCliente, tipoFiltro]
+    [planis, entra, q, porCliente, tipoFiltro]
   );
 
   // Lo que falta arrancar, con su tipo (y del tipo elegido arriba, si hay uno).
@@ -110,9 +116,9 @@ export function PlaniShell() {
   // Cuántas hay de cada tipo este mes (para los chips del filtro).
   const delMesPorTipo = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of planis ?? []) if (p.anio === anio && p.mes === mes) m.set(p.tipo, (m.get(p.tipo) ?? 0) + 1);
+    for (const p of planis ?? []) if (entra(p)) m.set(p.tipo, (m.get(p.tipo) ?? 0) + 1);
     return m;
-  }, [planis, anio, mes]);
+  }, [planis, entra]);
 
   const mover = (d: number) =>
     setMes(({ anio, mes }) => {
@@ -214,7 +220,13 @@ export function PlaniShell() {
               return (
                 <Columna key={e.value} estado={e.value} count={items.length}>
                   {items.map((p) => (
-                    <PlaniCard key={p.id} plani={p} brand={porCliente.get(p.brand_id) ?? null} tipo={tipoDe(p.tipo)} />
+                    <PlaniCard
+                      key={p.id}
+                      plani={p}
+                      brand={porCliente.get(p.brand_id) ?? null}
+                      tipo={tipoDe(p.tipo)}
+                      deOtroMes={p.anio !== anio || p.mes !== mes ? `${MESES[p.mes - 1]}${p.anio !== anio ? ` ${p.anio}` : ""}` : null}
+                    />
                   ))}
                   {e.value === "redaccion" && (
                     <button
@@ -261,7 +273,7 @@ export function PlaniShell() {
                       <button
                         type="button"
                         disabled={!brandId}
-                        onClick={() => setNueva({ brandId, tarea: t, tipo: tipo.id, anio, mes: mesDelTitulo(t.titulo) ?? mes })}
+                        onClick={() => setNueva({ brandId, tarea: t, tipo: tipo.id, ...(periodoDelTitulo(t.titulo) ?? { anio, mes }) })}
                         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:brightness-95 disabled:opacity-45"
                         title={brandId ? undefined : "Ese proyecto no está vinculado a ningún cliente"}
                       >
@@ -308,7 +320,7 @@ function Columna({ estado, count, children }: { estado: PlaniEstado; count: numb
   );
 }
 
-function PlaniCard({ plani, brand, tipo }: { plani: PlaniResumen; brand: Brand | null; tipo: TipoPresentacion }) {
+function PlaniCard({ plani, brand, tipo, deOtroMes }: { plani: PlaniResumen; brand: Brand | null; tipo: TipoPresentacion; deOtroMes: string | null }) {
   const piezas = plani.presentacion_piezas ?? [];
   const total = piezas.length;
   const conMaterial = piezas.filter((p) => (p.medios ?? []).some((m) => m.rol === "final")).length;
@@ -336,7 +348,14 @@ function PlaniCard({ plani, brand, tipo }: { plani: PlaniResumen; brand: Brand |
         </span>
         {plani.bc_tarea_id && <BasecampMark className="h-3.5 w-3.5 opacity-70" />}
       </div>
-      <TipoChip tipo={tipo} className="self-start" />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <TipoChip tipo={tipo} />
+        {deOtroMes && (
+          <span className="rounded-full bg-[#8A6A3B]/12 px-2 py-0.5 text-[11px] font-medium text-[#8A6A3B]" title="De un mes anterior que todavía no está lista">
+            {deOtroMes}
+          </span>
+        )}
+      </div>
 
       {feed.length > 0 ? (
         <div className="grid grid-cols-3 gap-[2px] overflow-hidden rounded-lg">

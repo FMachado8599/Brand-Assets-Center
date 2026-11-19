@@ -77,7 +77,11 @@ export function NotificacionesPill() {
   const abrir = (g: Grupo) => {
     marcarLeidas(g.idsNoLeidas);
     const url = g.principal.app_url;
-    if (url && g.principal.origen === "basecamp") window.open(url, "_blank", "noopener,noreferrer");
+    // Lo que pasa adentro de la app (un comentario en una presentación) lleva ahí mismo.
+    if (g.principal.enlace?.startsWith("/")) {
+      setAbierto(false);
+      router.push(g.principal.enlace);
+    } else if (url && g.principal.origen === "basecamp") window.open(url, "_blank", "noopener,noreferrer");
     else if (g.principal.tarea_id != null) verEnBoard(g.principal.tarea_id);
   };
 
@@ -219,7 +223,7 @@ function iconoDe(g: Grupo): ComponentType<{ className?: string }> {
   if (g.motivo === "mencion") return AtSign;
   if (g.motivo === "asignacion") return UserPlus;
   const kind = g.principal.kind ?? "";
-  if (kind === "comment_created") return MessageCircle;
+  if (kind === "comment_created" || g.principal.presentacion_id) return MessageCircle;
   if (/_(moved|adopted)$/.test(kind)) return ArrowRightLeft;
   if (/_created$/.test(kind)) return Plus;
   return g.principal.origen === "basecamp" ? BasecampGlyph : Columns3;

@@ -64,7 +64,15 @@ export const planiRepo = {
   comentarios: (planiId: string) =>
     supabase.from("presentacion_comentarios").select("*").eq("presentacion_id", planiId).order("created_at").returns<Comentario[]>(),
 
-  comentar: (input: { presentacion_id: string; pieza_id: string | null; texto: string; autor_nombre: string; interno: boolean }) =>
+  comentar: (input: {
+    presentacion_id: string;
+    pieza_id: string | null;
+    texto: string;
+    autor_nombre: string;
+    interno: boolean;
+    respuesta_a?: string | null;
+    menciones?: string[];
+  }) =>
     supabase.from("presentacion_comentarios").insert(input).select().single<Comentario>(),
 
   resolver: (id: string, resuelto: boolean) =>

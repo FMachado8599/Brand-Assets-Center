@@ -80,6 +80,12 @@ create table if not exists public.notificaciones (
   leida timestamptz
 );
 create unique index if not exists notificaciones_una_por_evento on public.notificaciones (persona_id, evento_id) where evento_id is not null;
+-- Las que no vienen de una card (ej: un comentario en una presentación): su título, la marca, la
+-- presentación (para juntarlas) y adónde lleva tocarla, adentro de la app.
+alter table public.notificaciones add column if not exists titulo text;
+alter table public.notificaciones add column if not exists brand_id uuid references public.brands(id) on delete set null;
+alter table public.notificaciones add column if not exists presentacion_id uuid;
+alter table public.notificaciones add column if not exists enlace text;
 create index if not exists notificaciones_persona_idx on public.notificaciones (persona_id, creada desc);
 create index if not exists notificaciones_no_leidas_idx on public.notificaciones (persona_id) where leida is null;
 
@@ -472,7 +478,7 @@ create trigger notificar_movimiento after insert on public.tarea_movimientos
 create or replace view public.mis_notificaciones with (security_invoker = true) as
 select n.id, n.origen, n.motivo, n.hilo_id, n.tarea_id, n.proyecto_id, n.creada, n.leida,
        ev.kind,
-       coalesce(ev.hilo_titulo, f.titulo) as titulo,
+       coalesce(n.titulo, ev.hilo_titulo, f.titulo) as titulo,
        coalesce(ev.texto, n.texto) as texto,
        coalesce(ev.autor_nombre, a.nombre) as autor,
        pa.avatar_url as autor_avatar,
@@ -480,12 +486,13 @@ select n.id, n.origen, n.motivo, n.hilo_id, n.tarea_id, n.proyecto_id, n.creada,
        p.nombre as proyecto,
        b.id as brand_id, b.name as brand_name, b.color as brand_color, b.logo_url as brand_logo_url,
        b.logo_bg as brand_logo_bg, b.logo_from as brand_logo_from,
-       f.vence, f.vigencia, f.completada, f.etapa, f.estado, f.columna, f.tablero, f.pausada, f.entrega
+       f.vence, f.vigencia, f.completada, f.etapa, f.estado, f.columna, f.tablero, f.pausada, f.entrega,
+       n.presentacion_id, n.enlace
   from public.notificaciones n
   left join public.bc_eventos ev on ev.id = n.evento_id
   left join public.board_flujo f on f.id = n.tarea_id
   left join public.bc_proyectos p on p.id = n.proyecto_id
-  left join public.brands b on b.id = p.brand_id
+  left join public.brands b on b.id = coalesce(p.brand_id, n.brand_id)
   left join public.equipo a on a.id = n.autor_id
   left join public.bc_personas pa on pa.id = ev.autor_bc_id
  where n.persona_id = (select public.mi_equipo_id());

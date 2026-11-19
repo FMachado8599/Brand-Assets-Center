@@ -145,6 +145,12 @@ export type Comentario = {
   interno: boolean;
   resuelto: boolean;
   created_at: string;
+  /** El comentario al que responde (null = arranca una conversación). */
+  respuesta_a: string | null;
+  /** A quiénes del equipo nombra (@): les llega a la campanita. */
+  menciones?: string[];
+  /** Quién del equipo lo escribió (null = el cliente). */
+  autor_equipo_id?: string | null;
   /** En la página del cliente: lo escribió el cliente (y no alguien del estudio). */
   del_cliente?: boolean;
 };
