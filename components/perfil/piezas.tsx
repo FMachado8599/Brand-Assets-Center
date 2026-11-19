@@ -2,9 +2,99 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Plane } from "lucide-react";
+import { SocialIcon } from "@/components/clients/SocialIcon";
+import { Hint } from "@/components/ui/tooltip";
 import { initials } from "@/lib/clients/color";
-import { estadoVigente, fueraDeOficina, textoFuera, type Perfil } from "@/lib/perfil";
+import { conAlfa, estadoVigente, fueraDeOficina, REDES_PERFIL, textoDeRed, textoFuera, type Perfil, type RedPerfil, type Redes } from "@/lib/perfil";
 import { cn } from "@/lib/utils";
+import portadaEstudio from "./portada.webp";
+
+/** El fondo de la imagen del estudio: lo que sobra alrededor se pinta igual y no se nota el corte. */
+const FONDO_PORTADA = "#E5E5DD";
+
+/**
+ * La portada de un perfil: la del estudio (por defecto) o, si eligió "Tu color", un degradé con su
+ * acento. La imagen se ve entera (es ancha y tiene texto: recortarla lo cortaría).
+ */
+export function Portada({ perfil, className }: { perfil: Perfil | null | undefined; className?: string }) {
+  const acento = perfil?.acento;
+  if (perfil?.portada === "color" && acento) {
+    return (
+      <div
+        aria-hidden
+        className={cn("aspect-[1128/191] w-full", className)}
+        style={{ background: `linear-gradient(120deg, ${conAlfa(acento, 0.95)}, ${conAlfa(acento, 0.45)} 60%, ${conAlfa(acento, 0.2)})` }}
+      />
+    );
+  }
+  return (
+    <div aria-hidden className={cn("aspect-[1128/191] w-full overflow-hidden", className)} style={{ background: FONDO_PORTADA }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={portadaEstudio.src} alt="" className="h-full w-full object-contain" />
+    </div>
+  );
+}
+
+/** El puesto, destacado: una píldora por puesto (con su color de acento, si tiene). */
+export function PuestoPills({ puestos, acento, className }: { puestos: string[]; acento?: string | null; className?: string }) {
+  if (!puestos.length) return null;
+  return (
+    <div className={cn("flex flex-wrap gap-1.5", className)}>
+      {puestos.map((p) => (
+        <span
+          key={p}
+          className="inline-flex items-center rounded-full bg-foreground px-3 py-1 text-[13px] font-semibold text-background"
+          style={acento ? { background: acento, color: "#fff" } : undefined}
+        >
+          {p}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** El logo de Behance (no está en los íconos de Clientes), relleno con el color del texto. */
+function BehanceIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden focusable={false} fill="currentColor" className={cn("h-4 w-4 shrink-0", className)}>
+      <path d="M7.8 5.1c.8 0 1.5.1 2.1.2.6.1 1.1.3 1.6.6.4.3.8.7 1 1.2.2.5.3 1.1.3 1.8 0 .8-.2 1.4-.5 1.9-.4.5-.9.9-1.5 1.2.9.3 1.6.7 2 1.4.4.6.7 1.4.7 2.3 0 .7-.1 1.4-.4 1.9-.3.5-.7 1-1.2 1.3-.5.3-1.1.6-1.7.7-.6.2-1.3.2-1.9.2H0V5.1h7.8Zm-.4 5.6c.6 0 1.1-.1 1.5-.4.4-.3.6-.8.6-1.4 0-.4-.1-.7-.2-.9-.1-.2-.3-.4-.5-.5-.2-.1-.5-.2-.8-.3-.3 0-.6-.1-.9-.1H3.3v3.6h4.1Zm.2 5.9c.3 0 .7 0 1-.1.3-.1.6-.2.8-.4.2-.2.4-.4.6-.7.1-.3.2-.7.2-1.1 0-.8-.2-1.4-.7-1.8-.5-.4-1.1-.5-1.9-.5H3.3v4.6h4.3ZM16.6 16.5c.5.5 1.2.7 2.1.7.6 0 1.2-.2 1.6-.5.5-.3.7-.7.8-1h2.7c-.4 1.3-1.1 2.3-2 2.9-.9.6-2 .9-3.2.9-.9 0-1.6-.1-2.3-.4-.7-.3-1.3-.7-1.8-1.2s-.9-1.1-1.1-1.9c-.3-.7-.4-1.5-.4-2.4 0-.8.1-1.6.4-2.3.3-.7.7-1.3 1.2-1.9.5-.5 1.1-.9 1.8-1.2.7-.3 1.5-.5 2.3-.5.9 0 1.7.2 2.4.5.7.4 1.2.8 1.7 1.5.4.6.8 1.3.9 2.1.2.8.3 1.6.2 2.5h-8c0 .9.3 1.6.7 2.1Zm3.4-5.8c-.4-.4-1-.6-1.8-.6-.5 0-.9.1-1.2.3-.3.2-.6.4-.8.6-.2.2-.3.5-.4.8-.1.3-.1.5-.1.7h5c-.2-.8-.4-1.4-.7-1.8ZM15.2 5.9h6.2v1.5h-6.2V5.9Z" />
+    </svg>
+  );
+}
+
+export function RedIcon({ red, className }: { red: RedPerfil; className?: string }) {
+  if (red === "behance") return <BehanceIcon className={className} />;
+  return <SocialIcon network={red} className={className} />;
+}
+
+/** Sus redes, como botoncitos que abren el link en otra pestaña. */
+export function RedesLinks({ redes, className, size = "md" }: { redes: Redes | undefined; className?: string; size?: "sm" | "md" }) {
+  const cargadas = REDES_PERFIL.filter((r) => redes?.[r.id]);
+  if (!cargadas.length) return null;
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
+      {cargadas.map((r) => {
+        const url = redes![r.id]!;
+        return (
+          <Hint key={r.id} label={`${r.nombre}: ${textoDeRed(r.id, url)}`}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${r.nombre}: ${textoDeRed(r.id, url)}`}
+              className={cn(
+                "grid place-items-center rounded-full border bg-card text-muted-foreground shadow-sm transition-colors hover:border-foreground/30 hover:text-foreground",
+                size === "sm" ? "h-8 w-8" : "h-9 w-9"
+              )}
+            >
+              <RedIcon red={r.id} />
+            </a>
+          </Hint>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Una foto de perfil: la imagen o, si no hay (o no carga), las iniciales. Con acento, un aro de ese

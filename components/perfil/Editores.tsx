@@ -18,15 +18,19 @@ import {
   fechaCorta,
   fueraDeOficina,
   hoyISO,
+  linkDeRed,
   recortarFoto,
+  REDES_PERFIL,
+  textoDeRed,
   textoVence,
   urlFotoSubida,
   type FotoOrigen,
   type Perfil,
   type PerfilPatch,
+  type RedPerfil,
 } from "@/lib/perfil";
 import { cn } from "@/lib/utils";
-import { FotoPerfil } from "./piezas";
+import { FotoPerfil, RedIcon } from "./piezas";
 
 type Guardar = (patch: PerfilPatch, ok?: string) => Promise<boolean>;
 
@@ -484,5 +488,122 @@ export function AcentoEditor({ perfil, guardar, disabled }: { perfil: Perfil; gu
         </button>
       )}
     </div>
+  );
+}
+
+/* ───────────── Portada ───────────── */
+
+/** La portada: la del estudio (por defecto) o un degradé con tu color. */
+export function PortadaEditor({ perfil, guardar, disabled }: { perfil: Perfil; guardar: Guardar; disabled?: boolean }) {
+  const actual = perfil.portada === "color" && perfil.acento ? "color" : "estudio";
+  const opciones = [
+    { value: "estudio", label: "La del estudio" },
+    { value: "color", label: "Tu color" },
+  ] as const;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div role="radiogroup" aria-label="Portada" className="flex rounded-full border bg-card p-0.5">
+        {opciones.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={actual === o.value}
+            disabled={disabled || (o.value === "color" && !perfil.acento)}
+            onClick={() => guardar({ portada: o.value })}
+            className={cn(
+              "h-8 rounded-full px-3 text-[13px] font-medium transition-colors disabled:opacity-40",
+              actual === o.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {!perfil.acento && <span className="text-xs text-muted-foreground">Elegí un color para usarlo de portada.</span>}
+    </div>
+  );
+}
+
+/* ───────────── Redes ───────────── */
+
+/**
+ * LinkedIn, Behance, Instagram y Facebook: el link o el usuario solo. Se guarda al salir del campo;
+ * si no es de esa red, avisa y no se guarda.
+ */
+export function RedesEditor({ perfil, guardar, disabled }: { perfil: Perfil; guardar: Guardar; disabled?: boolean }) {
+  return (
+    <div className="space-y-2">
+      {REDES_PERFIL.map((r) => (
+        <RedCampo key={r.id} red={r.id} nombre={r.nombre} ejemplo={r.ejemplo} perfil={perfil} guardar={guardar} disabled={disabled} />
+      ))}
+    </div>
+  );
+}
+
+function RedCampo({
+  red,
+  nombre,
+  ejemplo,
+  perfil,
+  guardar,
+  disabled,
+}: {
+  red: RedPerfil;
+  nombre: string;
+  ejemplo: string;
+  perfil: Perfil;
+  guardar: Guardar;
+  disabled?: boolean;
+}) {
+  const guardado = perfil.redes[red];
+  const [valor, setValor] = useState(guardado ? textoDeRed(red, guardado) : "");
+  const [error, setError] = useState(false);
+  // Si cambió en la base (otro dispositivo, o se guardó acá normalizado), se muestra lo guardado.
+  useEffect(() => {
+    setValor(guardado ? textoDeRed(red, guardado) : "");
+    setError(false);
+  }, [guardado, red]);
+
+  const confirmar = () => {
+    const link = linkDeRed(red, valor);
+    if (link === undefined) {
+      setError(true);
+      toast(`Eso no parece un link ni un usuario de ${nombre}`, "error");
+      return;
+    }
+    setError(false);
+    if ((link ?? undefined) === guardado) return;
+    const redes = { ...perfil.redes };
+    if (link) redes[red] = link;
+    else delete redes[red];
+    guardar({ redes }, link ? `${nombre} guardado` : `${nombre} quitado`);
+  };
+
+  return (
+    <label className={cn("flex h-11 items-center gap-3 rounded-2xl border bg-card px-3.5 shadow-sm transition-colors focus-within:border-foreground/40", error && "border-destructive/60")}>
+      <RedIcon red={red} className="text-muted-foreground" />
+      <span className="sr-only">{nombre}</span>
+      <input
+        value={valor}
+        disabled={disabled}
+        maxLength={300}
+        onChange={(e) => {
+          setValor(e.target.value);
+          setError(false);
+        }}
+        onBlur={confirmar}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        placeholder={ejemplo}
+        aria-label={nombre}
+        aria-invalid={error}
+        className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+      />
+      {guardado && (
+        <a href={guardado} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground">
+          Abrir
+        </a>
+      )}
+    </label>
   );
 }

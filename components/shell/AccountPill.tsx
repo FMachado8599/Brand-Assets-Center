@@ -3,9 +3,9 @@
 import { forwardRef, useEffect, useState, type ButtonHTMLAttributes } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import { Check, ChevronRight, Loader2, LogIn, LogOut, Plane } from "lucide-react";
+import { Check, ChevronRight, Info, Loader2, LogIn, LogOut, Plane } from "lucide-react";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Hint } from "@/components/ui/tooltip";
+import { Hint, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMiPerfil } from "@/hooks/useMiPerfil";
 import { estadoVigente, fotoElegida, fueraDeOficina, textoFuera, type Perfil } from "@/lib/perfil";
 import { STUDIO, STUDIO_DOMAIN } from "@/lib/site";
@@ -172,10 +172,6 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
                 </span>
               </Link>
             </PopoverClose>
-            <div className="rounded-xl bg-secondary/70 p-3">
-              <p className="mb-1.5 text-xs font-medium">Se guarda en tu cuenta</p>
-              <SyncedList />
-            </div>
             <button
               type="button"
               onClick={() => run(signOut)}
@@ -194,7 +190,6 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
                 <p className="text-xs text-muted-foreground">Lo tuyo, en cualquier computadora.</p>
               </div>
             </div>
-            <SyncedList />
             {available ? (
               <div className="space-y-2">
                 <button
@@ -213,9 +208,10 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
                 El inicio de sesión todavía no está configurado: faltan las variables de Supabase.
               </p>
             )}
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Herramientas es solo para el equipo de {STUDIO}.
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] leading-relaxed text-muted-foreground">Herramientas es solo para el equipo de {STUDIO}.</p>
+              <QueSeGuarda />
+            </div>
           </div>
         )}
       </PopoverContent>
@@ -231,6 +227,26 @@ function EstadoCorto({ perfil }: { perfil: Perfil | null }) {
   if (fuera) return <p className="mt-0.5 truncate text-xs font-medium text-amber-800">{textoFuera(fuera)}</p>;
   if (estado) return <p className="mt-0.5 truncate text-xs">{[estado.emoji, estado.texto].filter(Boolean).join(" ")}</p>;
   return <p className="mt-0.5 truncate text-xs text-muted-foreground/80">Poné tu estado</p>;
+}
+
+/** Lo que se guarda en la cuenta, aparte: se ve al pasar el mouse (o al tocarlo, en el celular). */
+function QueSeGuarda() {
+  return (
+    <Tooltip delayDuration={100}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Info className="h-3.5 w-3.5" /> Qué se guarda
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="end" className="w-64 rounded-xl border bg-card p-3 text-foreground shadow-lg">
+        <p className="mb-1.5 text-xs font-medium">Se guarda en tu cuenta</p>
+        <SyncedList />
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function SyncedList() {

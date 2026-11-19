@@ -4,7 +4,8 @@
 --   - Foto: la de Google (la de siempre), la de Basecamp o una subida.
 --   - Nombre para mostrar ("Facu" en vez de "Facundo Machado").
 --   - Estado: emoji + texto ("🎧 Concentrado"), que se puede borrar solo, y "fuera de oficina hasta…".
---   - Color de acento.
+--   - Color de acento y portada (la del estudio o su color).
+--   - Sus redes: LinkedIn, Behance, Instagram y Facebook.
 -- Lo del Board (puesto, sector, hub, marcas designadas) no se guarda acá: sale de las tablas del
 -- equipo (migracion-equipo.sql) y se cruza por el mail de la cuenta.
 -- Todo el estudio lee los perfiles; cada uno edita solo el suyo.
@@ -37,6 +38,10 @@ alter table public.profiles add column if not exists estado_vence timestamptz;
 -- Fuera de oficina hasta ese día inclusive (null: en la oficina).
 alter table public.profiles add column if not exists fuera_hasta date;
 alter table public.profiles add column if not exists acento text;
+-- null o 'estudio': la portada del estudio · 'color': su color de acento.
+alter table public.profiles add column if not exists portada text;
+-- {"linkedin": "https://…", "instagram": "https://…"}: solo las que cargó, como links completos.
+alter table public.profiles add column if not exists redes jsonb not null default '{}'::jsonb;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 
 alter table public.profiles drop constraint if exists profiles_nombre_visible_largo;
@@ -50,6 +55,29 @@ alter table public.profiles drop constraint if exists profiles_estado_largo;
 alter table public.profiles add constraint profiles_estado_largo check (char_length(estado_emoji) <= 16 and char_length(estado_texto) <= 80);
 alter table public.profiles drop constraint if exists profiles_acento_hex;
 alter table public.profiles add constraint profiles_acento_hex check (acento ~ '^#[0-9A-F]{6}$');
+alter table public.profiles drop constraint if exists profiles_portada_valida;
+alter table public.profiles add constraint profiles_portada_valida check (portada in ('estudio', 'color'));
+
+-- Cada red, un link https de esa red (nada de javascript: ni de otro sitio), y nada más que esas cuatro.
+create or replace function public.perfil_redes_validas(r jsonb)
+returns boolean language sql immutable set search_path = '' as $$
+  select jsonb_typeof(r) = 'object'
+     and octet_length(r::text) <= 2000
+     and not exists (
+       select 1 from jsonb_each(r) e
+        where e.key not in ('linkedin', 'behance', 'instagram', 'facebook')
+           or jsonb_typeof(e.value) <> 'string'
+           or char_length(e.value #>> '{}') > 300
+           or (e.value #>> '{}') !~ (case e.key
+                when 'linkedin' then '^https://([a-z]{2,3}\.)?linkedin\.com/[^\s]+$'
+                when 'behance' then '^https://(www\.)?behance\.net/[^\s]+$'
+                when 'instagram' then '^https://(www\.)?instagram\.com/[^\s]+$'
+                else '^https://(www\.|m\.)?facebook\.com/[^\s]+$'
+              end)
+     );
+$$;
+alter table public.profiles drop constraint if exists profiles_redes_validas;
+alter table public.profiles add constraint profiles_redes_validas check (public.perfil_redes_validas(redes));
 
 -- 2. Lo que viene de Google no se toca desde la app ---------------
 -- El mail es lo que cruza el perfil con el equipo del Board: si se pudiera cambiar, cualquiera podría

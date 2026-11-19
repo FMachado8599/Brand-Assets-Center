@@ -16,7 +16,7 @@ import { conAlfa, fueraDeOficina, nombreDe } from "@/lib/perfil";
 import type { Brand } from "@/lib/types";
 import { abrirPerfil, cerrarPerfil, usePerfilAbierto } from "./abrir";
 import { EnElEstudio } from "./EnElEstudio";
-import { EstadoLinea, FotoPerfil } from "./piezas";
+import { EstadoLinea, FotoPerfil, Portada, PuestoPills, RedesLinks } from "./piezas";
 import { enComun, relacionesDe } from "./relaciones";
 
 /**
@@ -84,7 +84,9 @@ function PerfilCompanero({ persona: p, data, brands, onEditar }: { persona: Pers
   const nombre = nombreDe(p.perfil, p.nombre);
   const acento = p.perfil?.acento ?? null;
   const fuera = fueraDeOficina(p.perfil);
-  const subtitulo = [nombre !== p.nombre ? p.nombre : null, rel.puestos.map((x) => x.nombre).join(" · ") || p.cargo].filter(Boolean).join(" · ");
+  const puestos = rel.puestos.map((x) => x.nombre);
+  // Debajo del puesto: su nombre completo (si se hace llamar distinto) y, sin puesto, el cargo de Basecamp.
+  const subtitulo = [nombre !== p.nombre ? p.nombre : null, puestos.length ? null : p.cargo].filter(Boolean).join(" · ");
 
   // Con llaves: en Chrome nuevo scrollTo devuelve una promesa, y React la tomaría como limpieza.
   useEffect(() => {
@@ -101,17 +103,9 @@ function PerfilCompanero({ persona: p, data, brands, onEditar }: { persona: Pers
 
   return (
     <div ref={scroll} className="min-h-0 overflow-y-auto" data-scroll-y>
-      <div
-        aria-hidden
-        className="h-24"
-        style={{
-          background: acento
-            ? `linear-gradient(135deg, ${conAlfa(acento, 0.9)}, ${conAlfa(acento, 0.35)})`
-            : "linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--muted)))",
-        }}
-      />
+      <Portada perfil={p.perfil} />
       <div className="px-5 pb-5">
-        <div className="-mt-11 flex items-end justify-between gap-3">
+        <div className="-mt-9 flex items-end justify-between gap-3">
           <FotoPerfil nombre={nombre} url={p.avatar_url} acento={acento} fuera={Boolean(fuera)} size={84} />
           <div className="flex items-center gap-1.5 pb-1">
             {p.email && !esYo && (
@@ -142,7 +136,9 @@ function PerfilCompanero({ persona: p, data, brands, onEditar }: { persona: Pers
           {nombre}
           {esYo && <span className="ml-2 align-middle font-sans text-xs font-medium text-muted-foreground">vos</span>}
         </DialogTitle>
+        <PuestoPills puestos={puestos} acento={acento} className="mt-2.5" />
         <DialogDescription className="mt-1.5">{subtitulo || p.email || "En el equipo"}</DialogDescription>
+        <RedesLinks redes={p.perfil?.redes} size="sm" className="mt-2.5" />
 
         <EstadoLinea perfil={p.perfil} className="mt-3" />
 

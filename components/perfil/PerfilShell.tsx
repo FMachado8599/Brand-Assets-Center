@@ -11,12 +11,12 @@ import { MarcasDialog } from "@/components/tareas/equipo/MarcasDialog";
 import { useClients } from "@/hooks/useClients";
 import { useEquipo } from "@/hooks/useEquipo";
 import { useMiPerfil } from "@/hooks/useMiPerfil";
-import { conAlfa, fotoElegida, fueraDeOficina, nombreDe } from "@/lib/perfil";
+import { fotoElegida, fueraDeOficina, nombreDe } from "@/lib/perfil";
 import { STUDIO_DOMAIN } from "@/lib/site";
 import { abrirPerfil } from "./abrir";
-import { AcentoEditor, EstadoEditor, FotoEditor, NombreEditor } from "./Editores";
+import { AcentoEditor, EstadoEditor, FotoEditor, NombreEditor, PortadaEditor, RedesEditor } from "./Editores";
 import { Companeros, EnElEstudio } from "./EnElEstudio";
-import { EstadoLinea, FotoPerfil } from "./piezas";
+import { EstadoLinea, FotoPerfil, Portada, PuestoPills, RedesLinks } from "./piezas";
 import { relacionesDe } from "./relaciones";
 
 /**
@@ -99,7 +99,7 @@ export function PerfilShell() {
   const acento = perfil.acento;
   const fuera = fueraDeOficina(perfil);
   const bloqueado = sinMigracion;
-  const puestos = rel?.puestos.map((p) => p.nombre).join(" · ");
+  const puestos = rel?.puestos.map((p) => p.nombre) ?? [];
 
   return (
     <>
@@ -117,23 +117,20 @@ export function PerfilShell() {
 
         {/* Arriba: cómo te ven */}
         <header className="overflow-hidden rounded-[1.75rem] border border-black/[0.06] bg-card shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)]">
-          <div
-            aria-hidden
-            className="h-28 sm:h-32"
-            style={{
-              background: acento
-                ? `linear-gradient(120deg, ${conAlfa(acento, 0.95)}, ${conAlfa(acento, 0.45)} 60%, ${conAlfa(acento, 0.2)})`
-                : "linear-gradient(120deg, hsl(var(--primary) / 0.55), hsl(var(--secondary)) 70%)",
-            }}
-          />
-          <div className="flex flex-col gap-4 px-5 pb-6 sm:flex-row sm:items-end sm:gap-6 sm:px-8">
-            <FotoPerfil nombre={nombre} url={foto} acento={acento} fuera={Boolean(fuera)} size={116} className="-mt-16 sm:-mt-14" />
+          <Portada perfil={perfil} />
+          {/* En el celular la portada es finita: la foto va debajo, sin taparle el logo. */}
+          <div className="flex flex-col gap-4 px-5 pb-6 pt-4 sm:flex-row sm:items-end sm:gap-6 sm:px-8 sm:pt-0">
+            <FotoPerfil nombre={nombre} url={foto} acento={acento} fuera={Boolean(fuera)} size={116} className="sm:-mt-14" />
             <div className="min-w-0 flex-1 sm:pt-5">
               <p className="eyebrow">
                 Tu perfil <span className="text-primary">\</span>
               </p>
               <h1 className="mt-1 truncate font-display text-[2.6rem] leading-none sm:text-5xl">{nombre}</h1>
-              <p className="mt-2 truncate text-sm text-muted-foreground">{[puestos, user.email].filter(Boolean).join(" · ")}</p>
+              <PuestoPills puestos={puestos} acento={acento} className="mt-2.5" />
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="truncate text-sm text-muted-foreground">{user.email}</span>
+                <RedesLinks redes={perfil.redes} size="sm" />
+              </div>
               <EstadoLinea perfil={perfil} className="mt-3" vacio="Sin estado: contale al estudio en qué andás." />
             </div>
             {yo && (
@@ -163,9 +160,16 @@ export function PerfilShell() {
                 <div className="space-y-2">
                   <p className="eyebrow">Tu color</p>
                   <AcentoEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
-                  <p className="text-xs text-muted-foreground">El fondo de tu perfil y el aro de tu foto cuando alguien te abre.</p>
+                  <p className="text-xs text-muted-foreground">El aro de tu foto y tu puesto cuando alguien te abre.</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="eyebrow">Portada</p>
+                  <PortadaEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
                 </div>
               </div>
+            </Section>
+            <Section title="Tus redes" hint="Si te animás: el link o tu usuario. Las ve el estudio en tu perfil.">
+              <RedesEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
             </Section>
           </div>
         </div>

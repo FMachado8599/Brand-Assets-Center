@@ -192,7 +192,9 @@ En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno 
 - **Nombre para mostrar** ("Facu" en vez de "Facundo Machado"): se ve en la cuenta y en los perfiles. En las filas del Board sigue el nombre del equipo.
 - **Estado**: emoji + texto, o uno de los rápidos (En foco, En reunión, Almorzando, Desde casa, En rodaje, De licencia, De vacaciones). Se puede borrar solo: en 1 hora, en 4, a la noche, el viernes o nunca.
 - **Fuera de oficina hasta…** (inclusive): se ve en el Board al lado de tu nombre, en el organigrama y, si tenés una tarea, en su detalle ("si no puede esperar, pasásela a otra persona").
-- **Color de acento**: el fondo de tu perfil y el aro de tu foto.
+- **Color de acento**: el aro de tu foto y la píldora de tu puesto.
+- **Portada**: la del estudio (por defecto) o un degradé con tu color.
+- **Tus redes** (si te animás): LinkedIn, Behance, Instagram y Facebook. Se pega el link o el usuario solo; se guarda el link completo y la base revisa que sea de esa red.
 - **En el estudio** (del Board): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas designadas. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí.
 - **Con quién trabajás**: los designados de tus mismas marcas (ej: la redactora y el CM de Changan) y la gente de tu hub.
 
@@ -204,7 +206,7 @@ Lo del Board no se guarda en el perfil: sale del equipo (`supabase/migracion-equ
 
 En Supabase → SQL Editor, correr `supabase/migracion-perfil.sql` (en el historial de migraciones: `feature_perfil`), después de `migracion-usuarios.sql` y `migracion-acceso.sql`. Se puede repetir: no mueve datos.
 
-- Suma a `profiles` la foto elegida, el nombre para mostrar, el estado, "fuera de oficina hasta" y el acento, y crea el bucket público `avatares` (cada uno sube y borra solo en su carpeta).
+- Suma a `profiles` la foto elegida, el nombre para mostrar, el estado, "fuera de oficina hasta", el acento, la portada y las redes, y crea el bucket público `avatares` (cada uno sube y borra solo en su carpeta).
 - Todo el estudio lee los perfiles; cada uno edita solo el suyo. El mail, el nombre y la foto de Google no se pueden cambiar desde la app (el mail es lo que cruza el perfil con el Board) y se actualizan solos en cada ingreso.
 - Sin la migración, la página se ve pero avisa que falta y no guarda nada.
 

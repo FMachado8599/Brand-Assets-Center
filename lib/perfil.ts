@@ -27,11 +27,79 @@ export type Perfil = {
   /** AAAA-MM-DD, inclusive. */
   fuera_hasta: string | null;
   acento: string | null;
+  /** null o "estudio": la portada del estudio · "color": su color de acento. */
+  portada: "estudio" | "color" | null;
+  /** Sus redes, como links completos (solo las que cargó). */
+  redes: Redes;
 };
 
 export type PerfilPatch = Partial<
-  Pick<Perfil, "nombre_visible" | "foto_origen" | "foto_url" | "foto_path" | "estado_emoji" | "estado_texto" | "estado_vence" | "fuera_hasta" | "acento">
+  Pick<
+    Perfil,
+    "nombre_visible" | "foto_origen" | "foto_url" | "foto_path" | "estado_emoji" | "estado_texto" | "estado_vence" | "fuera_hasta" | "acento" | "portada" | "redes"
+  >
 >;
+
+/* ───────────── Redes ───────────── */
+
+export type RedPerfil = "linkedin" | "behance" | "instagram" | "facebook";
+
+export type Redes = Partial<Record<RedPerfil, string>>;
+
+/**
+ * Las redes que se pueden poner en el perfil. Se acepta el link o el usuario solo; se guarda siempre
+ * el link completo (la base revisa que sea https y de esa red).
+ */
+export const REDES_PERFIL: { id: RedPerfil; nombre: string; base: string; host: RegExp; ejemplo: string }[] = [
+  { id: "linkedin", nombre: "LinkedIn", base: "https://www.linkedin.com/in/", host: /^([a-z]{2,3}\.)?linkedin\.com$/, ejemplo: "linkedin.com/in/tu-usuario" },
+  { id: "behance", nombre: "Behance", base: "https://www.behance.net/", host: /^(www\.)?behance\.net$/, ejemplo: "behance.net/tu-usuario" },
+  { id: "instagram", nombre: "Instagram", base: "https://www.instagram.com/", host: /^(www\.)?instagram\.com$/, ejemplo: "@tu-usuario" },
+  { id: "facebook", nombre: "Facebook", base: "https://www.facebook.com/", host: /^(www\.|m\.)?facebook\.com$/, ejemplo: "facebook.com/tu-usuario" },
+];
+
+/**
+ * Lo que escribió la persona → el link de esa red. "" → null (sacarla). undefined si no sirve
+ * (otro sitio, un usuario con caracteres raros).
+ */
+export function linkDeRed(red: RedPerfil, entrada: string): string | null | undefined {
+  const def = REDES_PERFIL.find((r) => r.id === red)!;
+  const v = entrada.trim();
+  if (!v) return null;
+  // Es un link si empieza con http, tiene una barra o nombra un sitio conocido; si no, es el usuario
+  // (los de Instagram pueden tener puntos: "facu.machado").
+  const pareceLink = /^https?:\/\//i.test(v) || v.includes("/") || /(linkedin\.com|behance\.net|instagram\.com|facebook\.com)/i.test(v);
+  if (pareceLink) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+      if (!def.host.test(url.hostname.toLowerCase())) return undefined;
+      const camino = url.pathname.replace(/\/+$/, "");
+      if (!camino || camino === "/") return undefined;
+      return `https://${url.hostname.toLowerCase()}${camino}`;
+    } catch {
+      return undefined;
+    }
+  }
+  const usuario = v.replace(/^@/, "");
+  if (!/^[A-Za-z0-9._-]{1,100}$/.test(usuario)) return undefined;
+  return def.base + usuario;
+}
+
+/** "https://www.instagram.com/facu" → "@facu"; el resto, sin el https ni el www. */
+export function textoDeRed(red: RedPerfil, url: string) {
+  const sinProtocolo = url.replace(/^https:\/\/(www\.)?/, "");
+  if (red === "instagram") return `@${sinProtocolo.replace(/^instagram\.com\//, "")}`;
+  return sinProtocolo;
+}
+
+function limpiarRedes(raw: unknown): Redes {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Redes = {};
+  for (const r of REDES_PERFIL) {
+    const v = (raw as Record<string, unknown>)[r.id];
+    if (typeof v === "string" && /^https:\/\//.test(v)) out[r.id] = v;
+  }
+  return out;
+}
 
 export const AVATARES = "avatares";
 
@@ -59,6 +127,8 @@ export function normalizarPerfil(row: Record<string, unknown>): Perfil {
     estado_vence: s("estado_vence"),
     fuera_hasta: s("fuera_hasta"),
     acento: s("acento"),
+    portada: s("portada") === "color" ? "color" : s("portada") === "estudio" ? "estudio" : null,
+    redes: limpiarRedes(row.redes),
   };
 }
 
@@ -67,12 +137,13 @@ export const tieneColumnasPerfil = (row: Record<string, unknown>) => "foto_orige
 
 /** Falta correr supabase/migracion-perfil.sql. */
 export const faltaMigracionPerfil = (message: string) =>
-  /nombre_visible|foto_origen|foto_url|foto_path|estado_emoji|estado_texto|estado_vence|fuera_hasta|acento|avatares|bucket not found|42703/i.test(message);
+  /nombre_visible|foto_origen|foto_url|foto_path|estado_emoji|estado_texto|estado_vence|fuera_hasta|acento|portada|redes|avatares|bucket not found|42703/i.test(message);
 
 export function perfilErrorMessage(message: string) {
   if (faltaMigracionPerfil(message)) return "Falta correr supabase/migracion-perfil.sql en Supabase.";
   if (/profiles_acento_hex/i.test(message)) return "Ese color no es válido.";
   if (/profiles_estado_largo|profiles_nombre_visible_largo/i.test(message)) return "Es demasiado largo.";
+  if (/profiles_redes_validas/i.test(message)) return "Ese link no es de esa red.";
   if (/row-level security|permission denied/i.test(message)) return "No tenés permiso para cambiar eso.";
   if (/payload too large|exceeded the maximum/i.test(message)) return "La foto pesa demasiado.";
   return message;
