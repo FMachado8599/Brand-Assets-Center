@@ -6,9 +6,12 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { openNewClient } from "@/components/clients/newClient";
 import { Hint } from "@/components/ui/tooltip";
-import { LIBRARIES, LIBRARY_HUB, MODULES, type AppModule } from "@/lib/modules";
+import { LIBRARY_HUB, MODULES, NAV, type AppModule } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
+
+/** El título de cada sección de la lista. */
+const SECCION_CLASE = "site-label mt-3 flex items-center gap-2 border-t border-cream/10 px-2 pb-1 pt-4 text-cream/45";
 
 /** Lo que tapa el degradé con la flecha: un módulo que queda ahí abajo no se ve entero. */
 const FADE = 44;
@@ -187,17 +190,28 @@ export function Sidebar({
           </div>
 
           <ScrollingNav>
-            {MODULES.filter((m) => !m.group).map(item)}
-            {/* Las librerías, aparte: el título lleva a /library, que abre la última que usaste. */}
-            <Link
-              href={LIBRARY_HUB.href}
-              onClick={() => onOpenChange(false)}
-              className="site-label mt-3 flex items-center gap-2 border-t border-cream/10 px-2 pb-1 pt-4 text-cream/45 transition-colors hover:text-cream"
-            >
-              <LIBRARY_HUB.icon className="h-3.5 w-3.5" />
-              {LIBRARY_HUB.label}
-            </Link>
-            {LIBRARIES.map(item)}
+            {MODULES.filter((m) => !m.seccion).map(item)}
+            {/* Por sección: Trabajo, Crear, Archivos, Librerías y Recreo. El título de Librerías lleva a
+                /library, que abre la última que usaste. */}
+            {NAV.filter((s) => s.modulos.length).map((s) => [
+              s.id === "librerias" ? (
+                <Link
+                  key={`s-${s.id}`}
+                  href={LIBRARY_HUB.href}
+                  onClick={() => onOpenChange(false)}
+                  title={s.descripcion}
+                  className={cn(SECCION_CLASE, "transition-colors hover:text-cream")}
+                >
+                  <LIBRARY_HUB.icon className="h-3.5 w-3.5" />
+                  {s.label}
+                </Link>
+              ) : (
+                <p key={`s-${s.id}`} className={SECCION_CLASE} title={s.descripcion}>
+                  {s.label}
+                </p>
+              ),
+              ...s.modulos.map(item),
+            ])}
           </ScrollingNav>
 
           <div className="flex shrink-0 items-center justify-between px-2 pb-1 pt-3">
