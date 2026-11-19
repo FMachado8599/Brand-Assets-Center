@@ -169,7 +169,7 @@ function ElegirCarpeta({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Carpeta de Drive</DialogTitle>
           <DialogDescription>Dónde va el material de esta presentación. Lo que ya se subió se mueve ahí.</DialogDescription>
