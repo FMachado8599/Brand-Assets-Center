@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Rows3, Table2 } from "lucide-react";
+import { ChevronRight, Rows3, Table2 } from "lucide-react";
 import { BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
 import { useClients } from "@/hooks/useClients";
@@ -145,6 +145,11 @@ export function EquipoFilas() {
     // Las filas se arman de nuevo cuando cambian las tareas: el orden de las personas no depende de lo arrastrado.
   }, [ctx, equipo, tareas, seleccion, hubActual, buscar, yo]);
 
+  // En la tabla, cada persona tiene la suya y se abre o se cierra (se recuerda). Al principio, todas cerradas.
+  const [abiertas, setAbiertas] = useStoredState<string[]>("board:equipo-abiertas", []);
+  const abiertasSet = useMemo(() => new Set(abiertas), [abiertas]);
+  const conTareas = useMemo(() => filas.filter((f) => f.tareas.length), [filas]);
+
   const enValidacion = useMemo(() => filas.flatMap((f) => f.tareas).filter((t) => etapaDe(t) === "validacion").map((t) => t.id), [filas]);
   const claveValidacion = enValidacion.join(",");
   const recargarValidaciones = () => flujoRepo.validaciones(enValidacion).then(setValidaciones, () => undefined);
@@ -260,7 +265,7 @@ export function EquipoFilas() {
             <p>
               {vista === "filas"
                 ? "Cada fila es una persona del sector elegido; a la izquierda, lo más prioritario. Arrastrá una tarjeta a otra fila para pasársela a esa persona."
-                : "Las tareas del sector elegido en una lista, persona por persona y, dentro de cada una, lo más prioritario primero. Para pasarle una tarea a otra persona, usá las filas."}
+                : "Una tabla por persona, que se abre o se cierra tocando su nombre; adentro, lo más prioritario primero. Para pasarle una tarea a otra persona, usá las filas."}
             </p>
             <div>
               <p className="mb-1.5 font-medium text-foreground">Colores</p>
@@ -312,50 +317,70 @@ export function EquipoFilas() {
             {buscar ? "Nadie coincide con la búsqueda." : "Nadie trabaja tareas de este sector todavía. Cargá los puestos en Organización."}
           </p>
         ) : vista === "tabla" ? (
-          <TablaTareas
-            className=""
-            ctx={ctx}
-            marcaPorId={marcaPorId}
-            onAbrir={setAbierta}
-            vacio={buscar ? "Ninguna tarea coincide con la búsqueda." : "Nadie tiene tareas en este sector."}
-            secciones={filas
-              .filter((f) => f.tareas.length)
-              .map((f) => {
-                const carga = cargaDe(f.tareas);
-                return {
-                  key: f.key,
-                  filas: f.tareas.map((t) => ({ t, tenue: false })),
-                  cabecera: f.persona ? (
-                    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                      <button
-                        type="button"
-                        onClick={() => abrirPerfil(f.persona!.id)}
-                        title={`Ver el perfil de ${f.persona.nombre}`}
-                        className="-m-0.5 flex items-center gap-2 rounded-full p-0.5 pr-1.5 transition-colors hover:bg-secondary"
-                      >
-                        <Avatar nombre={f.persona.nombre} url={f.persona.avatar_url} className="h-6 w-6" />
-                        <span className="font-semibold">
+          <div className="space-y-3">
+            <div className="flex justify-end gap-3 text-[13px] font-medium text-muted-foreground">
+              <button type="button" onClick={() => setAbiertas(conTareas.map((f) => f.key))} className="hover:text-foreground">
+                Abrir todas
+              </button>
+              <button type="button" onClick={() => setAbiertas([])} className="hover:text-foreground">
+                Cerrar todas
+              </button>
+            </div>
+            {!conTareas.length && (
+              <p className="rounded-3xl border bg-card p-8 text-center text-sm text-muted-foreground">
+                {buscar ? "Ninguna tarea coincide con la búsqueda." : "Nadie tiene tareas en este sector."}
+              </p>
+            )}
+            {conTareas.map((f) => {
+              const carga = cargaDe(f.tareas);
+              const abierta = abiertasSet.has(f.key);
+              return (
+                <section key={f.key} className="overflow-hidden rounded-3xl border bg-card shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setAbiertas((antes) => (antes.includes(f.key) ? antes.filter((k) => k !== f.key) : [...antes, f.key]))}
+                    aria-expanded={abierta}
+                    className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left transition-colors hover:bg-secondary/40"
+                  >
+                    <ChevronRight className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", abierta && "rotate-90")} />
+                    {f.persona ? (
+                      <>
+                        <Avatar nombre={f.persona.nombre} url={f.persona.avatar_url} className="h-8 w-8" />
+                        <span className="font-display text-xl leading-none">
                           {f.persona.nombre}
-                          {f.persona.id === yo && <span className="ml-1.5 text-xs font-normal text-muted-foreground">vos</span>}
+                          {f.persona.id === yo && <span className="ml-1.5 font-sans text-xs text-muted-foreground">vos</span>}
                         </span>
-                      </button>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {carga.n} {carga.n === 1 ? "activa" : "activas"}
-                      </span>
-                      <span className="text-xs font-semibold" style={{ color: carga.color }}>
-                        {carga.label}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2.5">
-                      <span className="grid h-6 w-6 place-items-center rounded-full border border-dashed text-[10px] text-muted-foreground">?</span>
-                      <span className="font-semibold">Sin asignar</span>
-                      <span className="text-xs text-muted-foreground">{f.tareas.length} sin nadie</span>
-                    </span>
-                  ),
-                };
-              })}
-          />
+                        <EstadoChip perfil={f.persona.perfil} />
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {carga.n} {carga.n === 1 ? "activa" : "activas"} · {f.tareas.length} en total
+                        </span>
+                        <span className="text-xs font-semibold" style={{ color: carga.color }}>
+                          {carga.label}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="grid h-8 w-8 place-items-center rounded-full border border-dashed text-xs text-muted-foreground">?</span>
+                        <span className="font-display text-xl leading-none">Sin asignar</span>
+                        <span className="text-xs text-muted-foreground">{f.tareas.length} sin nadie</span>
+                      </>
+                    )}
+                  </button>
+                  {abierta && (
+                    <div className="border-t">
+                      <TablaTareas
+                        className="rounded-none border-0 shadow-none"
+                        ctx={ctx}
+                        marcaPorId={marcaPorId}
+                        onAbrir={setAbierta}
+                        filas={f.tareas.map((t) => ({ t, tenue: false }))}
+                      />
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
         ) : (
           <div className="space-y-7">
             {filas.map((f) => {
