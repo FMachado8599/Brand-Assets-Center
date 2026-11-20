@@ -7,7 +7,7 @@ import type { Persona } from "@/lib/board/equipo";
 import { fueraDeOficina, nombreDe } from "@/lib/perfil";
 import { cn } from "@/lib/utils";
 import { FotoPerfil, PersonaChip } from "./piezas";
-import type { Companero, Relaciones } from "./relaciones";
+import type { Companero, MarcaDesignada, Relaciones } from "./relaciones";
 
 /** Una fila "etiqueta → contenido" de la ficha. */
 export function Fila({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
@@ -47,8 +47,8 @@ export function Gente({ personas, onPersona, max = 8, detalle }: { personas: Per
 }
 
 /**
- * Lo del Board de una persona: qué hace, dónde está y de qué marcas es designada. `propio`: el texto le
- * habla a quien mira (su perfil).
+ * Lo del Board de una persona: qué hace, dónde está y sus marcas (principales y secundarias). `propio`:
+ * el texto le habla a quien mira (su perfil).
  */
 export function EnElEstudio({
   rel,
@@ -59,7 +59,7 @@ export function EnElEstudio({
   rel: Relaciones;
   propio?: boolean;
   onPersona?: (id: string) => void;
-  /** Al lado de las marcas (ej: "Elegir tus marcas"). */
+  /** Al lado de las marcas (ej: "Principales y secundarias"). */
   accionMarcas?: ReactNode;
 }) {
   return (
@@ -102,18 +102,32 @@ export function EnElEstudio({
           <Gente personas={rel.aCargo} onPersona={onPersona} max={6} />
         </Fila>
       )}
-      <Fila label="Marcas">
+      <Fila label="Principales">
         {rel.marcas.map((m) => (
-          <span key={m.brandId} title={`Designado en ${m.sectores.join(", ")}`} className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card py-0.5 pl-0.5 pr-2.5">
-            {m.brand ? <ClientMark brand={m.brand} className="h-6 w-6 rounded-full text-[9px]" pad="p-[18%]" /> : <span className="h-6 w-6 rounded-full bg-secondary" />}
-            <span className="truncate text-[13px] font-medium">{m.nombre}</span>
-            <span className="truncate text-[11px] text-muted-foreground">{m.sectores.join(", ")}</span>
-          </span>
+          <MarcaChip key={m.brandId} marca={m} title={`Designado en ${m.sectores.join(", ")}`} />
         ))}
         {!rel.marcas.length && nada(propio ? "Todavía no elegiste" : "Ninguna")}
         {accionMarcas}
       </Fila>
+      {(rel.secundarias.length > 0 || propio) && (
+        <Fila label="Secundarias">
+          {rel.secundarias.map((m) => (
+            <MarcaChip key={m.brandId} marca={m} title={`También la trabaja en ${m.sectores.join(", ")}`} suave />
+          ))}
+          {!rel.secundarias.length && nada("Ninguna")}
+        </Fila>
+      )}
     </div>
+  );
+}
+
+function MarcaChip({ marca: m, title, suave = false }: { marca: MarcaDesignada; title: string; suave?: boolean }) {
+  return (
+    <span title={title} className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-2.5", suave ? "border-dashed bg-transparent" : "bg-card")}>
+      {m.brand ? <ClientMark brand={m.brand} className="h-6 w-6 rounded-full text-[9px]" pad="p-[18%]" /> : <span className="h-6 w-6 rounded-full bg-secondary" />}
+      <span className="truncate text-[13px] font-medium">{m.nombre}</span>
+      <span className="truncate text-[11px] text-muted-foreground">{m.sectores.join(", ")}</span>
+    </span>
   );
 }
 

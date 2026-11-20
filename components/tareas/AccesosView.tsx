@@ -10,7 +10,7 @@ import { Hint } from "@/components/ui/tooltip";
 import { copyPlain } from "@/lib/cards/clipboard";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { BoardNav } from "./comun";
+import { AjustesNav } from "./comun";
 
 type Dominio = { domain: string; note: string | null; fijo: boolean };
 type MailPermitido = { email: string; note: string | null; tiene_cuenta: boolean; tiene_contrasena: boolean };
@@ -26,7 +26,7 @@ function mensaje(m: string) {
 }
 
 /**
- * Board → Accesos (solo admins): quién puede entrar a Herramientas. Dominios enteros (todos los
+ * Ajustes → Accesos (solo admins): quién puede entrar a Herramientas. Dominios enteros (todos los
  * @agencia.com) y mails sueltos. Para entrar con contraseña, cada uno la crea con un link de un solo uso:
  * se genera acá para copiarlo (y, si hay mail configurado, también le llega por mail).
  */
@@ -102,7 +102,7 @@ export function AccesosView() {
   return (
     <div className="min-h-screen">
       <ContextBar>
-        <BoardNav />
+        <AjustesNav />
       </ContextBar>
       <main className="mx-auto max-w-4xl px-4 pb-16 pt-[6.5rem] sm:px-6">
         <div className="mb-6 text-center">

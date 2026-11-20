@@ -27,6 +27,7 @@ La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su
 ## Cómo se usa: sidebar + barra contextual
 
 - **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra. Las librerías (Emojis, GIFs, Íconos) van aparte, al final, bajo **Librerías**.
+- **Ajustes** (solo admins): abajo de todo en la sidebar, en un bloque amarillo, porque son la configuración del estudio y no una herramienta más: **Organización**, **Basecamp** y **Accesos** (ver "Status y Ajustes").
 - **La barra flotante del centro** cambia según el módulo: es desde donde se hace todo (buscar, filtrar, agregar, exportar, configurar). Al pasar de un módulo a otro se transforma en lugar de recargarse.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
@@ -169,16 +170,17 @@ Solo entran las cuentas **@camaratbwa.com** y las de la lista de excepciones. Ha
 2. **Las páginas** (`middleware.ts`): sin sesión, las herramientas mandan a Inicio con "Iniciá sesión con tu cuenta @camaratbwa.com" y, después de entrar, vuelven a la herramienta que se quería abrir. A una cuenta de afuera le cierra la sesión y le avisa "Esa cuenta no tiene acceso".
 3. **Las APIs**: sin sesión del estudio responden 401, así nadie de afuera usa el Conversor ni la búsqueda de emojis (cuestan plata). Quedan públicas Inicio, Privacidad, la vuelta del login, las visitas y las imágenes de emojis.
 
-- **Excepciones** (ej: un freelance, o todo un dominio): las carga un admin en **Board → Accesos** (mails sueltos y dominios). También se puede por SQL: `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');` o `insert into public.allowed_domains (domain) values ('agencia.com');`, en minúsculas.
+- **Excepciones** (ej: un freelance, o todo un dominio): las carga un admin en **Ajustes → Accesos** (mails sueltos y dominios). También se puede por SQL: `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');` o `insert into public.allowed_domains (domain) values ('agencia.com');`, en minúsculas.
 - **Sacarle el acceso a alguien**: borrarlo de `allowed_emails` (y, si querés, su usuario en Supabase → Authentication → Users).
+- **Lo de Basecamp, solo @camaratbwa.com**: las cuentas de afuera que habilita un admin usan las herramientas, pero no ven nada de Basecamp: ni las tareas (Status), ni la gente y los proyectos, ni los avisos que vienen de Basecamp, ni *Para arrancar* en Presentaciones (en Status ven un aviso que lo explica). Las cuentas @camaratbwa.com y los admins de la app ven todo. Lo frena la base: `ve_basecamp()` y una política *restrictiva* en cada tabla de Basecamp, que se suma a las de siempre (si se vuelve a correr una migración vieja, la regla sigue). Activarlo: correr `supabase/migracion-acceso-basecamp.sql` (en el historial: `logic_acceso_basecamp`; en el SQL Editor, *Logic \| Acceso Basecamp*), después de `migracion-presentaciones-board.sql` y `migracion-basecamp-conexion.sql`. Se puede repetir: no mueve datos. Además deja los webhooks de Basecamp solo para admins (había quedado una política vieja que los abría a todo el estudio).
 - **Ojo:** el correo de @camaratbwa.com no es de Google (está en `mail.camaratbwa.com`). Para entrar con Google, cada persona necesita una cuenta de Google creada con su mail de trabajo: al crear la cuenta, la opción "Usar mi dirección de correo electrónico actual".
 
 ### Entrar con mail y contraseña
 
 Además de Google, cualquiera con acceso puede entrar con su mail y una contraseña (útil para quien no tiene cuenta de Google con su mail de trabajo, o para gente de afuera).
 
-- **Quién puede**: un admin elige en **Board → Accesos** dominios enteros (todos los @agencia.com) y mails sueltos (un freelance con Gmail). @camaratbwa.com está siempre. Sirve para Google y para contraseña.
-- **Crear la cuenta sola**: en **/ingresar → "¿No tenés cuenta? Creala"** cualquiera pone nombre, mail y contraseña. Queda **pendiente** hasta que un admin la aprueba en **Board → Accesos → Pedidos para entrar** (ahí se habilita el mail, si no lo estaba por su dominio, y se crea la cuenta). No hace falta mail: como nada confirma que el mail sea de quien lo escribió, aprobá solo si la persona te avisó por otro lado. Si el mail ya tiene cuenta (por ejemplo con Google), Accesos lo marca. La contraseña del pedido ya se guarda con Argon2id y se borra si se rechaza. Límite: 5 pedidos por IP y 3 por mail por hora.
+- **Quién puede**: un admin elige en **Ajustes → Accesos** dominios enteros (todos los @agencia.com) y mails sueltos (un freelance con Gmail). @camaratbwa.com está siempre. Sirve para Google y para contraseña.
+- **Crear la cuenta sola**: en **/ingresar → "¿No tenés cuenta? Creala"** cualquiera pone nombre, mail y contraseña. Queda **pendiente** hasta que un admin la aprueba en **Ajustes → Accesos → Pedidos para entrar** (ahí se habilita el mail, si no lo estaba por su dominio, y se crea la cuenta). No hace falta mail: como nada confirma que el mail sea de quien lo escribió, aprobá solo si la persona te avisó por otro lado. Si el mail ya tiene cuenta (por ejemplo con Google), Accesos lo marca. La contraseña del pedido ya se guarda con Argon2id y se borra si se rechaza. Límite: 5 pedidos por IP y 3 por mail por hora.
 - **Crear la contraseña**: con un link de un solo uso. Lo genera un admin en Accesos (vale 72 horas: se copia y se manda por WhatsApp o Slack, y si hay mail configurado también llega por mail), o lo pide la persona en **/ingresar → "¿Primera vez o te olvidaste?"** (vale 1 hora, solo por mail). Quien ya entra con Google puede crearla desde su perfil.
 - **Cómo se guarda** (OWASP): la contraseña se normaliza (NFKC), se le aplica un **HMAC-SHA-256 con un pepper** que vive en `PASSWORD_PEPPER` (fuera de la base y del código) y eso pasa por **Argon2id** (64 MiB, 3 pasadas, paralelismo 1, salt aleatorio de 16 bytes). En la base queda solo el hash en formato PHC, que incluye el salt y los parámetros. Supabase no sabe nada de estas contraseñas: su propio ingreso con contraseña queda anulado (un trigger le vacía la suya a todos), así no hay puerta lateral.
 - **Política**: de 12 a 128 caracteres, cualquier carácter (una frase sirve), sin reglas de mayúsculas o símbolos. Se rechaza si contiene el mail o si aparece en filtraciones conocidas (Have I Been Pwned con k-anonimato: solo viajan 5 caracteres del SHA-1; si el servicio no responde, no frena).
@@ -206,26 +208,26 @@ select * from visitas_por_usuario;  -- quién entra y cuándo fue la última vez
 
 En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno arma su perfil, pensado para que el estudio se conozca y se encuentre. Todo se guarda solo, al momento:
 
-- **Foto**: la de Google, la de Basecamp o una subida (se recorta en cuadrado y se achica antes de subirla). La elegida se ve igual en toda la app: la cuenta, tu perfil y el Board. Mientras no elijas, la cuenta muestra la de Google y el Board la de Basecamp, como siempre.
-- **Nombre para mostrar** ("Facu" en vez de "Facundo Machado"): se ve en la cuenta y en los perfiles. En las filas del Board sigue el nombre del equipo.
+- **Foto**: la de Google, la de Basecamp o una subida (se recorta en cuadrado y se achica antes de subirla). La elegida se ve igual en toda la app: la cuenta, tu perfil y Status. Mientras no elijas, la cuenta muestra la de Google y Status la de Basecamp, como siempre.
+- **Nombre para mostrar** ("Facu" en vez de "Facundo Machado"): se ve en la cuenta y en los perfiles. En las filas de Status sigue el nombre del equipo.
 - **Estado**: emoji + texto, o uno de los rápidos (En foco, En reunión, Almorzando, Desde casa, En rodaje, De licencia, De vacaciones). Se puede borrar solo: en 1 hora, en 4, a la noche, el viernes o nunca.
-- **Fuera de oficina hasta…** (inclusive): se ve en el Board al lado de tu nombre, en el organigrama y, si tenés una tarea, en su detalle ("si no puede esperar, pasásela a otra persona").
+- **Fuera de oficina hasta…** (inclusive): se ve en Status al lado de tu nombre, en el organigrama y, si tenés una tarea, en su detalle ("si no puede esperar, pasásela a otra persona").
 - **Color de acento**: el aro de tu foto y la píldora de tu puesto.
 - **Portada**: la del estudio (por defecto) o un degradé con tu color.
 - **Tus redes** (si te animás): LinkedIn, Behance, Instagram y Facebook. Se pega el link o el usuario solo; se guarda el link completo y la base revisa que sea de esa red.
-- **En el estudio** (del Board): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas designadas. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí.
-- **Con quién trabajás**: los designados de tus mismas marcas (ej: la redactora y el CM de Changan) y la gente de tu hub.
+- **En el estudio** (de Status): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas **principales** y **secundarias**. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí, con **Principales y secundarias** (ver "Marcas principales y secundarias").
+- **Con quién trabajás**: los que trabajan tus mismas marcas, como principal o secundaria (ej: la redactora y el CM de Changan), y la gente de tu hub.
 
-**El perfil de los compañeros**: tocar a alguien en el Board (su fila en Equipo, quien tiene una tarea, quien la valida, los asignados de Basecamp), en el organigrama, en Organización → Personas o en tu perfil abre su ficha: foto, estado, fuera de oficina, **en común con vos** (le reportás, te reporta, comparten tal marca, el mismo hub), lo suyo en el estudio y su mail para escribirle. En el organigrama, los admins pasan de ahí a **Editar** (puestos, hub, jefes, rol).
+**El perfil de los compañeros**: tocar a alguien en Status (su fila en Equipo, quien tiene una tarea, quien la valida, los asignados de Basecamp), en el organigrama, en Organización → Personas o en tu perfil abre su ficha: foto, estado, fuera de oficina, **en común con vos** (le reportás, te reporta, comparten tal marca, el mismo hub), lo suyo en el estudio y su mail para escribirle. En el organigrama, los admins pasan de ahí a **Editar** (puestos, hub, jefes, rol).
 
-Lo del Board no se guarda en el perfil: sale del equipo (`supabase/migracion-equipo.sql`) y se cruza por el mail de la cuenta. Sin el Board, el perfil muestra solo lo personal.
+Lo de Status no se guarda en el perfil: sale del equipo (`supabase/migracion-equipo.sql`) y se cruza por el mail de la cuenta. Sin el equipo, el perfil muestra solo lo personal.
 
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, correr `supabase/migracion-perfil.sql` (en el historial de migraciones: `feature_perfil`), después de `migracion-usuarios.sql` y `migracion-acceso.sql`. Se puede repetir: no mueve datos.
 
 - Suma a `profiles` la foto elegida, el nombre para mostrar, el estado, "fuera de oficina hasta", el acento, la portada y las redes, y crea el bucket público `avatares` (cada uno sube y borra solo en su carpeta).
-- Todo el estudio lee los perfiles; cada uno edita solo el suyo. El mail, el nombre y la foto de Google no se pueden cambiar desde la app (el mail es lo que cruza el perfil con el Board) y se actualizan solos en cada ingreso.
+- Todo el estudio lee los perfiles; cada uno edita solo el suyo. El mail, el nombre y la foto de Google no se pueden cambiar desde la app (el mail es lo que cruza el perfil con el equipo) y se actualizan solos en cada ingreso.
 - Sin la migración, la página se ve pero avisa que falta y no guarda nada.
 
 ---
@@ -713,23 +715,43 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 
 ---
 
-## Board: notificaciones de Basecamp
+## Status y Ajustes
 
-La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en el Board) y muestra **primero lo que es para vos**. Veinte comentarios de algo que no es tuyo nunca tapan una mención o una tarea tuya que vence mañana.
+**Status** (`/board`) es lo que está haciendo cada uno, con las tareas de Basecamp que trae la cuenta del estudio: todos ven las de todos, también las de marcas que no son suyas. Tiene dos pestañas:
 
-- **A quién le llega.** Cada aviso se reparte solo a quien le importa, con un motivo: **te nombraron** (@vos), **te la asignaron** (en Basecamp, o te la pasaron en el Board), **tu tarea** (asignada, tomada o sos el designado de esa etapa), **tu conversación** (la creaste, comentaste o te nombraron ahí) o **tu marca** (algo de una marca tuya, en tu sector: una card de Medios de Amstel no le llega a la redactora de Amstel; Cuentas sigue todos los tableros de sus marcas). A quien no le corresponde nada de eso, no le llega nada. Lo que hace uno mismo no le avisa.
+- **Mi tablero** (`/board`): tus tareas (o las de otra persona, o las de todo el estudio) en columnas por etapa, o en **tabla**.
+- **Equipo** (`/board/equipo`): una fila por persona con sus tareas, para repartir arrastrando, o en **tabla**: las mismas tareas en una lista, persona por persona y, dentro de cada una, lo más prioritario primero. Lo que se elige (filas o tabla) se recuerda.
+
+**Ajustes** es la configuración del estudio, solo para admins: **Organización** (`/board/organizacion`), **Basecamp** (`/board/basecamp`) y **Accesos** (`/board/accesos`). En la sidebar van abajo de todo, en amarillo; arriba de cada uno, la barra pasa de uno a otro. Las direcciones siguen siendo las de antes, así no se rompe ningún link (ni la vuelta de Basecamp).
+
+### Marcas principales y secundarias
+
+Las marcas de cada persona salen de los proyectos de Basecamp en los que está (los que trae la sincronización). Entre esas, cada uno elige —desde su perfil o con **Mis marcas** en Mi tablero— cuáles son:
+
+- **Principales**: es el designado de esa marca en su sector. Las tareas nuevas de la marca le llegan a él y lo de la marca le avisa como **tuya**. Hay una sola principal por marca y sector: si ya es de otro, aparece "Principal: …" y solo un admin se la puede pasar.
+- **Secundarias**: también la trabaja (pueden ser varios por marca y sector). Se entera de sus novedades en **Todo** de la campanita, como **tu marca**, sin que le lleguen las tareas.
+
+Se marca en cada marca con **Principal** o **Secundaria**; tocar la que ya está la saca. Un admin puede cambiar las de cualquiera (desde Organización) y, con **Todas**, elegir también marcas de proyectos donde la persona no está (por ejemplo, alguien que no está en Basecamp). En el perfil se ven las dos listas, y en Organización cuántas tiene cada uno ("3 principales · 2 secundarias").
+
+**Activarlo:** correr `supabase/migracion-marcas.sql` (en el historial: `feature_marcas`; en el SQL Editor, *Feature \| Marcas*), después de `migracion-equipo.sql` y `migracion-presentaciones-board.sql`. Se puede repetir: no mueve datos. Las secundarias son filas de `marca_equipo` con `principal = false` (la columna ya estaba); la migración solo cambia el aviso de los comentarios de una presentación, para que a las secundarias les llegue como "tu marca" y no como "tuya".
+
+## Notificaciones de Basecamp
+
+La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en Status) y muestra **primero lo que es para vos**. Veinte comentarios de algo que no es tuyo nunca tapan una mención o una tarea tuya que vence mañana.
+
+- **A quién le llega.** Cada aviso se reparte solo a quien le importa, con un motivo: **te nombraron** (@vos), **te la asignaron** (en Basecamp, o te la pasaron en Status), **tu tarea** (asignada, tomada o la marca es principal tuya en esa etapa), **tu conversación** (la creaste, comentaste o te nombraron ahí) o **tu marca** (algo de una marca tuya, principal o secundaria, en tu sector: una card de Medios de Amstel no le llega a la redactora de Amstel; Cuentas sigue todos los tableros de sus marcas). A quien no le corresponde nada de eso, no le llega nada. Lo que hace uno mismo no le avisa.
 - **Cómo se ordena.** Se agrupa por conversación ("5 comentarios" es una fila). Arriba, **Para vos, ahora**: menciones, asignaciones y novedades en algo tuyo vencido o que vence hoy o mañana. Después **tus tareas y conversaciones**. Lo de **tus marcas** que no es tuyo no aparece en "Para mí" (ni suma al número de la campanita): está en **Todo**, plegado. Dentro de cada grupo manda un puntaje: el motivo (mención 5, asignación 4, tu tarea 3, tu conversación 2, tu marca 1) más lo urgente de la tarea (vencida +4, vence pronto +2).
 - **Filtros**: Para mí · Menciones · Todo, y el orden: **Prioridad** o **Recientes**. Se recuerdan en la cuenta de cada uno.
-- Tocar una fila la abre en Basecamp (en la respuesta exacta) y la marca como leída; si es una card, **Ver en el Board** abre la tarea. Con la app abierta, solo lo de "Para vos, ahora" muestra además un aviso.
+- Tocar una fila la abre en Basecamp (en la respuesta exacta) y la marca como leída; si es una card, **Ver en Status** abre la tarea. Con la app abierta, solo lo de "Para vos, ahora" muestra además un aviso.
 - **Solo si me citan / ocultar.** En cualquier tarea (en su detalle, o con la campanita tachada de cada fila) cada uno elige que de esa tarea solo le llegue lo que lo nombra o se la pasa. **Ocultarla** además la saca de su tablero (se ve con *Ocultas*). Lo elige cada uno para sí, queda en la base (sirve en todos lados) y lo que no se tiene que avisar ni se guarda.
 - **Fechas que sirven.** Casi ninguna fecha de Basecamp está al día. Cada tarea puede tener su **fecha de entrega en la app** (en su detalle; Basecamp no se toca), que manda sobre la de Basecamp. Si la de Basecamp venció hace más de 14 días y no hay otra, la tarea queda como **Fecha vieja**: no se pone roja ni sube en la campanita, y en Mi tablero un botón las junta para ponerles fecha. Lo que espera a otro (validación o cliente) tampoco se pone rojo.
-- Los avisos llegan al instante por **webhooks** de Basecamp, que además dejan la card al día en el Board (columna, asignados, comentarios) sin esperar a la sincronización.
+- Los avisos llegan al instante por **webhooks** de Basecamp, que además dejan la card al día en Status (columna, asignados, comentarios) sin esperar a la sincronización.
 
 ### Activarlo (una sola vez)
 
 1. En Supabase → SQL Editor, correr `supabase/migracion-notificaciones.sql`, después de `migracion-integraciones.sql`, `migracion-board.sql`, `migracion-equipo.sql` y `migracion-flujo.sql`. Se puede repetir.
 2. Que la app publicada sepa su dirección: en Vercel alcanza con el dominio de producción; si no, `APP_URL=https://…` (tiene que ser https: Basecamp no avisa a otra cosa).
-3. Sincronizar Basecamp desde la app publicada (Board → Basecamp → Actualizar). El paso **Avisos al instante** registra un webhook en cada proyecto activo y guarda el hash de la llave. Abajo de la sincronización dice en cuántos proyectos quedaron.
+3. Sincronizar Basecamp desde la app publicada (Ajustes → Basecamp → Actualizar). El paso **Avisos al instante** registra un webhook en cada proyecto activo y guarda el hash de la llave. Abajo de la sincronización dice en cuántos proyectos quedaron.
 
 Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
 
@@ -743,13 +765,13 @@ Desde local o desde un preview el paso se saltea a propósito: así ninguna copi
 
 Hay dos cuentas de Basecamp distintas:
 
-- **La del estudio**: una sola, la autoriza un **admin de Basecamp** y trae todo (proyectos, tareas, gente y los avisos al instante). La ven y la manejan solo los admins de la app, en Board → Basecamp.
+- **La del estudio**: una sola, la autoriza un **admin de Basecamp** y trae todo (proyectos, tareas, gente y los avisos al instante). La ven y la manejan solo los admins de la app, en Ajustes → Basecamp.
 - **La personal de cada uno**: su persona de Basecamp, que se vincula sola por el mail. De ahí salen sus tareas y sus notificaciones. No hay que conectar nada.
 
-Si quien administra la app no es admin de Basecamp, en Board → Basecamp genera un **link para un admin de Basecamp**. Se lo manda (ej: a Milena), ella lo abre, autoriza con su cuenta y listo: no necesita entrar a la app. El link vale 24 h y una sola vez; generar otro invalida el anterior. Después la conexión se renueva sola. Si la cuenta que autorizó no es admin de Basecamp, la página lo avisa: la app solo ve los proyectos donde está esa persona.
+Si quien administra la app no es admin de Basecamp, en Ajustes → Basecamp genera un **link para un admin de Basecamp**. Se lo manda (ej: a Milena), ella lo abre, autoriza con su cuenta y listo: no necesita entrar a la app. El link vale 24 h y una sola vez; generar otro invalida el anterior. Después la conexión se renueva sola. Si la cuenta que autorizó no es admin de Basecamp, la página lo avisa: la app solo ve los proyectos donde está esa persona.
 
 - **Roles**: los admins de Basecamp pasan a ser admins de la app al sincronizar. Si un admin le cambia el rol a alguien a mano, queda fijo y la sincronización no lo vuelve a tocar.
-- **Organización y Basecamp** son solo para admins (la base también lo frena: solo un admin lee la conexión, sincroniza o genera el link). Las designaciones de marcas ahora las carga un admin.
+- **Los Ajustes** (Organización, Basecamp y Accesos) son solo para admins (la base también lo frena: solo un admin lee la conexión, sincroniza o genera el link). Las marcas principales y secundarias las elige cada uno, y un admin las de cualquiera.
 - Activarlo: correr `supabase/migracion-basecamp-conexion.sql` después de `migracion-notificaciones.sql`. En un preview, el link solo lo puede abrir quien tenga acceso al preview en Vercel: para mandárselo a alguien de afuera, usar **Share** en el deploy.
 
 ### Cómo funciona por dentro
@@ -765,10 +787,10 @@ Donde se prepara el material de una tarea para mostrárselo al cliente. Cada pre
 
 - **Desde Basecamp**: cada tipo tiene palabras con las que se lo reconoce en el título de una tarea ("plani", "leads", "programatica"…). Las tareas vivas que coinciden y todavía no tienen presentación aparecen en *Para arrancar*. Basecamp solo se lee: la app nunca escribe ahí. Se ven de a 6, con *Ver más* y un buscador (por tarea o marca); la búsqueda la hace la base.
 - **Por rol**: cada uno abre la vista de su sector (Redacción, Diseño o CM) y ve lo suyo. Redacción: copys, indicaciones, links e **inspiración** (imágenes que sube para Diseño; el cliente no las ve y no entran en la descarga). Diseño: lo que pidió Redacción y el material final para subir al Drive. CM: el material para bajar y lo programado.
-- **Etapas que mueven el Board**: con "Redacción lista → Diseño" (y así en cada etapa) la presentación pasa de etapa y, si está vinculada a una tarea, la tarea pasa a esa etapa en el Board y al designado de la marca en ese sector le llega el aviso. Solo en la app: Basecamp no se toca. Si hay ajustes, se vuelve a la etapa anterior desde el mismo paso a paso. Desde la tarea en el Board se abre su presentación.
-- **Y al revés**: si la tarea cambia de etapa en el Board (alguien la arrastra) o la card pasa de columna en Basecamp, la presentación pasa a la etapa que corresponde. Las tareas con presentación siguen a Basecamp en el momento en que llega el aviso (las demás, al abrir el Board, como siempre). Si la card se mueve en Basecamp, manda Basecamp.
+- **Etapas que mueven Status**: con "Redacción lista → Diseño" (y así en cada etapa) la presentación pasa de etapa y, si está vinculada a una tarea, la tarea pasa a esa etapa en Status y al designado de la marca en ese sector le llega el aviso. Solo en la app: Basecamp no se toca. Si hay ajustes, se vuelve a la etapa anterior desde el mismo paso a paso. Desde la tarea en el Board se abre su presentación.
+- **Y al revés**: si la tarea cambia de etapa en Status (alguien la arrastra) o la card pasa de columna en Basecamp, la presentación pasa a la etapa que corresponde. Las tareas con presentación siguen a Basecamp en el momento en que llega el aviso (las demás, al abrir el Board, como siempre). Si la card se mueve en Basecamp, manda Basecamp.
 - **Las herramientas de la app, adentro**: cada tipo dice qué herramientas usa (se elige al crearlo). Con **Ads** (Leads, Pauta), cada pieza se ve como el anuncio real, en Feed, Reels o Historia según los lugares que elige Redacción, con el título y el botón (CTA); el cliente lo ve igual en su link. Con **GIF** (Programática), aparece el formato **Banner** con su medida (300×250, 728×90… o una a mano), y Diseño arma el GIF ahí mismo con los frames, con un peso máximo (150 KB por defecto); el GIF queda como material final.
-- **Comentarios**: en cada pieza y en los generales. Se puede **responder** a un comentario (queda abajo, en el mismo hilo) y **nombrar con @** a alguien del equipo. A la campanita le llega a quien nombraste, a los designados de la marca (Redacción, Diseño, CM y Cuentas), a quien tiene la tarea y a los que ya comentaron esa pieza; tocar el aviso abre la presentación en esa pieza. Lo que comenta el cliente también avisa.
+- **Comentarios**: en cada pieza y en los generales. Se puede **responder** a un comentario (queda abajo, en el mismo hilo) y **nombrar con @** a alguien del equipo. A la campanita le llega a quien nombraste, a los principales de la marca (Redacción, Diseño, CM y Cuentas; a los que la tienen de secundaria, como "tu marca"), a quien tiene la tarea y a los que ya comentaron esa pieza; tocar el aviso abre la presentación en esa pieza. Lo que comenta el cliente también avisa.
 - **El mes** sale de la tarea ("Plani Octubre" es de octubre; en diciembre, "Plani Enero" es del año que viene). Se cambia en *Más*, y al vincular una tarea de otro mes la presentación pasa a ese. En el tablero, las de meses anteriores que no están listas siguen apareciendo, con su mes marcado.
 - **Drive**: el material va a las carpetas del estudio, como ya las ordenan: **PAUTAS DIGITAL / 2026 / MARCA / 10_OCTUBRE / Plani** (o *Anuncios*, según la carpeta de cada tipo), en una carpeta por día. La marca se busca por nombre (sin importar mayúsculas ni tildes) y se recuerda; el año, el mes y la carpeta del tipo se crean si faltan. Si la marca no aparece, lo que se sube queda en *Sin carpeta* hasta que alguien elija la carpeta (la sugerida, pegando un link o buscándola) y ahí se mueve, sin volver a subir nada. **Sin carpeta no se pasa de Diseño a Revisión.** Nadie necesita acceso propio al Drive: la app muestra todo con la conexión del estudio.
 - **Rápido**: el tablero trae solo lo que muestra cada tarjeta (sus números y hasta 3 imágenes), no las piezas enteras, y no espera a sincronizar Basecamp. Cuando ya está todo a la vista, precarga las presentaciones de tu etapa (si sos de Diseño, las que están en Diseño), así abrirlas es al toque.

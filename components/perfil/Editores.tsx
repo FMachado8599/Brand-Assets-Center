@@ -237,8 +237,8 @@ export function EstadoEditor({ perfil, guardar, disabled }: { perfil: Perfil; gu
             <p className="text-sm font-medium">Fuera de oficina</p>
             <p className="text-xs text-muted-foreground">
               {fuera
-                ? `Hasta el ${fechaCorta(fuera)} inclusive. Tus compañeros lo ven en el Board, antes de pasarte una tarea.`
-                : "Vacaciones, licencia, un viaje: tus compañeros lo ven en el Board, al lado de tu nombre."}
+                ? `Hasta el ${fechaCorta(fuera)} inclusive. Tus compañeros lo ven en Status, antes de pasarte una tarea.`
+                : "Vacaciones, licencia, un viaje: tus compañeros lo ven en Status, al lado de tu nombre."}
             </p>
           </div>
           <Switch
@@ -397,8 +397,8 @@ export function FotoEditor({
       />
       <p className="text-xs text-muted-foreground">
         {perfil.foto_origen
-          ? "Es la que se ve en toda la app: tu cuenta, tu perfil y el Board."
-          : "Todavía no elegiste: tu cuenta muestra la de Google y el Board, la de Basecamp. Elegí una y se ve igual en todos lados."}
+          ? "Es la que se ve en toda la app: tu cuenta, tu perfil y Status."
+          : "Todavía no elegiste: tu cuenta muestra la de Google y Status, la de Basecamp. Elegí una y se ve igual en todos lados."}
       </p>
     </div>
   );
@@ -429,7 +429,7 @@ export function NombreEditor({ perfil, guardar, disabled }: { perfil: Perfil; gu
         className="h-11 w-full rounded-2xl border bg-card px-4 text-[15px] shadow-sm outline-none transition-colors focus:border-foreground/40 disabled:opacity-50"
       />
       <p className="text-xs text-muted-foreground">
-        Cómo te dicen{perfil.full_name ? ` (en Google sos ${perfil.full_name})` : ""}. Se ve en tu cuenta y en tu perfil; en las filas del Board sigue tu nombre completo.
+        Cómo te dicen{perfil.full_name ? ` (en Google sos ${perfil.full_name})` : ""}. Se ve en tu cuenta y en tu perfil; en las filas de Status sigue tu nombre completo.
       </p>
     </div>
   );

@@ -8,6 +8,9 @@ import {
   ImagePlay,
   Library,
   Megaphone,
+  Network,
+  Plug,
+  ShieldCheck,
   UserRound,
   PenLine,
   Presentation,
@@ -57,7 +60,7 @@ export const MODULES: AppModule[] = [
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw, seccion: "archivos" },
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine, seccion: "crear" },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase, seccion: "trabajo" },
-  { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban, seccion: "trabajo" },
+  { href: "/board", label: "Status", description: "Qué está haciendo cada uno: tus tareas y las del equipo", icon: SquareKanban, seccion: "trabajo" },
   { href: "/presentaciones", label: "Presentaciones", description: "El material de cada tarea, listo para el cliente: planis, ads, programática…", icon: Presentation, seccion: "trabajo" },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine, seccion: "archivos" },
   { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone, seccion: "crear" },
@@ -85,6 +88,17 @@ export const LIBRARY_HUB: AppModule = {
   icon: Library,
 };
 
+/**
+ * Los ajustes del estudio: no son herramientas, son la configuración, y solo los ven los admins de la
+ * app. Van aparte, abajo de todo en la sidebar (en amarillo), y no aparecen en Inicio.
+ */
+export const AJUSTES_LABEL = "Ajustes";
+export const AJUSTES: AppModule[] = [
+  { href: "/board/organizacion", label: "Organización", description: "Organigrama, puestos, hubs y marcas de cada uno", icon: Network },
+  { href: "/board/basecamp", label: "Basecamp", description: "La cuenta del estudio y la sincronización", icon: Plug },
+  { href: "/board/accesos", label: "Accesos", description: "Quién puede entrar: dominios, mails y contraseñas", icon: ShieldCheck },
+];
+
 /** Tu perfil (/perfil): no es una herramienta de la sidebar, se abre desde la cuenta. */
 export const PERFIL: AppModule = {
   href: "/perfil",
@@ -108,6 +122,8 @@ export const LAST_LIBRARY_KEY = "library:ultima";
 
 export function activeModule(pathname: string): AppModule {
   return (
+    // Los ajustes viven adentro de /board: se buscan antes, así no los toma Status.
+    AJUSTES.find((m) => pathname.startsWith(m.href)) ??
     MODULES.find((m) => !m.soon && (m.href === "/" ? pathname === "/" : pathname.startsWith(m.href))) ??
     (pathname.startsWith(LIBRARY_HUB.href) ? LIBRARY_HUB : pathname.startsWith(PERFIL.href) ? PERFIL : MODULES[0])
   );

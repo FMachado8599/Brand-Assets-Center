@@ -1,10 +1,11 @@
 import { fotoElegida, normalizarPerfil, type Perfil } from "@/lib/perfil";
+import { STUDIO_DOMAIN } from "@/lib/site";
 import { supabase } from "@/lib/supabase";
 
 /**
- * El equipo del estudio (supabase/migracion-equipo.sql): sectores, puestos, personas, hubs y
- * designados por marca. Todo se lee con la sesión de quien pide; los permisos los pone la base
- * (todos leen, los admins configuran, cada uno puede elegir sus marcas).
+ * El equipo del estudio (supabase/migracion-equipo.sql): sectores, puestos, personas, hubs y las
+ * marcas de cada uno (principales y secundarias). Todo se lee con la sesión de quien pide; los permisos
+ * los pone la base (todos leen, los admins configuran, cada uno elige sus marcas).
  */
 
 export type Nivel = "direccion" | "coordinacion" | "operativo";
@@ -54,7 +55,11 @@ export type TipoHub = "hub" | "cliente";
 
 export type Hub = { id: string; nombre: string; tipo: TipoHub; lideres: string[]; marcas: string[] };
 
-/** "Facu es el diseñador designado de Changan". */
+/**
+ * Una marca de alguien en un sector. Principal: "Facu es el diseñador designado de Changan" (uno por
+ * marca y sector; las tareas nuevas de esa marca le llegan a él). Secundaria: también la trabaja (se
+ * entera de sus novedades), sin ser el designado. Las dos son filas de marca_equipo (principal true/false).
+ */
 export type Designacion = { brand_id: string; sector_id: string; persona_id: string };
 
 /** Quién entró: su fila del equipo (si ya está) y su persona de Basecamp. */
@@ -72,7 +77,10 @@ export type EquipoData = {
   puestos: Puesto[];
   personas: Persona[];
   hubs: Hub[];
+  /** Las marcas principales (el designado de cada marca en cada sector). */
   designaciones: Designacion[];
+  /** Las secundarias: también la trabaja, sin ser el designado. Pueden ser varias personas por marca y sector. */
+  secundarias: Designacion[];
   yo: Yo | null;
   /** Ya se corrió migracion-actividad.sql (activo según la actividad). */
   conActividad: boolean;
@@ -107,7 +115,7 @@ export async function cargarEquipo(): Promise<EquipoData> {
   const perfilDe = new Map(
     ((perfilesRes.data ?? []) as Record<string, unknown>[]).map(normalizarPerfil).filter((p) => p.email).map((p) => [p.email!, p])
   );
-  const [sectores, puestos, puestoSectores, equipo, equipoPuestos, hubs, hubMarcas, designaciones, bc, yo] = await Promise.all([
+  const [sectores, puestos, puestoSectores, equipo, equipoPuestos, hubs, hubMarcas, marcas, bc, yo] = await Promise.all([
     leer<Sector[]>(supabase.from("sectores").select("id, nombre, area, tablero, orden").order("orden")),
     leer<Omit<Puesto, "sectores">[]>(supabase.from("puestos").select("id, nombre, nivel, orden").order("orden").order("nombre")),
     leer<{ puesto_id: string; sector_id: string }[]>(supabase.from("puesto_sectores").select("puesto_id, sector_id")),
@@ -124,7 +132,7 @@ export async function cargarEquipo(): Promise<EquipoData> {
     // Toda la fila: tipo (migracion-organigrama) puede no existir todavía.
     leer<{ id: string; nombre: string; lider_id: string | null; tipo?: TipoHub }[]>(supabase.from("hubs").select("*").order("nombre")),
     leer<{ hub_id: string; brand_id: string }[]>(supabase.from("hub_marcas").select("hub_id, brand_id")),
-    leer<Designacion[]>(supabase.from("marca_equipo").select("brand_id, sector_id, persona_id").eq("principal", true)),
+    leer<(Designacion & { principal: boolean })[]>(supabase.from("marca_equipo").select("brand_id, sector_id, persona_id, principal")),
     leer<{ id: number; avatar_url: string | null; cargo: string | null }[]>(supabase.from("bc_personas").select("id, avatar_url, cargo")),
     supabase.rpc("board_yo").then(({ data, error }) => {
       if (error) throw new Error(error.message);
@@ -176,7 +184,8 @@ export async function cargarEquipo(): Promise<EquipoData> {
       lideres: conOrganigrama ? (lideresDe.get(h.id) ?? []) : h.lider_id ? [h.lider_id] : [],
       marcas: marcasDe.get(h.id) ?? [],
     })),
-    designaciones,
+    designaciones: marcas.filter((d) => d.principal).map(({ principal: _, ...d }) => d),
+    secundarias: marcas.filter((d) => !d.principal).map(({ principal: _, ...d }) => d),
     yo: yo ? { ...yo, bc_persona_id: yo.bc_persona_id != null ? Number(yo.bc_persona_id) : null } : null,
     conActividad,
     conOrganigrama,
@@ -211,9 +220,15 @@ export const equipoRepo = {
     if (sumar.length) await hacer(supabase.from("equipo_puestos").insert(sumar.map((puesto_id) => ({ persona_id: personaId, puesto_id }))));
   },
 
-  /** Deja a esa persona como designada de la marca en ese sector (si había otra, la reemplaza). */
+  /**
+   * Deja la marca como principal de esa persona en ese sector (es la designada). Si la principal era de
+   * otra, se la saca (solo un admin puede: la base no deja tocar las marcas de otro). Las secundarias de
+   * los demás no se tocan.
+   */
   async designar(brandId: string, sectorId: string, personaId: string) {
-    await hacer(supabase.from("marca_equipo").delete().eq("brand_id", brandId).eq("sector_id", sectorId).neq("persona_id", personaId));
+    await hacer(
+      supabase.from("marca_equipo").delete().eq("brand_id", brandId).eq("sector_id", sectorId).eq("principal", true).neq("persona_id", personaId)
+    );
     await hacer(
       supabase
         .from("marca_equipo")
@@ -221,8 +236,31 @@ export const equipoRepo = {
     );
   },
 
+  /** La deja como secundaria de esa persona en ese sector (si era su principal, deja de serlo). */
+  secundaria: (brandId: string, sectorId: string, personaId: string) =>
+    hacer(
+      supabase
+        .from("marca_equipo")
+        .upsert({ brand_id: brandId, sector_id: sectorId, persona_id: personaId, principal: false }, { onConflict: "brand_id,sector_id,persona_id" })
+    ),
+
+  /** Ya no es ni principal ni secundaria. */
   quitarDesignacion: (brandId: string, sectorId: string, personaId: string) =>
     hacer(supabase.from("marca_equipo").delete().eq("brand_id", brandId).eq("sector_id", sectorId).eq("persona_id", personaId)),
+
+  /**
+   * Las marcas de los proyectos activos de Basecamp en los que está esa persona (según la conexión del
+   * estudio): entre esas elige sus principales y secundarias.
+   */
+  async marcasDeBasecamp(bcPersonaId: number): Promise<string[]> {
+    const miembro = await leer<{ proyecto_id: number }[]>(supabase.from("bc_proyecto_personas").select("proyecto_id").eq("persona_id", bcPersonaId));
+    const ids = [...new Set(miembro.map((m) => Number(m.proyecto_id)))];
+    if (!ids.length) return [];
+    const proyectos = await leer<{ brand_id: string | null }[]>(
+      supabase.from("bc_proyectos").select("brand_id").in("id", ids).eq("estado", "active").eq("ignorado", false).not("brand_id", "is", null)
+    );
+    return [...new Set(proyectos.map((p) => p.brand_id).filter((b): b is string => Boolean(b)))];
+  },
 
   crearHub: (nombre: string, tipo: TipoHub = "hub") =>
     hacer(supabase.from("hubs").insert(tipo === "hub" ? { nombre: nombre.trim() } : { nombre: nombre.trim(), tipo })),
@@ -282,6 +320,27 @@ export const equipoRepo = {
   /** Sacarlo del organigrama: su gente pasa a depender de sus jefes. */
   sacar: (personaId: string) => hacer(supabase.rpc("organigrama_sacar", { p_persona: personaId })),
 };
+
+/**
+ * Si quien entró ve lo de Basecamp: las cuentas @camaratbwa.com y los admins (lo mismo que
+ * ve_basecamp() en supabase/migracion-acceso-basecamp.sql, que es lo que de verdad lo frena). Las
+ * cuentas de afuera que habilitó un admin usan las herramientas, pero no ven tareas ni avisos de Basecamp.
+ */
+export function veBasecamp(yo: Yo | null) {
+  if (!yo) return false;
+  return yo.admin || (yo.email ?? "").toLowerCase().endsWith(`@${STUDIO_DOMAIN}`);
+}
+
+/** Cuántas marcas tiene alguien: "3 principales · 2 secundarias" (una marca cuenta una vez). null si ninguna. */
+export function resumenMarcas(personaId: string, data: EquipoData): string | null {
+  const principales = new Set(data.designaciones.filter((d) => d.persona_id === personaId).map((d) => d.brand_id));
+  const secundarias = new Set(data.secundarias.filter((d) => d.persona_id === personaId && !principales.has(d.brand_id)).map((d) => d.brand_id));
+  const partes = [
+    principales.size ? `${principales.size} ${principales.size === 1 ? "principal" : "principales"}` : null,
+    secundarias.size ? `${secundarias.size} ${secundarias.size === 1 ? "secundaria" : "secundarias"}` : null,
+  ].filter(Boolean);
+  return partes.length ? partes.join(" · ") : null;
+}
 
 /** Los errores de la base, en palabras de la app. */
 export function equipoErrorMessage(message: string) {

@@ -409,6 +409,13 @@ begin
   if not public.has_access() then
     raise exception 'Solo el estudio' using errcode = '42501';
   end if;
+  -- Lo de Basecamp, solo @camaratbwa.com y admins (migracion-acceso-basecamp.sql; si todavía no se
+  -- corrió, como antes).
+  if to_regprocedure('public.ve_basecamp()') is not null then
+    if not public.ve_basecamp() then
+      return;
+    end if;
+  end if;
   return query
   with rx as (
     select '\m(' || string_agg(regexp_replace(w, '([.*+?^${}()|\[\]\\])', '\\\1', 'g'), '|') || ')\M' as patron

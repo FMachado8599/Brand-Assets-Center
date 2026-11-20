@@ -5,7 +5,7 @@ import { SoloAdmins } from "@/components/tareas/comun";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Basecamp · Board",
+  title: "Basecamp · Ajustes",
   description: "La cuenta de Basecamp del estudio, la sincronización y lo que hay de cada proyecto.",
 };
 
