@@ -720,7 +720,7 @@ Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, e
 **Status** (`/board`) es lo que está haciendo cada uno, con las tareas de Basecamp que trae la cuenta del estudio: todos ven las de todos, también las de marcas que no son suyas. Tiene dos pestañas:
 
 - **Mi tablero** (`/board`): tus tareas (o las de otra persona, o las de todo el estudio) en columnas por etapa, o en **tabla**.
-- **Equipo** (`/board/equipo`): una fila por persona con sus tareas, para repartir arrastrando, o en **tabla**: las mismas tareas en una lista, persona por persona y, dentro de cada una, lo más prioritario primero. Lo que se elige (filas o tabla) se recuerda.
+- **Equipo** (`/board/equipo`): una fila por persona con sus tareas, para repartir arrastrando, o en **tabla**: una tabla por persona, que se abre o se cierra tocando su nombre (con *Abrir todas* / *Cerrar todas*), y adentro lo más prioritario primero. Lo que se elige (filas o tabla) se recuerda.
 
 **Ajustes** es la configuración del estudio, solo para admins: **Organización** (`/board/organizacion`), **Basecamp** (`/board/basecamp`) y **Accesos** (`/board/accesos`). En la sidebar van abajo de todo, en amarillo; arriba de cada uno, la barra pasa de uno a otro. Las direcciones siguen siendo las de antes, así no se rompe ningún link (ni la vuelta de Basecamp).
 
