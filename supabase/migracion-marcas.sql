@@ -10,7 +10,7 @@
 -- cualquiera). Acá solo cambia el aviso de los comentarios de una presentación: antes le llegaba como
 -- "tuya" a todos los de la marca; ahora así solo a los principales, y a los secundarios como "marca".
 --
--- Historial de migraciones: feature_marcas. SQL Editor: "Feature | Marcas".
+-- Se corre como query guardada del SQL Editor ("Logic | Marcas"), no como migración.
 -- Correr DESPUÉS de migracion-equipo.sql y migracion-presentaciones-board.sql.
 -- Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez: no mueve datos.
 -- ============================================================

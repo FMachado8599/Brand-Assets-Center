@@ -14,7 +14,7 @@
 -- migracion-notificaciones.sql al volver a correrla) y cualquiera del estudio podía editar los
 -- webhooks. Queda solo para admins, como decía migracion-basecamp-conexion.sql.
 --
--- Historial de migraciones: logic_acceso_basecamp. SQL Editor: "Logic | Acceso Basecamp".
+-- Se corre como query guardada del SQL Editor ("Logic | Accesos"), no como migración.
 -- Correr DESPUÉS de migracion-acceso, -equipo, -flujo, -notificaciones, -basecamp-conexion y
 -- -presentaciones-board. Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez: no
 -- mueve datos.
