@@ -10,6 +10,8 @@ import { equipoRepo, type EquipoData, type Hub, type Nivel, type Persona } from 
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { useArrastre, type Destino } from "../arrastre";
+import { abrirPerfil } from "@/components/perfil/abrir";
+import { estadoVigente, fueraDeOficina, textoFuera } from "@/lib/perfil";
 import { Avatar } from "../comun";
 import { PersonaDialog } from "./PersonaDialog";
 
@@ -302,6 +304,8 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
     const nombres = p.puestos.map((id) => puestos.get(id)?.nombre).filter(Boolean);
     const gente = armado.gente.get(p.id) ?? 0;
     const jefes = armado.jefesDe(p).length;
+    const estado = estadoVigente(p.perfil);
+    const fuera = fueraDeOficina(p.perfil);
     return (
       <div
         className={cn(
@@ -315,10 +319,14 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
       >
         <Avatar nombre={p.nombre} url={p.avatar_url} className="h-9 w-9 text-[11px]" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold leading-tight">{p.nombre}</p>
+          <p className="truncate text-[13px] font-semibold leading-tight" title={estado ? [estado.emoji, estado.texto].filter(Boolean).join(" ") : undefined}>
+            {p.nombre}
+            {estado?.emoji && <span className="ml-1 font-normal">{estado.emoji}</span>}
+          </p>
           <p className="truncate text-[11px] leading-tight text-muted-foreground">{nombres.join(" · ") || p.cargo || "Sin puesto"}</p>
-          {(gente > 0 || jefes > 1 || !p.activo || p.bc_persona_id == null) && (
+          {(gente > 0 || jefes > 1 || !p.activo || p.bc_persona_id == null || fuera) && (
             <p className="mt-0.5 truncate text-[10px] font-medium text-muted-foreground">
+              {fuera && <span className="text-amber-700">{textoFuera(fuera).replace("Fuera de oficina", "Fuera")}{(gente > 0 || jefes > 1 || !p.activo || p.bc_persona_id == null) && " · "}</span>}
               {[
                 !p.activo && "Inactivo",
                 gente > 0 && `${gente} a cargo`,
@@ -344,8 +352,8 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
         {...(admin ? { ...propsTarjeta(p.id, ARBOL), ...(recibe ? propsLista(p.id) : {}) } : {})}
         role="button"
         tabIndex={0}
-        onClick={() => setAbierta(p)}
-        onKeyDown={(e) => e.key === "Enter" && setAbierta(p)}
+        onClick={() => abrirPerfil(p.id)}
+        onKeyDown={(e) => e.key === "Enter" && abrirPerfil(p.id)}
         className={cn("absolute select-none", admin && "cursor-grab active:cursor-grabbing", q && !coincide(p) && "opacity-30")}
         style={{ left: x, top: y, width: W, height: H }}
       >
@@ -377,7 +385,7 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
             </svg>
             Otro jefe
           </span>
-          {admin && <span className="ml-auto">Arrastrá a alguien sobre otra persona para ponerlo debajo; los jefes extra, en su ficha.</span>}
+          {admin && <span className="ml-auto">Arrastrá a alguien sobre otra persona para ponerlo debajo. Tocala para ver su perfil; los jefes extra, en Editar.</span>}
         </div>
         <div className="relative overflow-auto rounded-[1.6rem] border bg-secondary/35" style={{ maxHeight: "calc(100dvh - 15rem)" }} data-scroll-x data-scroll-y>
           {/* Siempre está (para un admin): si apareciera recién al arrastrar, empujaría el árbol. */}
@@ -470,8 +478,8 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
               {...(admin ? propsTarjeta(p.id, SIN) : {})}
               role="button"
               tabIndex={0}
-              onClick={() => setAbierta(p)}
-              onKeyDown={(e) => e.key === "Enter" && setAbierta(p)}
+              onClick={() => abrirPerfil(p.id)}
+              onKeyDown={(e) => e.key === "Enter" && abrirPerfil(p.id)}
               className={cn("select-none", admin && "cursor-grab active:cursor-grabbing")}
               style={{ height: H }}
             >
@@ -528,7 +536,8 @@ function AgregarPersona({ abierto, onClose, onCreada, data }: { abierto: boolean
     // Se abre su ficha para cargarle puestos y jefes (la persona recién creada ya está en data).
     const nueva: Persona = data.personas.find((p) => p.id === id) ?? {
       id, nombre: nombre.trim(), email: email || null, bc_persona_id: null, rol: "empleado", hub_id: null, activo: true, puestos: [],
-      avatar_url: null, cargo: null, activo_manual: null, ultima_actividad: null, actividad_medida: false, jefes: [], en_organigrama: false,
+      avatar_url: null, avatar_bc: null, cargo: null, activo_manual: null, ultima_actividad: null, actividad_medida: false, jefes: [], en_organigrama: false,
+      perfil: null,
     };
     onCreada(nueva);
   }

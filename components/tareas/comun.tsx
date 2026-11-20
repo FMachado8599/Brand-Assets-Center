@@ -2,41 +2,61 @@
 
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Columns3, Info, Lock, Network, Rows3 } from "lucide-react";
+import { Columns3, Info, Lock, Network, Rows3, ShieldCheck } from "lucide-react";
 import { BarSegmented, ContextBar } from "@/components/shell/ContextBar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useEquipo } from "@/hooks/useEquipo";
 import { initials } from "@/lib/clients/color";
 import { cn } from "@/lib/utils";
 
-/** Las pestañas del Board, en la barra de arriba. Organización y Basecamp son solo de admins. */
-const PESTANAS = [
-  { value: "/board", label: "Mi tablero", icon: Columns3, soloAdmins: false },
-  { value: "/board/equipo", label: "Equipo", icon: Rows3, soloAdmins: false },
-  { value: "/board/organizacion", label: "Organización", icon: Network, soloAdmins: true },
-  { value: "/board/basecamp", label: "Basecamp", icon: BasecampGlyph, soloAdmins: true },
+/** Las pestañas de Status (lo que está haciendo cada uno), en la barra de arriba. */
+const PESTANAS_STATUS = [
+  { value: "/board", label: "Mi tablero", icon: Columns3 },
+  { value: "/board/equipo", label: "Equipo", icon: Rows3 },
 ] as const;
 
-type Pestana = (typeof PESTANAS)[number]["value"];
+/** Las de Ajustes: la configuración del estudio, solo de admins (en la sidebar van aparte, en amarillo). */
+const PESTANAS_AJUSTES = [
+  { value: "/board/organizacion", label: "Organización", icon: Network },
+  { value: "/board/basecamp", label: "Basecamp", icon: BasecampGlyph },
+  { value: "/board/accesos", label: "Accesos", icon: ShieldCheck },
+] as const;
+
+type PestanaStatus = (typeof PESTANAS_STATUS)[number]["value"];
+type PestanaAjustes = (typeof PESTANAS_AJUSTES)[number]["value"];
 
 export function BoardNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { admin } = useEquipo();
-  const actual = (PESTANAS.find((p) => p.value !== "/board" && pathname.startsWith(p.value))?.value ?? "/board") as Pestana;
+  const actual: PestanaStatus = pathname.startsWith("/board/equipo") ? "/board/equipo" : "/board";
   return (
-    <BarSegmented<Pestana>
-      label="Secciones del Board"
+    <BarSegmented<PestanaStatus>
+      label="Secciones de Status"
       value={actual}
       onChange={(v) => router.push(v)}
-      options={PESTANAS.filter((p) => admin || !p.soloAdmins || p.value === actual).map(({ soloAdmins: _, ...p }) => p)}
+      options={[...PESTANAS_STATUS]}
+    />
+  );
+}
+
+export function AjustesNav() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { admin } = useEquipo();
+  const actual = (PESTANAS_AJUSTES.find((p) => pathname.startsWith(p.value))?.value ?? PESTANAS_AJUSTES[0].value) as PestanaAjustes;
+  return (
+    <BarSegmented<PestanaAjustes>
+      label="Ajustes"
+      value={actual}
+      onChange={(v) => router.push(v)}
+      options={PESTANAS_AJUSTES.filter((p) => admin || p.value === actual)}
     />
   );
 }
 
 /**
- * Lo que es solo de admins de la app (Organización, la conexión con Basecamp). La base igual lo
- * protege; esto evita mostrar una pantalla a medias.
+ * Lo que es solo de admins de la app (los Ajustes: Organización, la conexión con Basecamp, Accesos).
+ * La base igual lo protege; esto evita mostrar una pantalla a medias.
  */
 export function SoloAdmins({ children, titulo }: { children: ReactNode; titulo: string }) {
   const { admin, loaded, data } = useEquipo();
@@ -44,7 +64,7 @@ export function SoloAdmins({ children, titulo }: { children: ReactNode; titulo: 
   return (
     <div className="min-h-screen">
       <ContextBar>
-        <BoardNav />
+        <AjustesNav />
       </ContextBar>
       <main className="mx-auto max-w-lg px-4 pb-16 pt-[6.5rem] text-center">
         {!loaded ? (

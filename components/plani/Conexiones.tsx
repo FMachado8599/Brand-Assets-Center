@@ -35,7 +35,7 @@ async function desconectar(proveedor: "basecamp" | "google") {
 /**
  * Las conexiones del estudio, para el popover de la barra: Basecamp (proyectos → clientes, tareas)
  * y el Drive (material final). Una sola conexión de cada una para todos, y las manejan los admins:
- * Basecamp en Board → Basecamp; el Drive, acá.
+ * Basecamp en Ajustes → Basecamp; el Drive, acá.
  */
 export function ConexionesPanel() {
   const { data, error, sinMigracion, loaded, hayBasecamp } = useIntegraciones();
@@ -78,7 +78,7 @@ export function ConexionesPanel() {
           <p className="mt-1.5 text-xs text-muted-foreground">
             {hayBasecamp
               ? `Conectado · al día ${hace(data.sync?.ultimo)}. Lo nuevo llega solo.`
-              : "Todavía no está conectado: lo conecta un admin de la app en Board → Basecamp."}
+              : "Todavía no está conectado: lo conecta un admin de la app en Ajustes → Basecamp."}
           </p>
         ) : !data.listo.basecamp || !data.listo.secreto ? (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -116,7 +116,7 @@ export function ConexionesPanel() {
               Cada proyecto de Basecamp aparece como cliente, y las tareas (con su brief y su gente) se ven en las presentaciones.
             </p>
             <Link href="/board/basecamp" className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:brightness-95">
-              Conectar en Board → Basecamp
+              Conectar en Ajustes → Basecamp
             </Link>
           </>
         )}

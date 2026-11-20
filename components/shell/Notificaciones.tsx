@@ -332,10 +332,10 @@ function Fila({ g, onAbrir, onBoard }: { g: Grupo; onAbrir: () => void; onBoard?
             </Hint>
           )}
           {onBoard && n.origen === "basecamp" && (
-            <Hint label="Ver en el Board">
+            <Hint label="Ver en Status">
               <button
                 type="button"
-                aria-label="Ver en el Board"
+                aria-label="Ver en Status"
                 onClick={(e) => {
                   e.stopPropagation();
                   marcarLeidas(g.idsNoLeidas);

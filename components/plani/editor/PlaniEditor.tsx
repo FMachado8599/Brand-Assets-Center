@@ -327,7 +327,7 @@ function Editor({ id }: { id: string }) {
     if (r.tarea && r.etapa) {
       const etapa = ETAPA_LABEL[r.etapa as Etapa] ?? r.etapa;
       const aviso = r.avisados ? (r.avisados === 1 ? " y le avisamos a su designado" : ` y les avisamos a ${r.avisados} personas`) : "";
-      toast(`${titulo}. En el Board, la tarea pasó a ${etapa}${aviso}.`);
+      toast(`${titulo}. En Status, la tarea pasó a ${etapa}${aviso}.`);
     } else toast(cierre?.siguiente === estado ? `${titulo}: pasó a ${estadoInfo(estado).label}` : titulo);
   };
 
@@ -569,7 +569,7 @@ function Editor({ id }: { id: string }) {
                 <b className="font-semibold">{estadoInfo(plani.estado).label}:</b>{" "}
                 <span className="text-muted-foreground">
                   {estadoInfo(plani.estado).hint}. Cuando esté, pasala a {estadoInfo(CIERRE[plani.estado]!.siguiente).label}
-                  {plani.bc_tarea_id ? " (la tarea también pasa en el Board)" : ""}. Si después hay ajustes, se puede volver.
+                  {plani.bc_tarea_id ? " (la tarea también pasa en Status)" : ""}. Si después hay ajustes, se puede volver.
                 </span>
               </p>
               <button
@@ -618,7 +618,7 @@ function Editor({ id }: { id: string }) {
             </button>
           ) : integraciones && !integraciones.basecamp ? (
             <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <BasecampMark className="h-3.5 w-3.5" /> Con Basecamp conectado (lo conecta un admin en Board → Basecamp), la tarea de la presentación se ve acá.
+              <BasecampMark className="h-3.5 w-3.5" /> Con Basecamp conectado (lo conecta un admin en Ajustes → Basecamp), la tarea de la presentación se ve acá.
             </p>
           ) : null}
         </div>

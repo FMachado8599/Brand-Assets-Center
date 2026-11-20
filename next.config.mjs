@@ -11,6 +11,8 @@ const nextConfig = {
   // Otra carpeta de compilación para correr un segundo server en paralelo (ej: NEXT_DIST_DIR=.next-dev) sin pisar el primero.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   experimental: {
+    // Argon2id (las contraseñas) es un binario nativo: se carga tal cual en el servidor, sin empaquetar.
+    serverComponentsExternalPackages: ["@node-rs/argon2"],
     // La búsqueda de emojis lee el índice con fs: hay que decirle a Next que lo incluya en la función.
     outputFileTracingIncludes: {
       "/api/emojis/search": ["./data/emojis/embeddings.json"],

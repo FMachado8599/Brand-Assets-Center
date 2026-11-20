@@ -4,7 +4,7 @@ import { MiTablero } from "@/components/tareas/MiTablero";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Board",
+  title: "Status",
   description: "Tus tareas de Basecamp en un tablero por etapa, ordenadas por prioridad.",
 };
 
