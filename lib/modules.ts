@@ -5,6 +5,7 @@ import {
   Film,
   Gamepad2,
   House,
+  Mail,
   ImagePlay,
   Library,
   Megaphone,
@@ -57,6 +58,7 @@ export const MODULES: AppModule[] = [
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw, seccion: "archivos" },
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine, seccion: "crear" },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase, seccion: "trabajo" },
+  { href: "/correo", label: "Correo", description: "Tu casilla @camaratbwa.com: leé, respondé y mandá", icon: Mail, seccion: "trabajo" },
   { href: "/board", label: "Board", description: "Las tareas de Basecamp de todo el estudio", icon: SquareKanban, seccion: "trabajo" },
   { href: "/presentaciones", label: "Presentaciones", description: "El material de cada tarea, listo para el cliente: planis, ads, programática…", icon: Presentation, seccion: "trabajo" },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine, seccion: "archivos" },
@@ -67,7 +69,7 @@ export const MODULES: AppModule[] = [
 ];
 
 /** La sidebar: cada sección con sus módulos, en el orden de SECCIONES (y adentro, el de ORDEN_NAV). */
-const ORDEN_NAV = ["/board", "/presentaciones", "/clientes", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
+const ORDEN_NAV = ["/board", "/correo", "/presentaciones", "/clientes", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
 const posicion = (m: AppModule) => (ORDEN_NAV.includes(m.href) ? ORDEN_NAV.indexOf(m.href) : ORDEN_NAV.length + MODULES.indexOf(m));
 export const NAV = SECCIONES.map((s) => ({
   ...s,
