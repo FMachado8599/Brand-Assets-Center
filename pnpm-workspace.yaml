@@ -1,0 +1,10 @@
+# Versiones forzadas de dependencias indirectas por avisos de seguridad (issue #15).
+# Van acá y no en package.json: pnpm 11 (el de CI) ya no lee el campo "pnpm" de package.json.
+overrides:
+  postcss: "^8.5.33"
+  source-map-js: "^1.2.2"
+  postcss-selector-parser: "^6.1.5"
+  prosemirror-view: "^1.42.3"
+  markdown-it: "^14.3.3"
+  undici: "^6.29.1"
+  zod: "^4.6.6"
