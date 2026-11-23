@@ -26,6 +26,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { toast } from "@/components/ui/toaster";
 import { useDebounced } from "@/hooks/useDebounced";
 import { api, borradorDe, ErrorCorreo, fechaCorta, jsonInit, type Borrador } from "@/lib/correo/cliente";
+import { publicarNoLeidos, sinCasillaCorreo } from "@/lib/correo/noLeidos";
 import {
   nombreDireccion,
   type AccionMensaje,
@@ -71,6 +72,12 @@ export function CorreoShell() {
   useEffect(() => {
     if (account?.ready && user) cargarEstado();
   }, [account?.ready, user, cargarEstado]);
+
+  // Sin casilla conectada, la sidebar no muestra número de sin leer.
+  const conectada = estado?.conectada;
+  useEffect(() => {
+    if (user && conectada === false) sinCasillaCorreo(user.id);
+  }, [user, conectada]);
 
   // La contraseña guardada dejó de andar (la cambiaron en el servidor): se vuelve a pedir.
   const pedirClave = useCallback((mensaje: string) => {
@@ -124,7 +131,7 @@ export function CorreoShell() {
     );
   }
 
-  return <Bandeja estado={estado} titulo={titulo} onPideClave={pedirClave} onDesconectada={cargarEstado} />;
+  return <Bandeja estado={estado} yoId={user.id} titulo={titulo} onPideClave={pedirClave} onDesconectada={cargarEstado} />;
 }
 
 /* ───────────── La bandeja ───────────── */
@@ -144,11 +151,13 @@ const CADA = 60_000;
 
 function Bandeja({
   estado,
+  yoId,
   titulo,
   onPideClave,
   onDesconectada,
 }: {
   estado: EstadoCuenta;
+  yoId: string;
   titulo: React.ReactNode;
   onPideClave: (mensaje: string) => void;
   onDesconectada: () => void;
@@ -174,6 +183,12 @@ function Bandeja({
 
   const actual = carpetas.find((c) => c.path === carpeta);
   const enviados = actual?.tipo === "sent" || actual?.tipo === "drafts";
+
+  // Lo que se ve de Recibidos es lo que muestra la sidebar al lado de Correo.
+  const noLeidosRecibidos = carpetas.find((c) => c.tipo === "inbox")?.noLeidos;
+  useEffect(() => {
+    if (noLeidosRecibidos != null) publicarNoLeidos(yoId, noLeidosRecibidos);
+  }, [yoId, noLeidosRecibidos]);
 
   /** Los errores de la casilla: si es la contraseña, se vuelve a pedir; si no, se muestra. */
   const fallo = useCallback(
