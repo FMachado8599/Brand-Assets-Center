@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { get } from "@vercel/blob";
 import { BROWSER_HEADERS, DownloadError } from "./http.server";
 import type { Link } from "./links";
-import type { MediaCover, MediaInfo, YoutubeQuality } from "./types";
+import type { MediaCover, MediaInfo, YoutubeQuality, YoutubeStatus } from "./types";
 
 /**
  * YouTube corta las descargas en buena calidad que salen de servidores en la nube: lo baja el servicio que
@@ -60,6 +60,28 @@ async function announcedUrl() {
   const url = (await announcement())?.url;
   if (!url) throw new DownloadError("El servicio de YouTube todavía no avisó su dirección. ¿Está abierto en la PC?", 503);
   return url.replace(/\/+$/, "");
+}
+
+/**
+ * Si YouTube se puede usar ahora: está configurado y el servicio de la PC contesta (/health no pide clave).
+ * Lo muestra la página de Descargas antes de que alguien pegue un link.
+ */
+export async function youtubeStatus(): Promise<YoutubeStatus> {
+  let worker: string;
+  try {
+    ({ worker } = await config());
+  } catch (err) {
+    if (!(err instanceof DownloadError)) throw err;
+    return { disponible: false, motivo: err.status === 501 ? "sin-configurar" : "apagado", mensaje: err.message };
+  }
+  try {
+    const res = await fetch(`${worker}/health`, { cache: "no-store", signal: AbortSignal.timeout(6000) });
+    res.body?.cancel().catch(() => {});
+    if (res.ok) return { disponible: true };
+  } catch {
+    /* no contesta: está apagado o se cortó el túnel */
+  }
+  return { disponible: false, motivo: "apagado", mensaje: "El servicio de la PC de la oficina no responde: ¿está prendida y con el servicio abierto?" };
 }
 
 type WorkerInfo = {

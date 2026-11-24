@@ -42,6 +42,9 @@ export type YoutubeSource = {
   cover?: MediaCover;
 };
 
+/** Si YouTube se puede usar ahora (GET /api/descargas/youtube/estado): el servicio de la PC se prende y se apaga. */
+export type YoutubeStatus = { disponible: true } | { disponible: false; motivo: "sin-configurar" | "apagado"; mensaje: string };
+
 export type MediaInfo = {
   platform: Platform;
   id: string;

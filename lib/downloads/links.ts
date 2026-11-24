@@ -130,16 +130,23 @@ export function clip(text: string, max: number) {
   return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:–—-]+$/, "");
 }
 
+/** El nombre del posteo, sin número ni extensión: el de cada archivo que sale de él y el de su .zip. */
+export function postName(info: MediaInfo) {
+  // En Instagram la cuenta dice de quién es y en YouTube el canal (salvo que el título ya la traiga: "Carrusel
+  // de @cuenta"); en Pinterest es quien lo guardó, que no importa. Los títulos de Pinterest además suelen
+  // arrastrar palabras clave después de un " | ": quedan afuera.
+  const title = info.platform === "pinterest" ? info.title.split(" | ")[0] : info.title;
+  const author = info.platform !== "pinterest" && info.author && !title.includes(info.author) ? info.author : undefined;
+  // Sin puntuación al final: "…mucho después." no puede terminar en "después..mp4".
+  return clip(safeFileName([author, title].filter(Boolean).join(" - ")), 90).replace(/[\s.,;:!?¿¡…–—-]+$/, "") || "descarga";
+}
+
 /**
  * El nombre con que se guarda: el del posteo, el número dentro del carrusel, y si se le sacó o se separó
  * el audio, o si es la portada. `ext` es la del archivo que sale (un video convertido a solo audio termina en .m4a).
  */
 export function downloadName(info: MediaInfo, ext: string, opts: { file?: MediaFile; audio?: AudioMode; cover?: boolean } = {}) {
-  // En Instagram la cuenta dice de quién es y en YouTube el canal; en Pinterest es quien lo guardó, que no
-  // importa. Los títulos de Pinterest además suelen arrastrar palabras clave después de un " | ": quedan afuera.
-  const parts = info.platform === "pinterest" ? [info.title.split(" | ")[0]] : [info.author, info.title];
-  // Sin puntuación al final: "…mucho después." no puede terminar en "después..mp4".
-  const base = clip(safeFileName(parts.filter(Boolean).join(" - ")), 90).replace(/[\s.,;:!?¿¡…–—-]+$/, "") || "descarga";
+  const base = postName(info);
   const index = opts.file ? info.files.indexOf(opts.file) : -1;
   const number = info.files.length > 1 && index >= 0 ? ` (${index + 1})` : "";
   const tag = opts.cover ? " (portada)" : opts.audio === "sin" ? " (sin audio)" : opts.audio === "solo" ? " (audio)" : "";

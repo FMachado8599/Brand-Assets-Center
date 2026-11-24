@@ -9,16 +9,17 @@ import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { useStoredState } from "@/hooks/useStoredState";
 import { DriveError, getDriveToken, type DriveConfig } from "@/lib/downloads/drive.client";
-import { findLinks, NO_LINKS, scanLinks, type Link } from "@/lib/downloads/links";
+import { findLinks, NO_LINKS, postName, scanLinks, type Link } from "@/lib/downloads/links";
 import { registroDe, type RegistroDescarga } from "@/lib/downloads/registro";
-import { anotarDescargas, saveTarget } from "@/lib/downloads/save.client";
-import { planTargets } from "@/lib/downloads/targets";
+import { anotarDescargas, saveTarget, saveToComputer, type FetchedFile } from "@/lib/downloads/save.client";
+import { planTargets, zipCount } from "@/lib/downloads/targets";
 import type { CoverMode, MediaFile, MediaInfo, SaveSettings } from "@/lib/downloads/types";
 import { DownloadRow, type DownloadItem, type Transfer } from "./DownloadRow";
 import { LinkList } from "./LinkList";
 import { AUDIO_OPTIONS, COVER_OPTIONS, DESTINO_OPTIONS, ModeIcons, optionOf, type ModeOption } from "./modes";
 import { PlatformIcon } from "./PlatformIcon";
 import { audioCounts, DEFAULT_SETTINGS, describeSettings, SaveOptions } from "./SaveOptions";
+import { useYoutubeStatus, YoutubeNotice } from "./YoutubeNotice";
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -26,6 +27,8 @@ function isTyping(target: EventTarget | null) {
 }
 
 const DONE_LABEL = { compu: "Descargado", ambos: "Descargado y en Drive", drive: "En Drive" } as const;
+/** Cuando lo de la compu salió en un .zip (a Drive va cada archivo por separado). */
+const ZIP_LABEL = { compu: "Descargado en un .zip", ambos: "En un .zip y en Drive", drive: "En Drive" } as const;
 
 /** Un pedazo del resumen de "Cómo se guarda": los íconos de lo elegido, con su nombre en el tooltip. */
 function SummaryIcons<T extends string>({ option, children }: { option: ModeOption<T>; children?: ReactNode }) {
@@ -49,6 +52,8 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const youtube = useYoutubeStatus();
+  const reportYoutube = youtube.report;
 
   const loading = items.some((i) => i.status === "loading");
   const ready = items.filter(
@@ -73,13 +78,21 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
       try {
         const res = await fetch(`/api/descargas/info?url=${encodeURIComponent(link.url)}`);
         const data = await res.json().catch(() => null);
+        // Una fila de YouTube dice si el servicio de la PC está prendido (y el aviso de arriba lo refleja al toque).
+        if (link.platform === "youtube" && (res.ok || res.status === 501 || res.status === 503)) {
+          reportYoutube(
+            res.ok
+              ? { disponible: true }
+              : { disponible: false, motivo: res.status === 501 ? "sin-configurar" : "apagado", mensaje: data?.error ?? "" }
+          );
+        }
         if (res.ok && data) return update(link.url, { status: "ready", info: data });
         error = data?.error ?? `El servidor respondió ${res.status}.`;
         retryable = res.status >= 500 && res.status !== 501;
       } catch {}
       update(link.url, { status: "error", error, retryable });
     },
-    [update]
+    [update, reportYoutube]
   );
 
   /** Elegirlo para todos pisa lo de cada fila. */
@@ -156,17 +169,23 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
     return getDriveToken(drive, email);
   };
 
-  const saveItem = async (item: DownloadItem & { info: MediaInfo }, token: string | undefined, file?: MediaFile) => {
+  /**
+   * Baja lo de una fila (todo, o un archivo del carrusel) y sube a Drive lo que corresponda. Lo que va a la
+   * compu lo devuelve sin guardar, para que quien llama lo guarde junto (solo o en un .zip). Si un archivo
+   * falla, se queda con lo que ya bajó y con el error, para mostrarlo en la fila.
+   */
+  const collectItem = async (item: DownloadItem & { info: MediaInfo }, token: string | undefined, file?: MediaFile) => {
     const url = item.link.url;
-    const { info } = item;
-    const targets = planTargets(info, modeOf(item), { file, quality: item.quality });
+    const targets = planTargets(item.info, modeOf(item), { file, quality: item.quality });
     const progress = (transfer: Transfer) => update(url, { transfer });
-    if (!targets.length) return progress({ state: "error", label: "Este video no tiene portada para bajar." });
-    progress({ state: "working", label: "Empezando" });
-
-    let driveUrl: string | undefined;
+    const files: FetchedFile[] = [];
     // Lo que se guardó, para el registro de descargas (se anota aunque después falle otro archivo).
     const saved: RegistroDescarga[] = [];
+    let driveUrl: string | undefined;
+    let error: string | undefined;
+    if (!targets.length) error = "Este video no tiene portada para bajar.";
+    else progress({ state: "working", label: "Empezando" });
+
     for (const [i, target] of targets.entries()) {
       const prefix = targets.length > 1 ? `${i + 1} de ${targets.length} · ` : "";
       try {
@@ -174,50 +193,85 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
           progress({ state: "working", label: prefix + p.label, percent: p.percent })
         );
         driveUrl = result.driveUrl;
+        if (result.file) files.push(result.file);
         saved.push(registroDe(target, settings.audio, settings.destino, result.bytes));
       } catch (err) {
-        anotarDescargas(saved);
         if (err instanceof DriveError && err.lostFolder) setSettings((s) => ({ ...s, carpeta: null }));
-        progress({ state: "error", label: err instanceof Error ? err.message : "No se pudo guardar." });
-        return;
+        const message = err instanceof Error ? err.message : "No se pudo guardar.";
+        error = targets.length > 1 ? `${prefix}${message}` : message;
+        break;
       }
-      // Los navegadores frenan descargas en ráfaga: se espacian un poco.
-      if (i < targets.length - 1) await new Promise((r) => setTimeout(r, 400));
     }
+    return { item, targets, files, saved, driveUrl, error };
+  };
+
+  type Collected = Awaited<ReturnType<typeof collectItem>>;
+
+  /** Cómo termina una fila, una vez guardado lo suyo en la compu. */
+  const finish = ({ item, targets, saved, driveUrl, error }: Collected, label: string) => {
     anotarDescargas(saved);
-    progress({
-      state: "done",
-      label: DONE_LABEL[settings.destino],
-      driveUrl: settings.destino === "compu" ? undefined : targets.length === 1 ? driveUrl : settings.carpeta?.url,
+    update(item.link.url, {
+      transfer: error
+        ? { state: "error", label: error }
+        : {
+            state: "done",
+            label,
+            driveUrl: settings.destino === "compu" ? undefined : targets.length === 1 ? driveUrl : settings.carpeta?.url,
+          },
     });
   };
 
-  const save = async (item: DownloadItem & { info: MediaInfo }, file?: MediaFile) => {
-    let token: string | undefined;
+  /** El permiso de Drive, o un aviso si no se pudo (undefined también si todo va solo a la compu). */
+  const driveTokenOrToast = async (): Promise<{ token: string | undefined } | null> => {
     try {
-      token = await driveToken();
+      return { token: await driveToken() };
     } catch (err) {
       toast(err instanceof Error ? err.message : "No se pudo conectar con Drive.", "error");
-      return;
+      return null;
     }
-    await saveItem(item, token, file);
   };
 
-  const saveAll = async () => {
-    let token: string | undefined;
+  const save = async (item: DownloadItem & { info: MediaInfo }, file?: MediaFile) => {
+    const access = await driveTokenOrToast();
+    if (!access) return;
+    const result = await collectItem(item, access.token, file);
     try {
-      token = await driveToken();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "No se pudo conectar con Drive.", "error");
-      return;
+      if (result.files.length > 1) update(item.link.url, { transfer: { state: "working", label: "Armando el .zip" } });
+      const count = await saveToComputer(result.files, postName(item.info));
+      finish(result, count > 1 ? ZIP_LABEL[settings.destino] : DONE_LABEL[settings.destino]);
+    } catch {
+      finish({ ...result, error: result.error ?? "No se pudo armar el .zip." }, "");
     }
+  };
+
+  /** Todas las filas listas, cada una con lo suyo. A la compu va todo junto: un solo .zip (o un archivo, si es uno). */
+  const saveAll = async () => {
+    const access = await driveTokenOrToast();
+    if (!access) return;
+    const results: Collected[] = [];
     for (const item of ready) {
       const empty = !planTargets(item.info, modeOf(item), { quality: item.quality }).length;
-      if (item.transfer?.state !== "working" && !empty) await saveItem(item, token);
+      if (item.transfer?.state === "working" || empty) continue;
+      const result = await collectItem(item, access.token);
+      results.push(result);
+      // Sin nada para la compu (va solo a Drive, o es un video de YouTube que ya bajó el navegador), termina acá.
+      if (!result.files.length) finish(result, DONE_LABEL[settings.destino]);
+      else update(item.link.url, { transfer: { state: "working", label: result.error ? "Guardando lo que bajó" : "Esperando a las demás" } });
+    }
+    const pending = results.filter((r) => r.files.length);
+    // En el .zip, cada posteo con varios archivos va en su carpeta; los de un solo archivo, sueltos.
+    const files = pending.flatMap((r) => r.files.map((f) => (r.files.length > 1 ? { ...f, folder: postName(r.item.info) } : f)));
+    try {
+      const count = await saveToComputer(files, `Descargas ${new Date().toLocaleDateString("es-AR").replace(/\//g, "-")}`);
+      if (count > 1) toast(`${count} archivos en un .zip`);
+      pending.forEach((r) => finish(r, count > 1 ? ZIP_LABEL[settings.destino] : DONE_LABEL[settings.destino]));
+    } catch {
+      pending.forEach((r) => finish({ ...r, error: r.error ?? "No se pudo armar el .zip." }, ""));
     }
   };
 
   const ActionIcon = settings.destino === "compu" ? Download : CloudUpload;
+  const allHint = zipCount(readyTargets, settings.destino) > 1 ? "Descargar todo en un .zip" : "Descargar todo";
 
   return (
     <div className="min-h-screen">
@@ -266,7 +320,11 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
         {ready.length > 1 && readyTargets.length > 0 && (
           <>
             <BarDivider />
-            <BarAction label="Descargar todo" icon={ActionIcon} onClick={saveAll} />
+            <Hint label={allHint}>
+              <BarAction label={allHint} icon={ActionIcon} onClick={saveAll}>
+                Descargar todo
+              </BarAction>
+            </Hint>
           </>
         )}
       </ContextBar>
@@ -298,6 +356,8 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
             <span className="shrink-0 text-muted-foreground">· Cambiar</span>
           </button>
         </div>
+
+        <YoutubeNotice status={youtube.status} checking={youtube.checking} onCheck={youtube.check} />
 
         {items.length === 0 ? (
           <div className="rounded-3xl border-2 border-dashed border-foreground/10 bg-card/80 p-4 shadow-sm sm:p-6">
@@ -340,14 +400,24 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
 
         <ul className="mt-8 grid gap-3 text-sm sm:grid-cols-2">
           {[
-            { icon: <PlatformIcon platform="youtube" />, title: "YouTube", text: "Hasta 1080p, con o sin audio, o solo el audio. Lo baja la PC de la oficina." },
+            {
+              icon: <PlatformIcon platform="youtube" />,
+              title: "YouTube",
+              text: "Hasta 1080p, con o sin audio, o solo el audio. Lo baja la PC de la oficina.",
+              off: youtube.status?.disponible === false,
+            },
             { icon: <PlatformIcon platform="instagram" />, title: "Instagram", text: "Reels, videos, fotos y carruseles enteros, de cuentas públicas." },
             { icon: <PlatformIcon platform="pinterest" />, title: "Pinterest", text: "Videos e imágenes en su tamaño original, también con links pin.it." },
             { icon: <FolderInput className="h-4 w-4" />, title: "Directo a Drive", text: "Pegás el link de una carpeta y lo que bajes se guarda ahí." },
           ].map((f) => (
             <li key={f.title} className="rounded-2xl border bg-card/80 p-4">
               <span className="mb-2 flex">{f.icon}</span>
-              <p className="font-medium">{f.title}</p>
+              <p className="flex items-center gap-2 font-medium">
+                {f.title}
+                {"off" in f && f.off && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">Apagado ahora</span>
+                )}
+              </p>
               <p className="mt-0.5 text-xs text-muted-foreground">{f.text}</p>
             </li>
           ))}

@@ -4,7 +4,7 @@ import { processAudio } from "./audio.client";
 import { DriveError, uploadToDrive } from "./drive.client";
 import { downloadName } from "./links";
 import type { RegistroDescarga } from "./registro";
-import { isVideoTarget, type SaveTarget } from "./targets";
+import { isDirectTarget, isVideoTarget, type SaveTarget } from "./targets";
 import type { AudioMode, SaveSettings, YoutubeSource } from "./types";
 
 /**
@@ -12,55 +12,93 @@ import type { AudioMode, SaveSettings, YoutubeSource } from "./types";
  *
  *  1. De dónde sale: Instagram, Pinterest y las portadas pasan por /api/descargas/file (así salen con su
  *     nombre); los videos de YouTube se preparan en el servicio de la PC y se bajan directo de ahí.
- *  2. Si hay que sacar o separar el audio (y no es YouTube, que ya viene así), se procesa en el navegador.
- *  3. A la compu, a Drive o a las dos. Solo a la compu y sin procesar, lo baja el navegador directamente
- *     (no pasa por la memoria de la página y se ve en sus descargas).
+ *  2. Se baja a la memoria de la página: así, si algo falla, el error se ve en la fila (y no como una descarga
+ *     fallida del navegador), y varios archivos se pueden juntar en un .zip. La excepción son los videos de
+ *     YouTube que van solo a la compu: pueden pesar cientos de MB y los baja el navegador directo de la PC.
+ *  3. Si hay que sacar o separar el audio (y no es YouTube, que ya viene así), se procesa en el navegador.
+ *  4. A Drive se sube cada archivo. A la compu va uno solo tal cual, o varios en un .zip (saveToComputer):
+ *     los navegadores frenan varias descargas seguidas (Chrome pide permiso y, hasta que se le contesta, no
+ *     baja ninguna más, ni siquiera las de a una), así que un carrusel o "Descargar todo" es una sola descarga.
  */
 
 export type Progress = { label: string; percent?: number };
+
+/** Un archivo ya bajado, para guardar en la compu. `folder`: su carpeta dentro del .zip. */
+export type FetchedFile = { name: string; blob: Blob; folder?: string };
 
 export function fileHref(file: { url: string }, name: string) {
   return `/api/descargas/file?${new URLSearchParams({ src: file.url, name })}`;
 }
 
+/**
+ * Baja un target y lo sube a Drive si corresponde. Lo que va a la compu lo devuelve en `file` (para guardarlo
+ * solo o en el .zip), salvo los videos de YouTube que van solo a la compu: esos ya los bajó el navegador.
+ */
 export async function saveTarget(
   target: SaveTarget,
   settings: SaveSettings,
   driveToken: string | undefined,
   onProgress: (p: Progress) => void
-): Promise<{ name: string; driveUrl?: string; bytes?: number }> {
+): Promise<{ name: string; driveUrl?: string; bytes?: number; file?: FetchedFile }> {
   const { info, file, cover } = target;
   const audio: AudioMode = isVideoTarget(target) ? settings.audio : "con";
   const ext = cover ? cover.ext : audio === "solo" ? "m4a" : info.youtube ? "mp4" : file!.ext;
   const name = downloadName(info, ext, { file, audio, cover: !!cover });
+  const toComputer = settings.destino !== "drive";
+  const toDrive = settings.destino !== "compu";
+  if (toDrive && (!settings.carpeta || !driveToken)) throw new DriveError("Elegí la carpeta de Drive en las opciones.");
 
   const href = cover
     ? fileHref(cover, name)
     : info.youtube
       ? await prepareYoutube(info.youtube, audio, target.quality, name, onProgress)
       : fileHref(file!, name);
-  const processing = !cover && !info.youtube && audio !== "con";
-  const toComputer = settings.destino !== "drive";
-  const toDrive = settings.destino !== "compu";
 
-  if (!toDrive && !processing) {
+  if (isDirectTarget(target, settings.destino)) {
     clickDownload(href, name);
     return { name };
   }
 
   let blob = await fetchBlob(href, (percent) => onProgress({ label: "Bajando", percent }));
-  if (processing) {
+  if (!cover && !info.youtube && audio !== "con") {
     const label = audio === "sin" ? "Sacando el audio" : "Separando el audio";
-    blob = await processAudio(blob, audio as Exclude<AudioMode, "con">, (percent) => onProgress({ label, percent }));
+    blob = await processAudio(blob, audio, (percent) => onProgress({ label, percent }));
   }
-  if (toComputer) saveBlob(blob, name);
-  if (!toDrive) return { name, bytes: blob.size };
 
-  if (!settings.carpeta || !driveToken) throw new DriveError("Elegí la carpeta de Drive en las opciones.");
-  const uploaded = await uploadToDrive(blob, name, settings.carpeta.id, driveToken, (percent) =>
-    onProgress({ label: "Subiendo a Drive", percent })
-  );
-  return { name, driveUrl: uploaded.url, bytes: blob.size };
+  let driveUrl: string | undefined;
+  if (toDrive) {
+    const uploaded = await uploadToDrive(blob, name, settings.carpeta!.id, driveToken!, (percent) =>
+      onProgress({ label: "Subiendo a Drive", percent })
+    );
+    driveUrl = uploaded.url;
+  }
+  return { name, driveUrl, bytes: blob.size, file: toComputer ? { name, blob } : undefined };
+}
+
+/**
+ * Lo que va a la compu: un archivo se guarda tal cual; varios, en un .zip sin comprimir (fotos y videos ya
+ * vienen comprimidos, así que se arma al instante). Devuelve cuántos archivos guardó.
+ */
+export async function saveToComputer(files: FetchedFile[], zipName: string) {
+  if (!files.length) return 0;
+  if (files.length === 1) {
+    saveBlob(files[0].blob, files[0].name);
+    return 1;
+  }
+  const { downloadZip } = await import("client-zip");
+  const used = new Set<string>();
+  const now = new Date();
+  const entries = files.map((f) => ({ name: uniquePath(f.folder ? `${f.folder}/${f.name}` : f.name, used), input: f.blob, lastModified: now }));
+  saveBlob(await downloadZip(entries).blob(), zipName.endsWith(".zip") ? zipName : `${zipName}.zip`);
+  return files.length;
+}
+
+/** Dos posteos pueden llamarse igual: el segundo pasa a "… (2).jpg". */
+function uniquePath(path: string, used: Set<string>) {
+  let candidate = path;
+  for (let n = 2; used.has(candidate.toLowerCase()); n++) candidate = path.replace(/(\.\w+)?$/, (ext) => ` (${n})${ext}`);
+  used.add(candidate.toLowerCase());
+  return candidate;
 }
 
 /* ───────────── YouTube ───────────── */
@@ -113,8 +151,7 @@ async function fetchBlob(href: string, onProgress: (percent: number) => void) {
   } catch {
     throw new Error("Se cortó la conexión mientras se bajaba el archivo.");
   }
-  if (res.status === 410) throw new Error("El link del archivo venció: sacá la fila y volvé a pegar el link.");
-  if (!res.ok || !res.body) throw new Error(`No se pudo bajar el archivo (${res.status}).`);
+  if (!res.ok || !res.body) throw new Error(await failureMessage(res));
 
   const total = Number(res.headers.get("content-length")) || 0;
   const reader = res.body.getReader();
@@ -128,6 +165,21 @@ async function fetchBlob(href: string, onProgress: (percent: number) => void) {
     if (total) onProgress(Math.round((received / total) * 100));
   }
   return new Blob(chunks, { type: res.headers.get("content-type") ?? "application/octet-stream" });
+}
+
+/** Lo que explica el servidor (la ruta de archivos responde texto; el servicio de YouTube, JSON). */
+async function failureMessage(res: Response) {
+  const type = res.headers.get("content-type") ?? "";
+  let text = "";
+  try {
+    if (type.startsWith("text/plain")) text = (await res.text()).trim();
+    else if (type.includes("json")) text = String(((await res.json()) as { error?: unknown })?.error ?? "").trim();
+  } catch {
+    /* sin explicación: va la genérica */
+  }
+  if (text && text.length <= 200) return text;
+  if (res.status === 410) return "El link del archivo venció: sacá la fila y volvé a pegar el link.";
+  return `No se pudo bajar el archivo (${res.status}).`;
 }
 
 /**
