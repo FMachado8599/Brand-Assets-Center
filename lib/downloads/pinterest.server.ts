@@ -33,7 +33,7 @@ export async function getPinterestInfo(link: Link): Promise<MediaInfo> {
 
   let problem: DownloadError;
   try {
-    const res = await fetch(pageUrl, { headers: BROWSER_HEADERS, cache: "no-store" });
+    const res = await fetch(pageUrl, { headers: BROWSER_HEADERS, cache: "no-store", signal: AbortSignal.timeout(15_000) });
     if (res.ok) {
       const html = await res.text();
       const nodes = ldNodes(html);
@@ -91,7 +91,8 @@ async function fromWidgets(id: string, pageUrl: string): Promise<MediaInfo | nul
   const text = decodeEntities(pin.description ?? "").trim();
   // Los Idea Pins pueden tener título propio.
   const storyTitle = (pin.story_pin_data as { metadata?: { pin_title?: string | null } } | null)?.metadata?.pin_title?.trim();
-  const author = pin.native_creator?.full_name || pin.pinner?.full_name || undefined;
+  // Los nombres también vienen con entidades HTML ("Business &amp; Marketing").
+  const author = decodeEntities(pin.native_creator?.full_name || pin.pinner?.full_name || "").trim() || undefined;
   const small = pin.images?.["236x"]?.url ?? pin.images?.["237x"]?.url;
   const image = await originalImage(pin.images);
   // Los "Idea Pins" guardan el video en sus páginas y bloques (story_pin_data), no en videos.
@@ -245,15 +246,19 @@ async function imageInfo(id: string, pageUrl: string, post: LdNode): Promise<Med
   };
 }
 
-/** pin.it → api.pinterest.com/url_shortener/… → pinterest.com/pin/<id>/sent/: se siguen las redirecciones sin bajar páginas. */
+/**
+ * pin.it → api.pinterest.com/url_shortener/… → pinterest.com/pin/<id>/sent/: se siguen las redirecciones sin bajar páginas.
+ * El `signal` no es solo por el tiempo: sin uno, React (que envuelve el fetch de las rutas) devuelve una copia de la
+ * respuesta y cancelar su cuerpo espera a la original, que nadie lee: el pedido quedaba colgado para siempre.
+ */
 async function resolveShortLink(start: string) {
   let url = new URL(start);
   for (let hop = 0; hop < 5; hop++) {
     const id = url.pathname.match(PIN_PATH)?.[1];
     if (id) return id;
     if (!isPinterestHost(url.hostname)) break;
-    const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "manual", cache: "no-store" });
-    await res.body?.cancel();
+    const res = await fetch(url, { headers: BROWSER_HEADERS, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(10_000) });
+    res.body?.cancel().catch(() => {});
     const next = res.headers.get("location");
     if (!next) break;
     url = new URL(next, url);
