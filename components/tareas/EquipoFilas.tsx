@@ -245,7 +245,7 @@ export function EquipoFilas() {
               <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
                 {[
                   { label: "Libre", hasta: "hasta 3", color: TONO.finalizada.fg },
-                  { label: "Normal", hasta: "4 a 6", color: "#6B6862" },
+                  { label: "Normal", hasta: "4 a 6", color: TONO.nueva.fg },
                   { label: "Cargada", hasta: "7 a 9", color: TONO.pronto.fg },
                   { label: "Saturada", hasta: "10 o más", color: TONO.vencida.fg },
                 ].map((c) => (
@@ -266,7 +266,7 @@ export function EquipoFilas() {
 
         {falta ? (
           <Aviso>
-            Falta correr <code className="rounded bg-ink/10 px-1 text-[12px]">{falta}</code> en Supabase.
+            Falta correr <code className="rounded bg-foreground/10 px-1 text-[12px]">{falta}</code> en Supabase.
           </Aviso>
         ) : error || errorEquipo ? (
           <Aviso>{error ?? errorEquipo}</Aviso>

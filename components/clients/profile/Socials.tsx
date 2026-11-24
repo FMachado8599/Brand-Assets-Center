@@ -70,14 +70,14 @@ export function SocialsField({
       <p className="eyebrow mb-2">Redes</p>
       {missing ? (
         <p className="text-sm text-muted-foreground">
-          Para guardar sus redes falta correr <code className="rounded bg-ink/10 px-1 text-[13px]">supabase/migracion-redes.sql</code> en Supabase.
+          Para guardar sus redes falta correr <code className="rounded bg-foreground/10 px-1 text-[13px]">supabase/migracion-redes.sql</code> en Supabase.
         </p>
       ) : (
         <ul className="flex flex-wrap items-center gap-1.5" aria-label="Sus redes">
           {socials.map((s) => (
             <li
               key={socialKey(s)}
-              className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-black/[0.06] bg-card pl-2.5 pr-1 text-sm shadow-sm"
+              className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-foreground/[0.06] bg-card pl-2.5 pr-1 text-sm shadow-sm"
             >
               <SocialIcon network={s.network} className="h-3.5 w-3.5" />
               <a
@@ -166,7 +166,7 @@ function AddSocial({ onAdd, onClose }: { onAdd: (account: BrandSocial) => Promis
           onClose();
         }
       }}
-      className="rounded-2xl border border-black/[0.06] bg-card/80 p-2"
+      className="rounded-2xl border border-foreground/[0.06] bg-card/80 p-2"
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <div role="radiogroup" aria-label="Red" className="flex items-center gap-0.5 rounded-full bg-secondary/70 p-0.5">
@@ -316,7 +316,7 @@ function PhotoOption({
       disabled={disabled}
       className={cn(
         "flex w-full items-center gap-3 rounded-2xl border bg-card/80 py-1.5 pl-1.5 pr-3 text-left transition-colors hover:bg-card disabled:cursor-wait",
-        checked ? "border-foreground/50" : "border-black/[0.06]"
+        checked ? "border-foreground/50" : "border-foreground/[0.06]"
       )}
     >
       <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary">

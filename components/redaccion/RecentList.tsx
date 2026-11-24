@@ -215,7 +215,7 @@ function clientOf(r: Redaccion, byId: Map<string, BrandLite>) {
 function GroupHeader({ group, onOpen, onNew }: { group: Group; onOpen?: () => void; onNew: () => void }) {
   const title = (
     <>
-      <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: group.color ?? "transparent" }} />
+      <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-foreground/10" style={{ background: group.color ?? "transparent" }} />
       <span className="truncate">{group.name}</span>
       <span className="text-[11px] font-normal tabular-nums text-muted-foreground">{group.items.length}</span>
     </>
@@ -314,15 +314,15 @@ function Row({
         onClick={() => onOpen(r.id)}
         aria-current={active ? "true" : undefined}
         className={cn(
-          "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2 pr-9 text-left transition-colors hover:bg-white/80",
-          active && "bg-white shadow-[0_1px_8px_-4px_rgba(0,0,0,0.18)] ring-1 ring-black/5 hover:bg-white"
+          "flex w-full flex-col gap-0.5 rounded-xl px-3 py-2 pr-9 text-left transition-colors hover:bg-white/80 dark:hover:bg-white/[0.06]",
+          active && "bg-white shadow-[0_1px_8px_-4px_rgba(0,0,0,0.18)] ring-1 ring-foreground/5 hover:bg-white dark:bg-white/10 dark:hover:bg-white/10"
         )}
       >
         <span className="truncate text-[13px] font-medium leading-snug">{r.title}</span>
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
           {showClient && client && (
             <>
-              <span aria-hidden className="h-2 w-2 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: client.color ?? "transparent" }} />
+              <span aria-hidden className="h-2 w-2 shrink-0 rounded-full ring-1 ring-foreground/10" style={{ background: client.color ?? "transparent" }} />
               <span className="truncate">{client.name}</span>
               <span aria-hidden>·</span>
             </>

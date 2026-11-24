@@ -24,7 +24,7 @@ export function FormatDot({ formato, className }: { formato: Formato; className?
   return (
     <span
       aria-hidden
-      className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10", className)}
+      className={cn("inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-foreground/10", className)}
       style={{ background: FORMATOS[formato].color }}
     />
   );

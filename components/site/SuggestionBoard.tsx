@@ -86,12 +86,12 @@ export function SuggestionBoard({
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="site-label text-ink/50">El tablero</p>
-          <p className="mt-2 text-[15px] text-ink/60">
+          <p className="site-label text-foreground/50">El tablero</p>
+          <p className="mt-2 text-[15px] text-foreground/60">
             Lo que el equipo propone y lo que hay que arreglar. Tocá un post-it para leerlo entero o sumarte.
           </p>
         </div>
-        <div role="radiogroup" aria-label="Mostrar" className="inline-flex rounded-full border border-ink/20 p-1">
+        <div role="radiogroup" aria-label="Mostrar" className="inline-flex rounded-full border border-foreground/20 p-1">
           {(
             [
               ["todas", "Todo"],
@@ -106,8 +106,8 @@ export function SuggestionBoard({
               aria-checked={filter === value}
               onClick={() => setFilter(value)}
               className={cn(
-                "flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium text-ink/60 transition-colors hover:text-ink",
-                filter === value && "bg-ink text-cream hover:text-cream"
+                "flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium text-foreground/60 transition-colors hover:text-foreground",
+                filter === value && "bg-foreground text-background hover:text-background"
               )}
             >
               {value !== "todas" && (
@@ -128,9 +128,9 @@ export function SuggestionBoard({
             </div>
           ))
         ) : failed ? (
-          <p className="py-10 text-sm text-ink/55">No se pudo cargar el tablero. Recargá la página en un rato.</p>
+          <p className="py-10 text-sm text-foreground/55">No se pudo cargar el tablero. Recargá la página en un rato.</p>
         ) : shown.length === 0 ? (
-          <div className="grid h-[9.5rem] w-[9.5rem] rotate-[-2deg] place-items-center rounded-[3px] border-2 border-dashed border-ink/20 p-5 text-center text-sm text-ink/50 sm:h-52 sm:w-52">
+          <div className="grid h-[9.5rem] w-[9.5rem] rotate-[-2deg] place-items-center rounded-[3px] border-2 border-dashed border-foreground/20 p-5 text-center text-sm text-foreground/50 sm:h-52 sm:w-52">
             {items.length ? "No hay nada de este tipo todavía." : "Todavía no hay nada en el tablero. ¡Estrenalo!"}
           </div>
         ) : (

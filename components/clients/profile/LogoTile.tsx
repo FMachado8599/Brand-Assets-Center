@@ -95,7 +95,7 @@ export function LogoTile({
         }}
         onDragEnd={actions.dragEnd}
         className={cn(
-          "relative aspect-[4/3] cursor-grab overflow-hidden rounded-2xl ring-1 ring-inset ring-black/[0.08] transition-shadow active:cursor-grabbing",
+          "relative aspect-[4/3] cursor-grab overflow-hidden rounded-2xl ring-1 ring-inset ring-foreground/[0.08] transition-shadow active:cursor-grabbing",
           over && "ring-2 ring-ring ring-offset-2 ring-offset-card"
         )}
         style={{ background: bg, color: ink }}

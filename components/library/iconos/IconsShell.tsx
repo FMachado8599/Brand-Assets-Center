@@ -71,7 +71,7 @@ export function IconsShell({ configured }: { configured: boolean }) {
                 onClick={() => setSettings((prev) => ({ ...prev, shape: s.value }))}
                 className={cn(
                   "h-9 rounded-full border px-3 text-sm transition-colors",
-                  shape === s.value ? "border-ink bg-ink text-cream" : "bg-card hover:bg-secondary"
+                  shape === s.value ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-secondary"
                 )}
               >
                 {s.label}
@@ -89,7 +89,7 @@ export function IconsShell({ configured }: { configured: boolean }) {
                 onClick={() => setSettings((prev) => ({ ...prev, size: s }))}
                 className={cn(
                   "h-8 flex-1 rounded-full border text-xs font-medium tabular-nums transition-colors",
-                  size === s ? "border-ink bg-ink text-cream" : "bg-card hover:bg-secondary"
+                  size === s ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-secondary"
                 )}
               >
                 {s}

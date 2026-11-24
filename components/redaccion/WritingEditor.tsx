@@ -587,7 +587,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
     <div
       role="toolbar"
       aria-label="Formato"
-      className="no-scrollbar sticky top-[4.6rem] z-10 flex items-center gap-0.5 overflow-x-auto border-b border-black/[0.05] bg-card/95 px-2 py-1.5 backdrop-blur sm:px-3"
+      className="no-scrollbar sticky top-[4.6rem] z-10 flex items-center gap-0.5 overflow-x-auto border-b border-foreground/[0.05] bg-card/95 px-2 py-1.5 backdrop-blur sm:px-3"
     >
       <ToolButton icon={Bold} label="Negrita" shortcut="Ctrl B" active={is("bold")} disabled={off} onClick={run((e) => e.chain().focus().toggleBold().run())} />
       <ToolButton icon={Italic} label="Cursiva" shortcut="Ctrl I" active={is("italic")} disabled={off} onClick={run((e) => e.chain().focus().toggleItalic().run())} />

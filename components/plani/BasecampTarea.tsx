@@ -90,7 +90,7 @@ export function BasecampTarea({ tareaId, onDesvincular }: { tareaId: number; onD
   }
 
   return (
-    <div className="rounded-2xl border border-black/[0.06] bg-card/80">
+    <div className="rounded-2xl border border-foreground/[0.06] bg-card/80">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <BasecampMark />
         <span className="min-w-0 flex-1">
@@ -117,7 +117,7 @@ export function BasecampTarea({ tareaId, onDesvincular }: { tareaId: number; onD
               href={tarea.app_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-black/[0.08] bg-card px-2.5 text-[11px] font-medium shadow-sm hover:bg-secondary"
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-foreground/[0.08] bg-card px-2.5 text-[11px] font-medium shadow-sm hover:bg-secondary"
             >
               Basecamp <ArrowUpRight className="h-3 w-3" />
             </a>
@@ -136,7 +136,7 @@ export function BasecampTarea({ tareaId, onDesvincular }: { tareaId: number; onD
         </span>
       </div>
       {brief && (
-        <div className="border-t border-black/[0.06]">
+        <div className="border-t border-foreground/[0.06]">
           <button
             type="button"
             onClick={() => setAbierta((v) => !v)}
@@ -203,7 +203,7 @@ export function TareaPicker({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Buscar tarea…"
-          className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 pl-8 pr-3 text-sm outline-none focus:border-foreground/25"
+          className="h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 pl-8 pr-3 text-sm outline-none focus:border-foreground/25"
         />
       </label>
       <ul className="max-h-72 space-y-1 overflow-y-auto">

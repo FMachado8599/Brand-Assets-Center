@@ -309,7 +309,7 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
     return (
       <div
         className={cn(
-          "flex h-full w-full items-center gap-2.5 overflow-hidden rounded-[1.1rem] border border-black/[0.06] bg-card/95 py-2.5 pl-3 pr-2.5 text-left shadow-[0_1px_2px_rgba(32,32,32,0.05),0_10px_28px_-12px_rgba(32,32,32,0.14)] backdrop-blur",
+          "flex h-full w-full items-center gap-2.5 overflow-hidden rounded-[1.1rem] border border-foreground/[0.06] bg-card/95 py-2.5 pl-3 pr-2.5 text-left shadow-[0_1px_2px_rgba(32,32,32,0.05),0_10px_28px_-12px_rgba(32,32,32,0.14)] backdrop-blur",
           !p.activo && "opacity-50",
           extra.modo === "origen" && "opacity-30",
           extra.modo === "fantasma" && "rotate-[1.5deg] ring-2 ring-primary",
@@ -326,7 +326,7 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
           <p className="truncate text-[11px] leading-tight text-muted-foreground">{nombres.join(" · ") || p.cargo || "Sin puesto"}</p>
           {(gente > 0 || jefes > 1 || !p.activo || p.bc_persona_id == null || fuera) && (
             <p className="mt-0.5 truncate text-[10px] font-medium text-muted-foreground">
-              {fuera && <span className="text-amber-700">{textoFuera(fuera).replace("Fuera de oficina", "Fuera")}{(gente > 0 || jefes > 1 || !p.activo || p.bc_persona_id == null) && " · "}</span>}
+              {fuera && <span className="text-amber-700 dark:text-amber-400">{textoFuera(fuera).replace("Fuera de oficina", "Fuera")}{(gente > 0 || jefes > 1 || !p.activo || p.bc_persona_id == null) && " · "}</span>}
               {[
                 !p.activo && "Inactivo",
                 gente > 0 && `${gente} a cargo`,
@@ -376,7 +376,7 @@ export function Organigrama({ data, admin, buscar }: { data: EquipoData; admin: 
               </span>
             ))}
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-1 rounded-full bg-ink" />
+            <span className="h-2.5 w-1 rounded-full bg-foreground" />
             Dirección
           </span>
           <span className="inline-flex items-center gap-1.5">

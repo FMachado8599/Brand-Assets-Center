@@ -88,7 +88,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
             type="button"
             onClick={() => setPlaying((p) => !p)}
             aria-label={playing ? "Pausar" : "Reproducir"}
-            className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white/90 opacity-0 shadow-sm transition-opacity hover:bg-white group-hover/card:opacity-100"
+            className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink opacity-0 shadow-sm transition-opacity hover:bg-white group-hover/card:opacity-100"
           >
             {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
           </button>
@@ -112,11 +112,11 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
             </p>
           </div>
           {group.warnings.length ? (
-            <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
               <AlertTriangle className="h-3 w-3" /> {group.warnings.length}
             </span>
           ) : (
-            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="h-3 w-3" /> OK
             </span>
           )}
@@ -125,7 +125,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
         {/* En una línea cada uno, para no achicar la imagen: la lista completa está en Ordenar y al pasar el mouse. */}
         {group.warnings.length > 0 && (
           <p
-            className="flex min-w-0 gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900"
+            className="flex min-w-0 gap-1 rounded-lg bg-amber-50 dark:bg-amber-400/10 px-2.5 py-1 text-[11px] text-amber-900 dark:text-amber-200"
             title={group.warnings.join("\n")}
           >
             <span className="truncate">{group.warnings[0]}</span>
@@ -135,7 +135,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
 
         {lowColors && (
           <p
-            className="truncate rounded-lg bg-amber-50 px-2.5 py-1 text-[11px] text-amber-900"
+            className="truncate rounded-lg bg-amber-50 dark:bg-amber-400/10 px-2.5 py-1 text-[11px] text-amber-900 dark:text-amber-200"
             title={`Para entrar en ${settings.maxKb} KB bajó a ${rendered.colors} colores: revisá que los degradés no se vean escalonados. Si se ven mal, probá con menos frames o una foto más simple.`}
           >
             Bajó a {rendered.colors} colores para entrar en {settings.maxKb} KB: revisá los degradés
@@ -150,7 +150,7 @@ export function GroupCard({ group, settings, rendered, rendering, onEdit, onDown
                 over
                   ? "bg-destructive/10 text-destructive"
                   : lowColors
-                    ? "bg-amber-100 text-amber-900"
+                    ? "bg-amber-100 dark:bg-amber-400/15 text-amber-900 dark:text-amber-200"
                     : "bg-secondary text-foreground/80"
               )}
               title={

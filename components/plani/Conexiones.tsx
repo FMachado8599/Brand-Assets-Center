@@ -49,7 +49,7 @@ export function ConexionesPanel() {
       <p className="rounded-xl bg-primary/20 p-3 text-sm">
         {sinMigracion ? (
           <>
-            Falta correr <code className="rounded bg-ink/10 px-1 text-[12px]">supabase/migracion-integraciones.sql</code> en Supabase.
+            Falta correr <code className="rounded bg-foreground/10 px-1 text-[12px]">supabase/migracion-integraciones.sql</code> en Supabase.
           </>
         ) : (
           error
@@ -104,7 +104,7 @@ export function ConexionesPanel() {
               <button
                 type="button"
                 onClick={() => setProyectosOpen(true)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary"
               >
                 Proyectos y clientes
               </button>
@@ -157,7 +157,7 @@ export function ConexionesPanel() {
               <RaizDrive nombre={g.datos?.raiz_nombre ?? null} admin={admin} />
             )}
             {g.datos?.raiz_url && (
-              <a href={g.datos.raiz_url} target="_blank" rel="noopener noreferrer" className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary">
+              <a href={g.datos.raiz_url} target="_blank" rel="noopener noreferrer" className="mt-2.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary">
                 <FolderOpen className="h-3.5 w-3.5" /> Abrir {g.datos?.raiz_nombre ?? "la carpeta"}
               </a>
             )}
@@ -217,7 +217,7 @@ function RaizDrive({ nombre, admin }: { nombre: string | null; admin: boolean })
           value={link}
           onChange={(e) => setLink(e.target.value)}
           placeholder="https://drive.google.com/drive/folders/…"
-          className="h-8 min-w-0 flex-1 rounded-full border border-black/[0.08] bg-card px-3 text-xs outline-none focus:border-foreground/25"
+          className="h-8 min-w-0 flex-1 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs outline-none focus:border-foreground/25"
         />
         <button
           type="button"
@@ -289,19 +289,19 @@ export function ProyectosDialog({ open, onOpenChange }: { open: boolean; onOpenC
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar proyecto o cliente…"
-              className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 pl-8 pr-3 text-sm outline-none focus:border-foreground/25"
+              className="h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 pl-8 pr-3 text-sm outline-none focus:border-foreground/25"
             />
           </label>
           <button
             type="button"
             aria-pressed={verIgnorados}
             onClick={() => setVerIgnorados((v) => !v)}
-            className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium", verIgnorados ? "bg-foreground text-background" : "border border-black/[0.08] bg-card hover:bg-secondary")}
+            className={cn("inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium", verIgnorados ? "bg-foreground text-background" : "border border-foreground/[0.08] bg-card hover:bg-secondary")}
           >
             <EyeOff className="h-3.5 w-3.5" /> No son clientes
           </button>
         </div>
-        <ul className="-mx-1 min-h-0 flex-1 divide-y divide-black/[0.06] overflow-y-auto px-1">
+        <ul className="-mx-1 min-h-0 flex-1 divide-y divide-foreground/[0.06] overflow-y-auto px-1">
           {proyectos === null ? (
             <li className="skeleton my-2 h-12 rounded-xl" />
           ) : !lista.length ? (
@@ -327,7 +327,7 @@ export function ProyectosDialog({ open, onOpenChange }: { open: boolean; onOpenC
                       <select
                         value={p.brand_id ?? ""}
                         onChange={(e) => vincular(p, e.target.value || null)}
-                        className="h-8 max-w-[12rem] rounded-lg border border-black/[0.08] bg-card px-2 text-xs outline-none"
+                        className="h-8 max-w-[12rem] rounded-lg border border-foreground/[0.08] bg-card px-2 text-xs outline-none"
                         aria-label={`Cliente de ${p.nombre}`}
                       >
                         <option value="">Sin cliente (se crea al sincronizar)</option>

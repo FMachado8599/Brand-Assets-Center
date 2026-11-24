@@ -141,7 +141,7 @@ export function AccesosView() {
                       </span>
                       <span className="flex-1" />
                       {p.ya_tiene_cuenta && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                        <span className="rounded-full bg-amber-100 dark:bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:text-amber-200">
                           {p.ya_tiene_contrasena ? "ya tiene cuenta con contraseña" : "ya entra con Google"}
                         </span>
                       )}
@@ -277,7 +277,7 @@ export function AccesosView() {
 
 function Bloque({ titulo, hint, icono: Icono, children }: { titulo: string; hint: string; icono: typeof Globe; children: ReactNode }) {
   return (
-    <section className="space-y-3 rounded-[1.75rem] border border-black/[0.06] bg-card/95 p-5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-6">
+    <section className="space-y-3 rounded-[1.75rem] border border-foreground/[0.06] bg-card/95 p-5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-6">
       <header className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary">
           <Icono className="h-4 w-4" />
@@ -327,7 +327,7 @@ function Estado({ tiene_cuenta, tiene_contrasena }: { tiene_cuenta: boolean; tie
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-        tiene_contrasena ? "bg-emerald-100 text-emerald-800" : tiene_cuenta ? "bg-secondary" : "border text-muted-foreground"
+        tiene_contrasena ? "bg-emerald-100 dark:bg-emerald-400/15 text-emerald-800 dark:text-emerald-300" : tiene_cuenta ? "bg-secondary" : "border text-muted-foreground"
       )}
     >
       {tiene_contrasena ? <KeyRound className="h-3 w-3" /> : <UserRound className="h-3 w-3" />}
@@ -386,7 +386,7 @@ function LinkListo({ link, onCerrar }: { link: LinkGenerado; onCerrar: () => voi
       <p className="text-sm font-medium">
         Link para {link.email} · vale {link.horas} horas y sirve una sola vez
         {link.enviado && (
-          <span className="ml-2 inline-flex items-center gap-1 text-emerald-700">
+          <span className="ml-2 inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
             <Mail className="h-3.5 w-3.5" /> también le llegó por mail
           </span>
         )}

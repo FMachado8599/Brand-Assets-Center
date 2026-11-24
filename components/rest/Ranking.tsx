@@ -26,7 +26,7 @@ export function Avatar({ nombre, avatar, size = 28 }: { nombre: string; avatar: 
         height={size}
         referrerPolicy="no-referrer"
         onError={() => setRoto(true)}
-        className="shrink-0 rounded-full object-cover ring-1 ring-ink/15"
+        className="shrink-0 rounded-full object-cover ring-1 ring-foreground/15"
         style={{ width: size, height: size }}
       />
     );
@@ -34,7 +34,7 @@ export function Avatar({ nombre, avatar, size = 28 }: { nombre: string; avatar: 
   return (
     <span
       aria-hidden
-      className="grid shrink-0 place-items-center rounded-full bg-ink/10 text-[11px] font-semibold text-ink/60"
+      className="grid shrink-0 place-items-center rounded-full bg-foreground/10 text-[11px] font-semibold text-foreground/60"
       style={{ width: size, height: size }}
     >
       {nombre.trim()[0]?.toUpperCase() ?? <UserRound className="h-3 w-3" />}
@@ -48,7 +48,7 @@ function Puesto({ n }: { n: number }) {
     <span
       className={cn(
         "grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold tabular-nums",
-        n === 1 ? "bg-primary text-primary-foreground" : n <= 3 ? "bg-ink text-cream" : "text-muted-foreground"
+        n === 1 ? "bg-primary text-primary-foreground" : n <= 3 ? "bg-foreground text-background" : "text-muted-foreground"
       )}
     >
       {n === 1 ? <Crown className="h-3.5 w-3.5" /> : n}
@@ -95,7 +95,7 @@ export function Ranking({
             {periodo === "semana" ? "Esta semana" : "De siempre"}
           </h2>
         </div>
-        <Trophy className="mt-1 h-5 w-5 text-ink/30" />
+        <Trophy className="mt-1 h-5 w-5 text-foreground/30" />
       </div>
 
       <div role="tablist" aria-label="Período" className="mt-4 inline-flex rounded-full bg-secondary p-0.5">

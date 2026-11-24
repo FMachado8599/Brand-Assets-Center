@@ -82,8 +82,8 @@ export const EmojiTile = memo(function EmojiTile({
             e.dataTransfer.setData("text/uri-list", url);
           }}
           className={cn(
-            "relative grid aspect-square w-full place-items-center rounded-2xl outline-none transition-all duration-150 hover:bg-white hover:shadow-[0_2px_10px_-4px_rgba(0,0,0,0.18)] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0",
-            highlight && "bg-white ring-2 ring-primary",
+            "relative grid aspect-square w-full place-items-center rounded-2xl outline-none transition-all duration-150 hover:bg-white hover:shadow-[0_2px_10px_-4px_rgba(0,0,0,0.18)] focus-visible:bg-white dark:hover:bg-secondary dark:focus-visible:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0",
+            highlight && "bg-white ring-2 ring-primary dark:bg-secondary",
             selected && "bg-primary/25 ring-2 ring-primary hover:bg-primary/30"
           )}
         >
@@ -122,7 +122,7 @@ export const EmojiTile = memo(function EmojiTile({
             aria-label={selected ? "Quitar de la selección" : "Seleccionar"}
             onClick={() => onToggleSelect(emoji)}
             className={cn(
-              "absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full border border-foreground/20 bg-white/90 text-transparent opacity-0 shadow-sm transition-opacity hover:border-foreground/40 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100",
+              "absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full border border-foreground/20 bg-white/90 text-transparent dark:bg-card/90 opacity-0 shadow-sm transition-opacity hover:border-foreground/40 group-hover/tile:opacity-100 group-focus-within/tile:opacity-100",
               (selected || selecting) && "opacity-100",
               selected && "border-foreground bg-foreground text-background"
             )}
@@ -134,7 +134,7 @@ export const EmojiTile = memo(function EmojiTile({
             aria-label={favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
             onClick={() => onToggleFavorite(emoji)}
             className={cn(
-              "absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full text-foreground/40 opacity-0 transition hover:bg-white hover:text-foreground group-hover/tile:opacity-100 group-focus-within/tile:opacity-100",
+              "absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full text-foreground/40 opacity-0 transition hover:bg-white hover:text-foreground dark:hover:bg-card group-hover/tile:opacity-100 group-focus-within/tile:opacity-100",
               favorite && "text-amber-500 opacity-100 hover:text-amber-600"
             )}
           >
@@ -144,7 +144,7 @@ export const EmojiTile = memo(function EmojiTile({
             type="button"
             aria-label="Descargar PNG"
             onClick={download}
-            className="absolute bottom-1 right-1 grid h-6 w-6 place-items-center rounded-full text-foreground/50 opacity-0 transition hover:bg-white hover:text-foreground group-hover/tile:opacity-100 group-focus-within/tile:opacity-100"
+            className="absolute bottom-1 right-1 grid h-6 w-6 place-items-center rounded-full text-foreground/50 opacity-0 transition hover:bg-white hover:text-foreground dark:hover:bg-card group-hover/tile:opacity-100 group-focus-within/tile:opacity-100"
           >
             {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           </button>

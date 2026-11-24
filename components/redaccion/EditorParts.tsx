@@ -111,7 +111,7 @@ export function ClientPicker({
         >
           <span
             aria-hidden
-            className={cn("shrink-0 rounded-full ring-1 ring-black/10", size === "md" ? "h-2.5 w-2.5" : "h-2 w-2")}
+            className={cn("shrink-0 rounded-full ring-1 ring-foreground/10", size === "md" ? "h-2.5 w-2.5" : "h-2 w-2")}
             style={{ background: brand?.color ?? "transparent" }}
           />
           <span className={cn("truncate", !brand && "text-muted-foreground")}>{name}</span>
@@ -167,7 +167,7 @@ function ClientItem({
     <DropdownMenuItem onSelect={onSelect}>
       <span
         aria-hidden
-        className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+        className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-foreground/10"
         style={{ background: color ?? "transparent" }}
       />
       <span className="flex-1 truncate">{name}</span>

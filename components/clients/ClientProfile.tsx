@@ -357,7 +357,7 @@ function ProfileHeader({
                     aria-label={b.label}
                     onClick={() => save({ logo_bg: b.value })}
                     className={cn(
-                      "h-6 w-6 rounded-full ring-1 ring-inset ring-black/15 ring-offset-2 ring-offset-secondary transition-transform hover:scale-110",
+                      "h-6 w-6 rounded-full ring-1 ring-inset ring-foreground/15 ring-offset-2 ring-offset-secondary transition-transform hover:scale-110",
                       (brand.logo_bg ?? "light") === b.value && "ring-2 ring-foreground"
                     )}
                     style={{ background: logoBackground(brand, b.value) }}
@@ -499,7 +499,7 @@ function Notes({ value, onChange }: { value: string; onChange: (notes: string) =
         }}
         maxLength={20000}
         placeholder="Tono de voz, contactos, links al drive, lo que no hay que olvidar…"
-        className="mt-2 block w-full resize-none rounded-2xl border border-black/[0.06] bg-card/80 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus:bg-card focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-0"
+        className="mt-2 block w-full resize-none rounded-2xl border border-foreground/[0.06] bg-card/80 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus:bg-card focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-0"
       />
     </label>
   );

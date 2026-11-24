@@ -280,7 +280,7 @@ export function TareaDetalle({
                       <EstadoChip perfil={p.perfil} />
                     </button>
                     {validaron.has(p.id) ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                         <CheckCheck className="h-3.5 w-3.5" /> Validó
                       </span>
                     ) : (
@@ -339,7 +339,7 @@ export function TareaDetalle({
                 )}
               </div>
               {resp.persona && fueraDeOficina(resp.persona.perfil) && (
-                <p className="rounded-xl bg-amber-100 px-3 py-2 text-xs text-amber-900">
+                <p className="rounded-xl bg-amber-100 dark:bg-amber-400/15 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
                   {textoFuera(fueraDeOficina(resp.persona.perfil)!)}. Si no puede esperar, pasásela a otra persona.
                 </p>
               )}
@@ -380,7 +380,7 @@ export function TareaDetalle({
                   type="date"
                   value={t.entrega ?? t.vence ?? ""}
                   onChange={(e) => entrega(e.target.value || null)}
-                  className={cn("mt-0.5 w-full bg-transparent text-sm font-medium outline-none", fecha.vieja && "text-[#8A6A3B] line-through")}
+                  className={cn("mt-0.5 w-full bg-transparent text-sm font-medium outline-none", fecha.vieja && "text-[#8A6A3B] line-through dark:text-[#D4B27E]")}
                 />
                 {t.entrega && (
                   <p className="mt-1 text-[11px] text-muted-foreground">

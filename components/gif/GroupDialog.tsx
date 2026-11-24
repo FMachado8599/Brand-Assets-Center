@@ -128,7 +128,7 @@ export function GroupDialog({
                   </p>
                 )}
                 {group.warnings.length > 0 && (
-                  <ul className="space-y-0.5 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                  <ul className="space-y-0.5 rounded-xl bg-amber-50 dark:bg-amber-400/10 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200">
                     {group.warnings.map((w) => (
                       <li key={w}>{w}</li>
                     ))}

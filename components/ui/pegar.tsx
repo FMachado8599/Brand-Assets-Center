@@ -48,7 +48,7 @@ export function BotonPegar({ onTexto, className }: { onTexto: (texto: string) =>
         else if (texto === "") toast("No hay nada copiado");
       }}
       className={cn(
-        "inline-flex h-6 items-center gap-1 rounded-full bg-card/90 px-2 text-[11px] font-medium text-muted-foreground shadow-sm ring-1 ring-black/[0.06] transition-colors hover:text-foreground",
+        "inline-flex h-6 items-center gap-1 rounded-full bg-card/90 px-2 text-[11px] font-medium text-muted-foreground shadow-sm ring-1 ring-foreground/[0.06] transition-colors hover:text-foreground",
         className
       )}
     >
