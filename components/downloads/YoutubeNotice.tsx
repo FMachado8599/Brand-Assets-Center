@@ -61,12 +61,12 @@ export function YoutubeNotice({ status, checking, onCheck }: { status: YoutubeSt
   return (
     <div
       role="status"
-      className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-amber-900"
+      className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-amber-900 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200"
     >
       <PlatformIcon platform="youtube" className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{unconfigured ? "YouTube no está configurado" : "YouTube no está disponible ahora"}</p>
-        <p className="mt-0.5 text-xs text-amber-900/80" title={off.mensaje}>
+        <p className="mt-0.5 text-xs text-amber-900/80 dark:text-amber-200/80" title={off.mensaje}>
           {unconfigured
             ? off.mensaje
             : "Los videos de YouTube los baja el servicio de la PC de la oficina, y ahora está apagado. Cuando lo prendan, este aviso se va solo."}{" "}
@@ -74,7 +74,7 @@ export function YoutubeNotice({ status, checking, onCheck }: { status: YoutubeSt
         </p>
       </div>
       {!unconfigured && (
-        <Button variant="outline" size="sm" onClick={onCheck} disabled={checking} className="shrink-0 border-amber-300 bg-white/70">
+        <Button variant="outline" size="sm" onClick={onCheck} disabled={checking} className="shrink-0 border-amber-300 bg-white/70 dark:border-amber-400/30 dark:bg-card dark:text-amber-200">
           {checking ? <Loader2 className="animate-spin" /> : <RotateCcw />} Revisar
         </Button>
       )}

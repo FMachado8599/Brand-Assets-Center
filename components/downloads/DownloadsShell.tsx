@@ -415,7 +415,9 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
               <p className="flex items-center gap-2 font-medium">
                 {f.title}
                 {"off" in f && f.off && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">Apagado ahora</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200">
+                    Apagado ahora
+                  </span>
                 )}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">{f.text}</p>
