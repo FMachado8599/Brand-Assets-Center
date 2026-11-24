@@ -1,17 +1,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Archive, ArrowLeft, Download, Forward, ImagePlus, Inbox, Loader2, Mail, Reply, ReplyAll, Star, Trash2, type LucideIcon } from "lucide-react";
+import { Archive, ArrowLeft, Briefcase, Download, Forward, ImagePlus, Inbox, Loader2, Mail, Reply, ReplyAll, Star, Trash2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { ClientMark } from "@/components/clients/ClientMark";
 import { Hint } from "@/components/ui/tooltip";
 import { fechaLarga } from "@/lib/correo/cliente";
-import { asignarFoto, useContacto } from "@/lib/correo/contactos";
+import { asignarFoto, useContacto, useContactos } from "@/lib/correo/contactos";
+import { useStoredState } from "@/hooks/useStoredState";
 import { FOTO_ACCEPT } from "@/lib/perfil";
 import { toast } from "@/components/ui/toaster";
 import { formatoTamano, nombreDireccion, type AccionMensaje, type Direccion, type Mensaje, type ModoEnvio } from "@/lib/correo/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./Avatar";
+import { ContextoCliente } from "./ContextoCliente";
 import { CuerpoMail } from "./CuerpoMail";
 
 type Props = {
@@ -31,6 +33,12 @@ type Props = {
 export function VistaMensaje({ carpeta, yo, mensaje, cargando, error, enPapelera, onVolver, onResponder, onAccion }: Props) {
   const de = mensaje?.de[0];
   const contacto = useContacto(de?.email);
+  // El cliente del mail: el de quien lo manda o, si lo mandaste vos (o es de alguien del estudio), el
+  // primero de los destinatarios que sea de un cliente.
+  const gente = mensaje ? [...mensaje.de, ...mensaje.para, ...mensaje.cc].map((d) => d.email).filter((e) => e !== yo.toLowerCase()) : [];
+  const contactos = useContactos(gente);
+  const cliente = gente.map((e) => contactos.get(e)?.clientes[0]).find(Boolean) ?? null;
+  const [conContexto, setConContexto] = useStoredState("correo:contexto", true);
 
   if (!mensaje) {
     return (
@@ -72,6 +80,18 @@ export function VistaMensaje({ carpeta, yo, mensaje, cargando, error, enPapelera
           activo={mensaje.destacado}
           onClick={() => onAccion(mensaje.destacado ? "quitar_destacado" : "destacar")}
         />
+        {cliente && (
+          <>
+            <span className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <Accion
+              label={conContexto ? `Ocultar lo de ${cliente.name}` : `Ver lo de ${cliente.name}: tareas, presentaciones y equipo`}
+              icon={Briefcase}
+              prendido={conContexto}
+              onClick={() => setConContexto(!conContexto)}
+              texto="Contexto"
+            />
+          </>
+        )}
         {cargando && <Loader2 className="ml-auto mr-2 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
       </div>
 
@@ -127,6 +147,7 @@ export function VistaMensaje({ carpeta, yo, mensaje, cargando, error, enPapelera
             </div>
           )}
         </header>
+        {cliente && conContexto && <ContextoCliente cliente={cliente} asunto={mensaje.asunto} onCerrar={() => setConContexto(false)} />}
         <div className="border-t">
           <CuerpoMail html={mensaje.html} texto={mensaje.texto} />
         </div>
@@ -248,16 +269,36 @@ function BotonLista({ onClick, title, children }: { onClick: () => void; title?:
   );
 }
 
-function Accion({ label, icon: Icon, onClick, texto, activo, className }: { label: string; icon: LucideIcon; onClick: () => void; texto?: string; activo?: boolean; className?: string }) {
+function Accion({
+  label,
+  icon: Icon,
+  onClick,
+  texto,
+  activo,
+  prendido,
+  className,
+}: {
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  texto?: string;
+  /** Destacado: el ícono se rellena de amarillo. */
+  activo?: boolean;
+  /** Un interruptor (ej: el contexto): prendido, el botón queda marcado. */
+  prendido?: boolean;
+  className?: string;
+}) {
   return (
     <Hint label={label}>
       <button
         type="button"
         aria-label={label}
+        aria-pressed={prendido}
         onClick={onClick}
         className={cn(
           "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
           activo && "text-foreground",
+          prendido && "bg-primary/30 text-foreground hover:bg-primary/40",
           className
         )}
       >
