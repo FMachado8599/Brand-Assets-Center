@@ -107,7 +107,7 @@ export function ImageCard({
           <>
             {canCopyImages() && (
               <Button variant="ghost" size="iconSm" onClick={copy} aria-label="Copiar la imagen" title="Copiar la imagen">
-                {copied ? <Check className="text-emerald-700" /> : <Copy />}
+                {copied ? <Check className="text-emerald-700 dark:text-emerald-400" /> : <Copy />}
               </Button>
             )}
             <Button size="sm" onClick={onDownload} title={`Descargar ${outputName(item.file.name)}`}>
@@ -133,7 +133,7 @@ function Status({ item }: { item: RetoqueItem }) {
     <p className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
       <span className="truncate">{[size, weight].filter(Boolean).join(" · ")}</span>
       {item.note && (
-        <span title={item.note} className="shrink-0 text-amber-700">
+        <span title={item.note} className="shrink-0 text-amber-700 dark:text-amber-400">
           <Info className="h-3 w-3" aria-label={item.note} />
         </span>
       )}

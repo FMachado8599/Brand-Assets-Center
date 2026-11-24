@@ -26,7 +26,7 @@ export default function BasecampAutorizadoPage({ searchParams }: Props) {
         <div className="relative mx-auto h-14 w-14">
           <BasecampMark className="h-14 w-14" />
           <Icono
-            className={`absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-card ${!ok ? "text-destructive" : noAdmin ? "text-amber-600" : "text-emerald-600"}`}
+            className={`absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-card ${!ok ? "text-destructive" : noAdmin ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}
           />
         </div>
         <h1 className="mt-4 font-display text-3xl leading-tight">

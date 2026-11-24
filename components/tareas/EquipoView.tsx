@@ -73,7 +73,7 @@ export function EquipoView() {
 
         {sinMigracion ? (
           <p className="rounded-2xl bg-primary/20 p-4 text-center text-sm">
-            Falta correr <code className="rounded bg-ink/10 px-1 text-[12px]">supabase/migracion-equipo.sql</code> en Supabase.
+            Falta correr <code className="rounded bg-foreground/10 px-1 text-[12px]">supabase/migracion-equipo.sql</code> en Supabase.
           </p>
         ) : error ? (
           <p className="rounded-2xl bg-primary/20 p-4 text-center text-sm">{error}</p>

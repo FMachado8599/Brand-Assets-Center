@@ -49,7 +49,7 @@ export function PlanisSection({
       ) : !planis.length ? (
         <Empty>Todavía no tiene presentaciones.</Empty>
       ) : (
-        <ul className="divide-y divide-black/[0.06]">
+        <ul className="divide-y divide-foreground/[0.06]">
           {planis.slice(0, 8).map((p) => (
             <li key={p.id}>
               <Link href={`/presentaciones/${p.id}`} className="group flex items-center gap-3 py-2.5">

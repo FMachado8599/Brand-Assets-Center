@@ -253,7 +253,7 @@ export function MiTablero() {
                 title="Tuyas con la fecha de Basecamp vencida hace más de dos semanas: abrilas y poneles una fecha nueva"
                 className={cn(
                   "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                  filtrarViejas ? "border-[#8A6A3B] bg-[#8A6A3B] text-white" : "bg-card text-[#8A6A3B] hover:border-[#8A6A3B]/40"
+                  filtrarViejas ? "border-[#8A6A3B] bg-[#8A6A3B] text-white" : "bg-card text-[#8A6A3B] hover:border-[#8A6A3B]/40 dark:text-[#D4B27E]"
                 )}
               >
                 Fecha vieja · {nViejas}
@@ -294,7 +294,7 @@ export function MiTablero() {
 
         {falta ? (
           <Aviso>
-            Falta correr <code className="rounded bg-ink/10 px-1 text-[12px]">{falta}</code> en Supabase.
+            Falta correr <code className="rounded bg-foreground/10 px-1 text-[12px]">{falta}</code> en Supabase.
           </Aviso>
         ) : error || errorEquipo ? (
           <Aviso>{error ?? errorEquipo}</Aviso>
@@ -475,7 +475,7 @@ function TablaTareas({
                   <td className="px-4 py-2.5 text-right">
                     <span
                       className="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                      style={{ color: tono.fg, background: tono.bg === "transparent" ? "rgba(32,32,32,0.06)" : tono.bg }}
+                      style={{ color: tono.fg, background: tono.bg === "transparent" ? "var(--tono-gris)" : tono.bg }}
                     >
                       {tono.label}
                     </span>

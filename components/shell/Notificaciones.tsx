@@ -10,7 +10,7 @@ import { marcarLeidas, refreshNotificaciones, useEstadoNotificaciones, useNotifi
 import { ponerPreferencia, usePreferenciasTareas } from "@/hooks/usePreferenciasTareas";
 import { toast } from "@/components/ui/toaster";
 import { useStoredState } from "@/hooks/useStoredState";
-import { TONO } from "@/lib/board/flujo";
+import { ROJO_VENCIDA, TONO } from "@/lib/board/flujo";
 import { hasSupabase } from "@/lib/supabase";
 import {
   ABRIR_TAREA,
@@ -26,8 +26,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
 
-/** El rojo de lo urgente (el mismo de "Vencida" en el Board). */
-const ROJO = TONO.vencida.fg;
+/** El rojo de lo urgente (el mismo de "Vencida" en el Board). Va de fondo con texto blanco: no se aclara de noche. */
+const ROJO = ROJO_VENCIDA;
 
 const FILTROS: { value: Filtro; label: string }[] = [
   { value: "para-mi", label: "Para mí" },
@@ -284,7 +284,7 @@ function Fila({ g, onAbrir, onBoard }: { g: Grupo; onAbrir: () => void; onBoard?
 
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold">
-            <span style={fuerte ? { color: ROJO } : undefined} className={cn(!fuerte && "text-muted-foreground")}>
+            <span style={fuerte ? { color: TONO.vencida.fg } : undefined} className={cn(!fuerte && "text-muted-foreground")}>
               {MOTIVO_LABEL[g.motivo]}
             </span>
             {tono && (

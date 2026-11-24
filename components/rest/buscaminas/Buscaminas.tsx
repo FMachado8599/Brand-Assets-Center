@@ -205,7 +205,7 @@ export function Buscaminas({ nivel, onGuardada }: { nivel: Dificultad; onGuardad
         <div
           role="grid"
           aria-label={`Buscaminas ${config.label.toLowerCase()}: ${config.cols} × ${config.rows}, ${config.minas} minas`}
-          className="mx-auto grid w-max rounded-xl bg-ink/[0.12]"
+          className="mx-auto grid w-max rounded-xl bg-foreground/[0.12]"
           style={{ gridTemplateColumns: `repeat(${verCols}, ${celda}px)`, gap: junta, padding: BORDE }}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -248,7 +248,7 @@ export function Buscaminas({ nivel, onGuardada }: { nivel: Dificultad; onGuardad
                   // Cerrada: papel en relieve. Abierta: hundida, se ve el fondo del tablero.
                   abierta
                     ? "bg-transparent"
-                    : "bg-card shadow-[inset_0_-2px_0_hsl(var(--input))] hover:bg-white active:bg-transparent active:shadow-none",
+                    : "bg-card shadow-[inset_0_-2px_0_hsl(var(--input))] hover:bg-white active:bg-transparent dark:hover:bg-secondary active:shadow-none",
                   exploto && "bg-destructive text-destructive-foreground",
                   terminado && "cursor-default"
                 )}

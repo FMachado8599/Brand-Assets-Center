@@ -32,7 +32,8 @@ export default async function InicioPage() {
 
   return (
     <InicioMotion>
-    <div className="bg-ink">
+    {/* tema-dia: la presentación es editorial (negro y crema) y se ve igual con el modo noche. */}
+    <div className="tema-dia bg-ink">
       {/* Portada */}
       <section className="grain flex min-h-[100svh] flex-col overflow-hidden bg-ink text-cream">
         <div data-intro="light" aria-hidden className="site-light pointer-events-none absolute -left-[22%] -top-[35%] h-[85vmax] w-[85vmax] rounded-full" />

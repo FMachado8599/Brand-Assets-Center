@@ -201,7 +201,7 @@ function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar
               <h2 className="font-display text-[clamp(3rem,7vw,5.5rem)] leading-none">Feed</h2>
               <p className="mt-4 max-w-sm text-sm text-muted-foreground">Así queda el perfil con las publicaciones del mes, lo más nuevo arriba.</p>
             </div>
-            <div className="w-[min(24rem,80vw)] rounded-[1.75rem] border border-black/[0.08] bg-white p-3 shadow-[0_30px_60px_-35px_rgba(40,30,10,0.5)]">
+            <div className="w-[min(24rem,80vw)] rounded-[1.75rem] border border-foreground/[0.08] bg-white p-3 shadow-[0_30px_60px_-35px_rgba(40,30,10,0.5)]">
               <div className="mb-3 flex items-center gap-3 px-1">
                 <ClientMark brand={brand} className="h-12 w-12 rounded-full text-xs ring-2 ring-white" pad="p-[16%]" />
                 <span className="text-sm font-semibold text-black">{brand.name}</span>
@@ -529,7 +529,7 @@ function PiezaSlide({
         </button>
 
         {pieza.programada && (
-          <span className="w-fit -rotate-6 rounded-md border-[3px] border-emerald-700 px-3 py-1 font-display text-2xl uppercase tracking-wide text-emerald-700">Programado</span>
+          <span className="w-fit -rotate-6 rounded-md border-[3px] border-emerald-700 px-3 py-1 font-display text-2xl uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Programado</span>
         )}
       </aside>
     </div>

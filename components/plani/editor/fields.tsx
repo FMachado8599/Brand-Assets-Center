@@ -40,7 +40,7 @@ export function AutoText({ className, value, ...props }: TextareaHTMLAttributes<
         value={value}
         rows={2}
         className={cn(
-          "block w-full resize-none overflow-hidden rounded-xl border border-black/[0.08] bg-background/60 px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-black/15 focus:border-foreground/25 focus:bg-card",
+          "block w-full resize-none overflow-hidden rounded-xl border border-foreground/[0.08] bg-background/60 px-3 py-2 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-foreground/15 focus:border-foreground/25 focus:bg-card",
           editable && "pr-[4.5rem]",
           className
         )}
@@ -60,7 +60,7 @@ export function TextInput({ className, ...props }: React.InputHTMLAttributes<HTM
   return (
     <input
       className={cn(
-        "h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-black/15 focus:border-foreground/25 focus:bg-card",
+        "h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 hover:border-foreground/15 focus:border-foreground/25 focus:bg-card",
         className
       )}
       {...props}
@@ -153,7 +153,7 @@ export function LinkList({
       {items.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5">
           {items.map((l) => (
-            <li key={l.id} className="group flex max-w-full items-center rounded-full border border-black/[0.08] bg-card pl-2.5 text-xs shadow-sm">
+            <li key={l.id} className="group flex max-w-full items-center rounded-full border border-foreground/[0.08] bg-card pl-2.5 text-xs shadow-sm">
               <a href={l.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1.5 py-1.5 pr-2 hover:underline" title={l.url}>
                 <Link2 className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <span className="truncate">{l.label || hostDe(l.url)}</span>

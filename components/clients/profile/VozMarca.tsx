@@ -24,7 +24,7 @@ export function VozMarcaSection({ brand, saveSoon, missing }: { brand: Brand; sa
     >
       {missing ? (
         <p className="text-sm text-muted-foreground">
-          Para guardar el kit de voz falta correr <code className="rounded bg-ink/10 px-1 text-[13px]">supabase/migracion-voz-marca.sql</code> en
+          Para guardar el kit de voz falta correr <code className="rounded bg-foreground/10 px-1 text-[13px]">supabase/migracion-voz-marca.sql</code> en
           Supabase.
         </p>
       ) : (
@@ -115,7 +115,7 @@ function TagList({
               type="button"
               onClick={() => onChange(items.filter((i) => i !== item))}
               aria-label={`Sacar ${item}`}
-              className="grid h-5 w-5 place-items-center rounded-full hover:bg-black/10"
+              className="grid h-5 w-5 place-items-center rounded-full hover:bg-foreground/10"
             >
               <X className="h-3 w-3" />
             </button>

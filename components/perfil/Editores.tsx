@@ -228,7 +228,7 @@ export function EstadoEditor({ perfil, guardar, disabled }: { perfil: Perfil; gu
         </div>
       )}
 
-      <div className={cn("rounded-2xl border p-4 transition-colors", fueraAbierto ? "border-amber-300 bg-amber-50" : "bg-card")}>
+      <div className={cn("rounded-2xl border p-4 transition-colors", fueraAbierto ? "border-amber-300 bg-amber-50 dark:border-amber-400/40 dark:bg-amber-400/10" : "bg-card")}>
         <div className="flex items-center gap-3">
           <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-full", fueraAbierto ? "bg-amber-400 text-amber-950" : "bg-secondary text-muted-foreground")}>
             <Plane className="h-4 w-4" />
@@ -264,7 +264,7 @@ export function EstadoEditor({ perfil, guardar, disabled }: { perfil: Perfil; gu
               onChange={(e) => e.target.value && guardar({ fuera_hasta: e.target.value }, `Fuera de oficina hasta el ${fechaCorta(e.target.value)}`)}
               className="h-9 rounded-full border bg-card px-3 text-[13px] outline-none focus:border-foreground/40"
             />
-            {!fuera && <span className="text-xs text-amber-800">Elegí el día para que se vea.</span>}
+            {!fuera && <span className="text-xs text-amber-800 dark:text-amber-300">Elegí el día para que se vea.</span>}
           </label>
         )}
       </div>
@@ -369,12 +369,12 @@ export function FotoEditor({
               {o.origen === "subida" && o.url && (
                 <div className="absolute right-1.5 top-1.5 flex gap-1">
                   <Hint label="Subir otra">
-                    <button type="button" onClick={() => input.current?.click()} disabled={disabled || subiendo} aria-label="Subir otra foto" className="grid h-7 w-7 place-items-center rounded-full bg-card text-muted-foreground shadow ring-1 ring-black/10 hover:text-foreground">
+                    <button type="button" onClick={() => input.current?.click()} disabled={disabled || subiendo} aria-label="Subir otra foto" className="grid h-7 w-7 place-items-center rounded-full bg-card text-muted-foreground shadow ring-1 ring-foreground/10 hover:text-foreground">
                       {subiendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                     </button>
                   </Hint>
                   <Hint label="Borrar la foto subida">
-                    <button type="button" onClick={quitarSubida} disabled={disabled || subiendo} aria-label="Borrar la foto subida" className="grid h-7 w-7 place-items-center rounded-full bg-card text-muted-foreground shadow ring-1 ring-black/10 hover:text-destructive">
+                    <button type="button" onClick={quitarSubida} disabled={disabled || subiendo} aria-label="Borrar la foto subida" className="grid h-7 w-7 place-items-center rounded-full bg-card text-muted-foreground shadow ring-1 ring-foreground/10 hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </Hint>

@@ -39,6 +39,16 @@ La app sigue la estética de Inicio (en la línea de tbwa.com): fondo crema, tex
 - Los colores son variables en `app/globals.css` (`--background`, `--card`, `--primary`…); en Tailwind también están `ink` y `cream` para usarlos directo.
 - Superficies flotantes: `.floating` (clara, para popovers y paneles) y `.floating-ink` (negra, para la píldora de módulos, la barra contextual, la cuenta y la sidebar).
 
+### Modo noche
+
+Se prende y se apaga desde la foto de perfil (arriba a la derecha), debajo de tu perfil. Se guarda en el navegador y, con sesión, en la cuenta (`user_prefs`, clave `app:modo-noche`), así que te sigue a cualquier computadora. Lo maneja `components/shell/ModoNoche.tsx` con `lib/tema.ts`: pone la clase `dark` en `<html>`, y un script en el `<head>` la pone antes del primer pintado para que no haya un destello claro al cargar.
+
+- De noche cambian las variables de `app/globals.css` (bloque `.dark`): el fondo pasa a negro y el texto a crema. Todo lo que usa `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`… se adapta solo.
+- Para texto, filetes y tintes sobre el fondo, usá `foreground` y no `ink` ni `black` (`text-foreground/50`, `border-foreground/[0.06]`): de día es el mismo negro tinta y de noche es crema. `ink` y `cream` quedan para lo que es negro o crema siempre: la barra, la sidebar, las etiquetas sobre fotos y videos.
+- Un elemento blanco (`bg-white`) que no sea parte de una imagen necesita su versión de noche (`dark:bg-card` o `dark:bg-secondary`), y si tiene texto, su color propio: si no, hereda la crema y queda blanco sobre blanco. Los colores de estado oscuros (`text-amber-800`, `text-emerald-700`…) van con su versión clara (`dark:text-amber-300`, `dark:text-emerald-400`).
+- Los tonos del Board (`TONO` en `lib/board/flujo.ts`) son variables `--tono-*` de `globals.css`, con un valor de día y otro de noche.
+- Lo que ve el cliente se ve siempre de día: la plani compartida (`/p/…`) y el modo Presentar. Inicio sin sesión y Privacidad también, con la clase `tema-dia` (vuelve a poner las variables de día).
+
 La barra está en `components/shell/ContextBar.tsx`: cada página monta `<ContextBar>` con sus controles y estos se "teletransportan" a la barra del layout. Sus piezas (`BarButton`, `BarSearch`, `BarSegmented`…) ya vienen pensadas para fondo negro.
 
 ---
@@ -135,6 +145,7 @@ Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión 
 
 - Favoritos y recientes de emojis.
 - Ajustes de Emojis, GIFs, Íconos, GIF y Conversor.
+- El modo noche.
 - Redacciones, y los emojis y hashtags de cada cliente.
 - Las tarjetas que creás quedan a tu nombre y en Filtros aparece **Solo mis tarjetas**. El tablero sigue siendo compartido: todos ven y editan todo, como antes.
 

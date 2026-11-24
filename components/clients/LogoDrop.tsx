@@ -56,7 +56,7 @@ export function LogoDrop({
       }}
       className={cn(
         "group relative overflow-hidden rounded-2xl transition-shadow",
-        preview ? "ring-1 ring-inset ring-black/[0.08]" : "border-2 border-dashed border-foreground/15 bg-secondary/40",
+        preview ? "ring-1 ring-inset ring-foreground/[0.08]" : "border-2 border-dashed border-foreground/15 bg-secondary/40",
         over && "ring-2 ring-ring ring-offset-2 ring-offset-card",
         className
       )}

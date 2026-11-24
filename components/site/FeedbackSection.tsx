@@ -83,19 +83,19 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
   };
 
   return (
-    <section id="sugerencias" className="scroll-mt-16 overflow-hidden bg-cream text-ink">
+    <section id="sugerencias" className="scroll-mt-16 overflow-hidden bg-background text-foreground">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 md:py-28">
         <div className="grid gap-6 md:grid-cols-[12rem_1fr] md:gap-10">
-          <p className="site-label pt-2 text-ink/50">Sugerencias</p>
+          <p className="site-label pt-2 text-foreground/50">Sugerencias</p>
           <div>
             <p className="max-w-3xl font-display text-[clamp(1.9rem,4vw,3.25rem)] leading-[1.05] tracking-[-0.015em]">
-              ¿Algo para mejorar <em className="text-ink/40">o algo que no anda?</em>
+              ¿Algo para mejorar <em className="text-foreground/40">o algo que no anda?</em>
             </p>
 
             <form onSubmit={send} className="mt-7 max-w-2xl">
-              <div className="rounded-2xl border border-ink/20 bg-white/60 transition-colors focus-within:border-ink focus-within:bg-white">
+              <div className="rounded-2xl border border-foreground/20 bg-white/60 transition-colors focus-within:border-foreground focus-within:bg-white dark:bg-card/60 dark:focus-within:bg-card">
                 <div className="flex items-center gap-1 px-2 pt-2">
-                  <div role="radiogroup" aria-label="Tipo" className="inline-flex rounded-full bg-ink/[0.06] p-0.5">
+                  <div role="radiogroup" aria-label="Tipo" className="inline-flex rounded-full bg-foreground/[0.06] p-0.5">
                     {KINDS.map((k) => (
                       <button
                         key={k.value}
@@ -104,8 +104,8 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
                         aria-checked={kind === k.value}
                         onClick={() => setKind(k.value)}
                         className={cn(
-                          "flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-ink/60 transition-colors hover:text-ink",
-                          kind === k.value && "bg-ink text-cream hover:text-cream"
+                          "flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-foreground/60 transition-colors hover:text-foreground",
+                          kind === k.value && "bg-foreground text-background hover:text-background"
                         )}
                       >
                         <span aria-hidden className="h-2.5 w-2.5 rounded-sm" style={{ background: k.color }} />
@@ -127,7 +127,7 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
                     maxLength={5000}
                     rows={3}
                     placeholder={current.placeholder}
-                    className="block w-full resize-y bg-transparent px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-ink/40"
+                    className="block w-full resize-y bg-transparent px-4 py-3 text-[15px] leading-relaxed outline-none placeholder:text-foreground/40"
                   />
                 </label>
               </div>
@@ -147,7 +147,7 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
                         </span>
                       </span>
                     ) : (
-                      <span className="text-sm text-ink/60">Anónima: tu nombre no se muestra en el tablero</span>
+                      <span className="text-sm text-foreground/60">Anónima: tu nombre no se muestra en el tablero</span>
                     )}
                   </label>
                 ) : (
@@ -159,7 +159,7 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
                       maxLength={80}
                       autoComplete="name"
                       placeholder="Tu nombre (opcional)"
-                      className="h-11 w-full rounded-full border border-ink/20 bg-white/60 px-5 text-[15px] outline-none transition-colors placeholder:text-ink/40 focus:border-ink focus:bg-white"
+                      className="h-11 w-full rounded-full border border-foreground/20 bg-white/60 px-5 text-[15px] outline-none transition-colors placeholder:text-foreground/40 focus:border-foreground focus:bg-white dark:bg-card/60 dark:focus:bg-card"
                     />
                   </label>
                 )}
@@ -176,7 +176,7 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
                 <button
                   type="submit"
                   disabled={sending || message.trim().length < 3}
-                  className="group inline-flex h-11 shrink-0 items-center justify-center gap-2.5 rounded-full bg-ink px-6 text-sm font-semibold text-cream transition hover:bg-ink/85 active:scale-[0.98] disabled:opacity-40"
+                  className="group inline-flex h-11 shrink-0 items-center justify-center gap-2.5 rounded-full bg-foreground px-6 text-sm font-semibold text-background transition hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-40"
                 >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {board ? "Pegar en el tablero" : "Enviar"}
@@ -184,11 +184,11 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
                 </button>
               </div>
 
-              <p className="mt-3 min-h-[1.25rem] text-[13px] text-ink/50" role="status" aria-live="polite">
+              <p className="mt-3 min-h-[1.25rem] text-[13px] text-foreground/50" role="status" aria-live="polite">
                 {status.state === "failed" ? (
                   <span className="text-destructive">{status.message}.</span>
                 ) : status.state === "sent" ? (
-                  <span key={status.at} className="inline-flex items-center gap-1.5 text-ink duration-300 animate-in fade-in-0">
+                  <span key={status.at} className="inline-flex items-center gap-1.5 text-foreground duration-300 animate-in fade-in-0">
                     <Check className="h-4 w-4" /> ¡Gracias! {board ? "Ya está en el tablero." : "Ya llegó."}
                   </span>
                 ) : board ? null : user ? (
@@ -202,7 +202,7 @@ export function FeedbackSection({ board = false }: { board?: boolean }) {
         </div>
 
         {board && (
-          <div className="mt-14 border-t border-ink/15 pt-10 md:mt-16">
+          <div className="mt-14 border-t border-foreground/15 pt-10 md:mt-16">
             <SuggestionBoard
               items={tablero.items}
               loading={tablero.loading}

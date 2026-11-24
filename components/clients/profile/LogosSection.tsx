@@ -408,7 +408,7 @@ export function LogosSection({
           <DatabaseZap className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Para guardar varios logos con sus formatos (y subir PDF, AI o EPS) falta correr{" "}
-            <code className="rounded bg-ink/10 px-1 text-[13px]">supabase/migracion-logos.sql</code> en Supabase → SQL Editor.
+            <code className="rounded bg-foreground/10 px-1 text-[13px]">supabase/migracion-logos.sql</code> en Supabase → SQL Editor.
           </p>
         </div>
       )}
@@ -709,7 +709,7 @@ function MoreTile({ brand, hidden, onOpen }: { brand: Brand; hidden: BrandLogo[]
         type="button"
         onClick={onOpen}
         aria-label={label}
-        className="group/more relative grid aspect-[4/3] w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl bg-secondary/70 p-1 ring-1 ring-inset ring-black/[0.06]"
+        className="group/more relative grid aspect-[4/3] w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl bg-secondary/70 p-1 ring-1 ring-inset ring-foreground/[0.06]"
       >
         {Array.from({ length: 4 }, (_, i) => {
           const logo = sample[i];

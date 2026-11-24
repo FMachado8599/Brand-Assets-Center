@@ -54,10 +54,10 @@ export function CarpetaDrive({
       <div
         className={cn(
           "flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border px-3.5 py-2.5 text-sm",
-          carpetaId ? "border-black/[0.06] bg-card" : "border-[#8A6A3B]/30 bg-[#8A6A3B]/[0.07]"
+          carpetaId ? "border-foreground/[0.06] bg-card" : "border-[#8A6A3B]/30 bg-[#8A6A3B]/[0.07]"
         )}
       >
-        {carpetaId ? <HardDrive className="h-4 w-4 shrink-0 text-muted-foreground" /> : <TriangleAlert className="h-4 w-4 shrink-0 text-[#8A6A3B]" />}
+        {carpetaId ? <HardDrive className="h-4 w-4 shrink-0 text-muted-foreground" /> : <TriangleAlert className="h-4 w-4 shrink-0 text-[#8A6A3B] dark:text-[#D4B27E]" />}
         <span className="min-w-0 flex-1">
           {carpetaId ? (
             <span className="block truncate" title={ruta?.map((c) => c.name).join(" / ")}>
@@ -217,7 +217,7 @@ function ElegirCarpeta({
                   value={link}
                   onChange={(e) => setLink(e.target.value)}
                   placeholder="https://drive.google.com/drive/folders/…"
-                  className="h-9 min-w-0 flex-1 rounded-full border border-black/[0.08] bg-card px-3.5 text-sm outline-none focus:border-foreground/25"
+                  className="h-9 min-w-0 flex-1 rounded-full border border-foreground/[0.08] bg-card px-3.5 text-sm outline-none focus:border-foreground/25"
                 />
                 <button
                   type="button"
@@ -269,7 +269,7 @@ function ElegirCarpeta({
                       value={nueva}
                       onChange={(e) => setNueva(e.target.value)}
                       placeholder="Nueva carpeta acá…"
-                      className="h-8 min-w-0 flex-1 rounded-full border border-black/[0.08] bg-background/60 px-3 text-xs outline-none focus:border-foreground/25"
+                      className="h-8 min-w-0 flex-1 rounded-full border border-foreground/[0.08] bg-background/60 px-3 text-xs outline-none focus:border-foreground/25"
                     />
                     <button type="button" onClick={crear} disabled={!nueva.trim()} className="inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium hover:bg-secondary disabled:opacity-40">
                       <FolderPlus className="h-3.5 w-3.5" /> Crear

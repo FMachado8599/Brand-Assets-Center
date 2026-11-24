@@ -194,7 +194,7 @@ export function ArmarGif({
                 setSegundos(Math.max(0.1, Number(e.target.value) || 1));
                 setGif(null);
               }}
-              className="h-9 w-24 rounded-xl border border-black/[0.08] bg-card px-3 tabular-nums outline-none"
+              className="h-9 w-24 rounded-xl border border-foreground/[0.08] bg-card px-3 tabular-nums outline-none"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -208,7 +208,7 @@ export function ArmarGif({
                 setMaxKb(Math.max(0, Math.round(Number(e.target.value) || 0)));
                 setGif(null);
               }}
-              className="h-9 w-24 rounded-xl border border-black/[0.08] bg-card px-3 tabular-nums outline-none"
+              className="h-9 w-24 rounded-xl border border-foreground/[0.08] bg-card px-3 tabular-nums outline-none"
             />
           </label>
           <label className="flex h-9 items-center gap-2">
@@ -243,7 +243,7 @@ export function ArmarGif({
           </div>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-black/[0.06] pt-4">
+        <div className="flex justify-end gap-2 border-t border-foreground/[0.06] pt-4">
           <button type="button" onClick={() => onOpenChange(false)} className="h-10 rounded-full px-4 text-sm font-medium hover:bg-secondary">
             Cancelar
           </button>

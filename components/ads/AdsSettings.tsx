@@ -97,7 +97,7 @@ export function AdsSettings({
         <button
           type="button"
           onClick={() => avatarRef.current?.click()}
-          className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-foreground ring-1 ring-black/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-foreground ring-1 ring-foreground/10 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Elegir la foto de perfil"
           title="Foto de perfil"
         >

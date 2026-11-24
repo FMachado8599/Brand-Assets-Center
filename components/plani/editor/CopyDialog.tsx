@@ -111,7 +111,7 @@ export function CopyDialog({
             <BotonPegar onTexto={(t) => editor.current?.insert(t)} className="absolute right-2 top-2 z-10" />
             <div
               className={cn(
-                "min-h-[16rem] flex-1 overflow-y-auto rounded-2xl border border-black/[0.08] bg-card focus-within:border-foreground/25",
+                "min-h-[16rem] flex-1 overflow-y-auto rounded-2xl border border-foreground/[0.08] bg-card focus-within:border-foreground/25",
                 // El editor de Redacción está pensado para la página: acá la barra de formato va pegada arriba
                 // y el texto ocupa lo que haya.
                 "[&_.rd-editor]:min-h-[12rem] [&_.rd-editor]:px-4 [&_.rd-editor]:py-3 [&_.rd-editor]:text-[15px] [&_[role=toolbar]]:top-0"
@@ -143,7 +143,7 @@ export function CopyDialog({
             </div>
           </div>
 
-          <div className="flex h-[26rem] min-h-0 flex-col overflow-hidden rounded-2xl border border-black/[0.06] bg-card md:h-auto">
+          <div className="flex h-[26rem] min-h-0 flex-col overflow-hidden rounded-2xl border border-foreground/[0.06] bg-card md:h-auto">
             <div className="flex gap-1 p-2">
               {(
                 [

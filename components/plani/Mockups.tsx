@@ -93,7 +93,7 @@ function BannerMockup({ pieza, onOpen, className }: MockupProps) {
               className={cn("h-full w-full object-contain", onOpen && "cursor-zoom-in")}
             />
           ) : (
-            <div className="grid h-full w-full place-items-center border-2 border-dashed border-black/10 p-2 text-center text-[11px] leading-snug text-muted-foreground">
+            <div className="grid h-full w-full place-items-center border-2 border-dashed border-black/10 p-2 text-center text-[11px] leading-snug text-muted-foreground dark:text-black/55">
               {pieza.instrucciones || "Diseño pendiente"}
             </div>
           )}

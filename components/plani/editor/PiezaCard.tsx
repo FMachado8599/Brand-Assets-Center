@@ -77,7 +77,7 @@ export function PiezaCard({ pieza, adaptaciones, brand, rol, update, onDuplicar,
   return (
     <article
       id={`pieza-${pieza.id}`}
-      className="scroll-mt-28 rounded-[1.75rem] border border-black/[0.06] bg-card/95 p-4 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-5"
+      className="scroll-mt-28 rounded-[1.75rem] border border-foreground/[0.06] bg-card/95 p-4 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-5"
     >
       <header className="mb-4 flex flex-wrap items-center gap-2">
         {grupo.length > 1 ? (

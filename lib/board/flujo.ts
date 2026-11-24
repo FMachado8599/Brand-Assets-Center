@@ -259,19 +259,25 @@ export function validadoresDe(t: TareaFlujo, ctx: Contexto): Persona[] {
 
 /* ───────────── Prioridad a la vista ───────────── */
 
-/** El color de cada tarjeta: lo urgente primero (como en STATUS). */
+/**
+ * El color de cada tarjeta: lo urgente primero (como en STATUS). El texto y los grises son variables de globals.css:
+ * de noche son más claros, para que se lean sobre el fondo oscuro. Los fondos ya son transparentes.
+ */
 export type Tono = "vencida" | "pronto" | "esperando" | "vieja" | "curso" | "nueva" | "pausada" | "finalizada";
 
 export const TONO: Record<Tono, { label: string; fg: string; bg: string }> = {
-  vencida: { label: "Vencida", fg: "#C0301A", bg: "rgba(247, 62, 18, 0.17)" },
-  pronto: { label: "Vence pronto", fg: "#A86A0C", bg: "rgba(246, 176, 40, 0.26)" },
-  esperando: { label: "Esperando", fg: "#5F4BD0", bg: "rgba(156, 135, 245, 0.24)" },
-  vieja: { label: "Fecha vieja", fg: "#8A6A3B", bg: "rgba(168, 128, 70, 0.12)" },
-  curso: { label: "En curso", fg: "#2563C9", bg: "rgba(86, 150, 244, 0.22)" },
-  nueva: { label: "Por empezar", fg: "#6B6862", bg: "transparent" },
-  pausada: { label: "En pausa", fg: "#6B6862", bg: "rgba(32, 32, 32, 0.07)" },
-  finalizada: { label: "Terminada", fg: "#0F8A70", bg: "rgba(21, 189, 153, 0.22)" },
+  vencida: { label: "Vencida", fg: "var(--tono-vencida)", bg: "rgba(247, 62, 18, 0.17)" },
+  pronto: { label: "Vence pronto", fg: "var(--tono-pronto)", bg: "rgba(246, 176, 40, 0.26)" },
+  esperando: { label: "Esperando", fg: "var(--tono-esperando)", bg: "rgba(156, 135, 245, 0.24)" },
+  vieja: { label: "Fecha vieja", fg: "var(--tono-vieja)", bg: "rgba(168, 128, 70, 0.12)" },
+  curso: { label: "En curso", fg: "var(--tono-curso)", bg: "rgba(86, 150, 244, 0.22)" },
+  nueva: { label: "Por empezar", fg: "var(--tono-neutro)", bg: "transparent" },
+  pausada: { label: "En pausa", fg: "var(--tono-neutro)", bg: "var(--tono-gris-pausa)" },
+  finalizada: { label: "Terminada", fg: "var(--tono-finalizada)", bg: "rgba(21, 189, 153, 0.22)" },
 };
+
+/** El rojo de "Vencida" para usar de fondo con texto blanco: ese no se aclara de noche. */
+export const ROJO_VENCIDA = "#C0301A";
 
 export const TONOS_LEYENDA: Tono[] = ["vencida", "pronto", "curso", "esperando", "vieja", "nueva", "pausada"];
 
@@ -298,7 +304,7 @@ export function tonoDe(t: TareaTono, hoy = new Date()): Tono {
 export function cargaDe(tareas: TareaFlujo[]) {
   const n = tareas.filter((t) => !["esperando", "pausada", "finalizada"].includes(tonoDe(t))).length;
   if (n <= 3) return { n, label: "Libre", color: TONO.finalizada.fg };
-  if (n <= 6) return { n, label: "Normal", color: "#6B6862" };
+  if (n <= 6) return { n, label: "Normal", color: TONO.nueva.fg };
   if (n <= 9) return { n, label: "Cargada", color: TONO.pronto.fg };
   return { n, label: "Saturada", color: TONO.vencida.fg };
 }

@@ -49,7 +49,7 @@ export function NuevaPiezaMenu({
             type="date"
             value={dia}
             onChange={(e) => e.target.value && setDia(e.target.value)}
-            className="mb-2 h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none"
+            className="mb-2 h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 px-3 text-sm outline-none"
             aria-label="Fecha de la pieza"
           />
         )}
@@ -62,7 +62,7 @@ export function NuevaPiezaMenu({
                 setOpen(false);
                 onCrear(conFecha ? dia : fecha, f);
               }}
-              className="flex h-16 flex-col items-start justify-between rounded-xl border border-black/[0.06] bg-card p-2.5 text-left text-sm font-medium shadow-sm transition-colors hover:bg-secondary"
+              className="flex h-16 flex-col items-start justify-between rounded-xl border border-foreground/[0.06] bg-card p-2.5 text-left text-sm font-medium shadow-sm transition-colors hover:bg-secondary"
             >
               <span className="flex w-full items-center justify-between">
                 <FormatIcon formato={f} className="h-4 w-4" />

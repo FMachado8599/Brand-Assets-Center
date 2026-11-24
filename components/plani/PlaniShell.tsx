@@ -197,11 +197,11 @@ export function PlaniShell() {
       <main className="mx-auto max-w-[96rem] px-4 pb-20 pt-24 sm:px-6 md:pt-28">
         <header className="flex flex-wrap items-end justify-between gap-4 pb-8">
           <div>
-            <p className="site-label text-ink/50">
+            <p className="site-label text-foreground/50">
               Presentaciones <span className="text-primary">\</span> {delMes.length} {delMes.length === 1 ? "presentación" : "presentaciones"}
             </p>
             <RevealTitle className="mt-4 font-display text-[clamp(3.2rem,10vw,7rem)] leading-[0.86] tracking-[-0.025em]" deps={[anio, mes]}>
-              {MESES[mes - 1]} <em className="text-ink/25">{anio}</em>
+              {MESES[mes - 1]} <em className="text-foreground/25">{anio}</em>
             </RevealTitle>
           </div>
           {anio !== hoyMes().anio || mes !== hoyMes().mes ? (
@@ -297,7 +297,7 @@ export function PlaniShell() {
                   onChange={(e) => setBuscarTarea(e.target.value)}
                   placeholder="Buscar tarea o marca…"
                   aria-label="Buscar en Para arrancar"
-                  className="h-8 w-full rounded-full border border-black/[0.08] bg-card pl-8 pr-3 text-xs outline-none focus:border-foreground/25"
+                  className="h-8 w-full rounded-full border border-foreground/[0.08] bg-card pl-8 pr-3 text-xs outline-none focus:border-foreground/25"
                 />
               </label>
             </div>
@@ -315,7 +315,7 @@ export function PlaniShell() {
                 const brandId = t.brand_id;
                 const brand = brandId ? porCliente.get(brandId) ?? null : null;
                 return (
-                  <li key={t.id} className="flex flex-col gap-3 rounded-[1.25rem] border border-black/[0.06] bg-card/90 p-4">
+                  <li key={t.id} className="flex flex-col gap-3 rounded-[1.25rem] border border-foreground/[0.06] bg-card/90 p-4">
                     <div className="flex items-start gap-2.5">
                       {brand ? <ClientMark brand={brand} className="h-9 w-9 rounded-xl text-[10px]" pad="p-[14%]" /> : <BasecampMark className="mt-1 h-6 w-6" />}
                       <span className="min-w-0 flex-1">
@@ -397,7 +397,7 @@ function PlaniCard({ plani, brand, tipo, deOtroMes }: { plani: PlaniTarjeta; bra
   return (
     <Link
       href={`/presentaciones/${plani.id}`}
-      className="group flex flex-col gap-3 self-start rounded-[1.25rem] border border-black/[0.06] bg-card p-3.5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04)] transition-[transform,box-shadow] duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_hsl(40_45%_20%/0.45)]"
+      className="group flex flex-col gap-3 self-start rounded-[1.25rem] border border-foreground/[0.06] bg-card p-3.5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04)] transition-[transform,box-shadow] duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_hsl(40_45%_20%/0.45)]"
     >
       <div className="flex items-center gap-2.5">
         {brand ? <ClientMark brand={brand} className="h-10 w-10 rounded-xl text-xs" pad="p-[14%]" /> : <span className="h-10 w-10 rounded-xl bg-secondary" />}
@@ -412,7 +412,7 @@ function PlaniCard({ plani, brand, tipo, deOtroMes }: { plani: PlaniTarjeta; bra
       <div className="flex flex-wrap items-center gap-1.5">
         <TipoChip tipo={tipo} />
         {deOtroMes && (
-          <span className="rounded-full bg-[#8A6A3B]/12 px-2 py-0.5 text-[11px] font-medium text-[#8A6A3B]" title="De un mes anterior que todavía no está lista">
+          <span className="rounded-full bg-[#8A6A3B]/12 px-2 py-0.5 text-[11px] font-medium text-[#8A6A3B] dark:text-[#D4B27E]" title="De un mes anterior que todavía no está lista">
             {deOtroMes}
           </span>
         )}

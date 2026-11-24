@@ -143,7 +143,7 @@ export function NuevaPlaniDialog({
                       title={t.descripcion || undefined}
                       className={cn(
                         "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
-                        activo ? "text-white" : "border-black/[0.08] bg-card hover:bg-secondary"
+                        activo ? "text-white" : "border-foreground/[0.08] bg-card hover:bg-secondary"
                       )}
                       style={activo ? { background: t.color, borderColor: t.color } : undefined}
                     >
@@ -179,7 +179,7 @@ export function NuevaPlaniDialog({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={`Buscar entre ${clients.length} clientes…`}
-                className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 pl-8 pr-3 text-sm outline-none focus:border-foreground/25"
+                className="h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 pl-8 pr-3 text-sm outline-none focus:border-foreground/25"
               />
             </label>
             <ul className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-3">
@@ -194,7 +194,7 @@ export function NuevaPlaniDialog({
                     aria-pressed={c.id === brandId}
                     className={cn(
                       "flex w-full items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-left text-sm transition-colors",
-                      c.id === brandId ? "border-foreground bg-foreground text-background" : "border-black/[0.06] bg-card hover:bg-secondary"
+                      c.id === brandId ? "border-foreground bg-foreground text-background" : "border-foreground/[0.06] bg-card hover:bg-secondary"
                     )}
                   >
                     <ClientMark brand={c} className="h-8 w-8 rounded-lg text-[10px]" pad="p-[14%]" />
@@ -227,7 +227,7 @@ export function NuevaPlaniDialog({
             <section>
               <span className="eyebrow mb-2 block">Tarea de Basecamp</span>
               {tarea && !eligiendoTarea ? (
-                <div className="flex items-center gap-2 rounded-xl border border-black/[0.06] bg-card px-3 py-2 text-sm">
+                <div className="flex items-center gap-2 rounded-xl border border-foreground/[0.06] bg-card px-3 py-2 text-sm">
                   <BasecampMark />
                   <span className="min-w-0 flex-1 truncate font-medium">{tarea.titulo}</span>
                   <button type="button" onClick={() => setEligiendoTarea(true)} className="text-xs text-muted-foreground hover:text-foreground">
@@ -265,7 +265,7 @@ export function NuevaPlaniDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-black/[0.06] pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-foreground/[0.06] pt-4">
           {brand && (
             <span className="mr-auto truncate text-sm text-muted-foreground">
               {tipoDe(tipo).nombre} de <b className="font-semibold text-foreground">{brand.name}</b> · {MESES[mes - 1]} {anio}
@@ -328,14 +328,14 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
   };
 
   return (
-    <div className="space-y-3 rounded-2xl border border-black/[0.08] bg-card p-3">
+    <div className="space-y-3 rounded-2xl border border-foreground/[0.08] bg-card p-3">
       <input
         autoFocus
         value={nombre}
         onChange={(e) => setNombre(e.target.value.slice(0, 60))}
         onKeyDown={(e) => e.key === "Enter" && crear()}
         placeholder="Nombre del tipo (ej: Programática, Influencers)"
-        className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
+        className="h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
       />
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1" role="radiogroup" aria-label="Color">
@@ -378,7 +378,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
           value={palabras}
           onChange={(e) => setPalabras(e.target.value)}
           placeholder="programática, youtube, display"
-          className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
+          className="h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
         />
       </label>
       <label className="block">
@@ -387,7 +387,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
           value={carpeta}
           onChange={(e) => setCarpeta(e.target.value)}
           placeholder="Anuncios"
-          className="h-9 w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
+          className="h-9 w-full rounded-xl border border-foreground/[0.08] bg-background/60 px-3 text-sm outline-none focus:border-foreground/25"
         />
       </label>
       <div>
@@ -404,7 +404,7 @@ function NuevoTipo({ onCreado, onCancelar }: { onCreado: (id: string) => void; o
                 onClick={() => setHerramientas((x) => (on ? x.filter((v) => v !== h.value) : [...x, h.value]))}
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
-                  on ? "border-foreground bg-foreground text-background" : "border-black/[0.08] bg-background/60 hover:bg-secondary"
+                  on ? "border-foreground bg-foreground text-background" : "border-foreground/[0.08] bg-background/60 hover:bg-secondary"
                 )}
               >
                 {on && <Check className="h-3.5 w-3.5" />} {h.label}

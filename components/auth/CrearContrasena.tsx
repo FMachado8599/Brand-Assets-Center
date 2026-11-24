@@ -48,7 +48,7 @@ export function CrearContrasena() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 pb-16 pt-24">
-      <section className="rounded-[1.75rem] border border-black/[0.06] bg-card p-6 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-8">
+      <section className="rounded-[1.75rem] border border-foreground/[0.06] bg-card p-6 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-8">
         <p className="eyebrow">
           Herramientas <span className="text-primary">\</span>
         </p>
@@ -115,7 +115,7 @@ export function CrearContrasena() {
 
 function Regla({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
-    <li className={cn("flex items-start gap-1.5", ok ? "text-emerald-700" : "text-muted-foreground")}>
+    <li className={cn("flex items-start gap-1.5", ok ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground")}>
       <Check className={cn("mt-px h-3.5 w-3.5 shrink-0", !ok && "opacity-30")} /> {children}
     </li>
   );
