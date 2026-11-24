@@ -90,7 +90,7 @@ export function AppShell() {
             <button
               type="button"
               onClick={filters.clear}
-              className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-foreground/80 transition-colors hover:bg-black/5"
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-foreground/80 transition-colors hover:bg-foreground/5"
             >
               <X className="h-3 w-3" /> Limpiar
             </button>

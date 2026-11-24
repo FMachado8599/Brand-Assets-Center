@@ -37,7 +37,7 @@ export function ClientMark({
     return (
       <span
         className={cn(
-          "grid shrink-0 place-items-center overflow-hidden ring-1 ring-inset ring-black/[0.06]",
+          "grid shrink-0 place-items-center overflow-hidden ring-1 ring-inset ring-foreground/[0.06]",
           // La fila mide lo que el recuadro: si no, el h-full de la foto toma su alto natural (720 px) y se sale.
           photo && "grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)]",
           photo && photoPad,

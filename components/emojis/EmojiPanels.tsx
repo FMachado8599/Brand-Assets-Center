@@ -78,7 +78,7 @@ export function CategoryPanel({
 export function ToneDot({ tone, className }: { tone: Tone; className?: string }) {
   return (
     <span
-      className={cn("block h-[18px] w-[18px] rounded-full ring-1 ring-black/10", className)}
+      className={cn("block h-[18px] w-[18px] rounded-full ring-1 ring-foreground/10", className)}
       style={{ background: TONES[tone].color }}
     />
   );

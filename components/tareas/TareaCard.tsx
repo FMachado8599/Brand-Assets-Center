@@ -50,7 +50,7 @@ export const TareaCard = forwardRef<HTMLDivElement, Props>(function TareaCard(
       tabIndex={0}
       style={estilo}
       className={cn(
-        "group/tarea relative flex cursor-grab touch-manipulation select-none flex-col gap-2 rounded-[1.1rem] border border-black/[0.05] bg-card/90 p-3.5 text-left shadow-[0_1px_2px_rgba(32,32,32,0.05),0_10px_28px_-12px_rgba(32,32,32,0.14)] backdrop-blur-xl transition-[box-shadow,opacity] [-webkit-touch-callout:none] hover:shadow-[0_2px_4px_rgba(32,32,32,0.06),0_18px_40px_-16px_rgba(32,32,32,0.2)] active:cursor-grabbing",
+        "group/tarea relative flex cursor-grab touch-manipulation select-none flex-col gap-2 rounded-[1.1rem] border border-foreground/[0.05] bg-card/90 p-3.5 text-left shadow-[0_1px_2px_rgba(32,32,32,0.05),0_10px_28px_-12px_rgba(32,32,32,0.14)] backdrop-blur-xl transition-[box-shadow,opacity] [-webkit-touch-callout:none] hover:shadow-[0_2px_4px_rgba(32,32,32,0.06),0_18px_40px_-16px_rgba(32,32,32,0.2)] active:cursor-grabbing",
         forma === "fila" ? "w-64 shrink-0" : "w-full",
         deOtro && "opacity-60",
         modo === "origen" && "opacity-30",
@@ -78,7 +78,7 @@ export const TareaCard = forwardRef<HTMLDivElement, Props>(function TareaCard(
         )}
         <span
           className="inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-          style={{ color: tono.fg, background: tono.bg === "transparent" ? "rgba(32,32,32,0.06)" : tono.bg }}
+          style={{ color: tono.fg, background: tono.bg === "transparent" ? "var(--tono-gris)" : tono.bg }}
           title={t.pausada && t.pausa_motivo ? t.pausa_motivo : undefined}
         >
           {t.pausada && <Pause className="h-2.5 w-2.5" />}
@@ -88,7 +88,7 @@ export const TareaCard = forwardRef<HTMLDivElement, Props>(function TareaCard(
 
       <p className="line-clamp-2 text-[13px] font-medium leading-snug">{t.titulo || "Sin título"}</p>
 
-      <div className="mt-auto flex items-center gap-2 border-t border-black/[0.06] pt-2">
+      <div className="mt-auto flex items-center gap-2 border-t border-foreground/[0.06] pt-2">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {persona ? (
             <>
@@ -136,7 +136,7 @@ export function LeyendaTonos({ tonos }: { tonos: (keyof typeof TONO)[] }) {
       {tonos.map((k) => (
         <li key={k} className="inline-flex items-center gap-1.5">
           <span
-            className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+            className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-foreground/10"
             style={{ background: TONO[k].bg === "transparent" ? "transparent" : TONO[k].fg }}
           />
           {TONO[k].label}

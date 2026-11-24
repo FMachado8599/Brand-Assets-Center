@@ -229,7 +229,7 @@ export function SaveOptions({
             <button
               type="button"
               onClick={() => onChange({ ...settings, carpeta: null, destino: "compu" })}
-              className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium text-foreground/80 hover:bg-black/5"
+              className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium text-foreground/80 hover:bg-foreground/5"
             >
               Cambiar
             </button>

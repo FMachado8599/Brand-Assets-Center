@@ -142,7 +142,7 @@ export function BasecampView() {
             <p className="mt-3 rounded-xl bg-primary/20 p-3 text-sm">
               {sinMigracion ? (
                 <>
-                  Falta correr <code className="rounded bg-ink/10 px-1 text-[12px]">supabase/migracion-integraciones.sql</code> en esta base de Supabase.
+                  Falta correr <code className="rounded bg-foreground/10 px-1 text-[12px]">supabase/migracion-integraciones.sql</code> en esta base de Supabase.
                 </>
               ) : (
                 error
@@ -173,7 +173,7 @@ export function BasecampView() {
                   <dd className="mt-0.5 flex items-center gap-1.5 font-medium">
                     {persona ?? "—"}
                     {adminBasecamp === true && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-600/12 px-1.5 py-px text-[10px] font-semibold text-emerald-700">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-600/12 px-1.5 py-px text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
                         <ShieldCheck className="h-3 w-3" /> Admin de Basecamp
                       </span>
                     )}
@@ -261,7 +261,7 @@ export function BasecampView() {
                   type="button"
                   onClick={sync.sincronizar}
                   disabled={sync.corriendo}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-50"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-50"
                 >
                   <RefreshCw className="h-3.5 w-3.5" /> Actualizar
                 </button>
@@ -435,7 +435,7 @@ function LinkAutorizar() {
           type="button"
           onClick={generar}
           disabled={generando}
-          className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-50"
+          className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-50"
         >
           {generando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />} Generar link
         </button>

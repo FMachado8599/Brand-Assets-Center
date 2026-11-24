@@ -204,7 +204,7 @@ export function PieceRow({
             {warns.length > 0 && (
               <Hint label={<span className="block max-w-xs space-y-1">{warns.map((w) => <span key={w} className="block">{w}</span>)}</span>}>
                 <span className="inline-flex" tabIndex={0} aria-label={warns.join(" ")}>
-                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                 </span>
               </Hint>
             )}
@@ -242,7 +242,7 @@ export function PieceRow({
                       >
                         <span className="min-w-0">
                           <span className="block">{p.label}</span>
-                          {note && <span className="block text-[11px] text-amber-700">{note}</span>}
+                          {note && <span className="block text-[11px] text-amber-700 dark:text-amber-400">{note}</span>}
                         </span>
                       </DropdownMenuCheckboxItem>
                     );
@@ -293,7 +293,7 @@ export function PieceRow({
           )}
           <Hint label="Color del botón (sale del creativo)">
             <label className="relative grid h-8 w-8 cursor-pointer place-items-center rounded-md">
-              <span className="h-5 w-5 rounded-full ring-1 ring-black/15" style={{ background: color }} />
+              <span className="h-5 w-5 rounded-full ring-1 ring-foreground/15" style={{ background: color }} />
               <span className="sr-only">Color del botón</span>
               <input type="color" value={color} className="absolute inset-0 cursor-pointer opacity-0" onChange={(e) => onPatch({ ctaColor: e.target.value })} />
             </label>
@@ -399,7 +399,7 @@ export function PieceRow({
               >
                 <figcaption className="max-w-full text-center text-xs font-medium" style={{ width: PHONE.w * scale }}>
                   {name}
-                  {note && <span className="block text-[10px] font-normal text-amber-700">{note}</span>}
+                  {note && <span className="block text-[10px] font-normal text-amber-700 dark:text-amber-400">{note}</span>}
                 </figcaption>
                 {/* Tocar el teléfono lo abre en grande (las flechas del carrusel no). */}
                 <div className="relative cursor-zoom-in" onClick={() => setBig({ cardId: card.id, placement })}>
@@ -416,7 +416,7 @@ export function PieceRow({
                       <span
                         className={cn(
                           "flex items-center gap-1 text-[10px] font-normal",
-                          typeof status === "number" ? "text-red-600" : status === "ok" ? "text-emerald-700" : "text-muted-foreground"
+                          typeof status === "number" ? "text-red-600 dark:text-red-400" : status === "ok" ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"
                         )}
                         aria-live="polite"
                       >

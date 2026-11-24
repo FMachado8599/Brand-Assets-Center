@@ -151,7 +151,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
 
 export default function PrivacidadPage() {
   return (
-    <div className="bg-cream text-ink">
+    // tema-dia: como Inicio, Privacidad es editorial y se ve igual con el modo noche.
+    <div className="tema-dia bg-cream text-ink">
       <header className="grain overflow-hidden bg-ink text-cream">
         <div className="relative z-10 mx-auto max-w-6xl px-5 pb-16 pt-32 sm:px-8 md:pb-24">
           <p className="site-label text-cream/60">

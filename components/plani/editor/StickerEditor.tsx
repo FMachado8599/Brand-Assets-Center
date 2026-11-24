@@ -43,7 +43,7 @@ export function StickerEditor({
                 onChange([...stickers, nuevo]);
                 onSelect(nuevo.id);
               }}
-              className="inline-flex h-7 items-center gap-1 rounded-full border border-black/[0.08] bg-card px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-secondary"
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-foreground/[0.08] bg-card px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-secondary"
             >
               <Plus className="h-3 w-3" /> {t.label}
             </button>
@@ -127,7 +127,7 @@ export function StickerEditor({
               <EmojiPopover brandId={brand.id} brandName={brand.name} onPick={(e) => patch({ emoji: e.char, emojiId: e.id })}>
                 <button
                   type="button"
-                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-black/[0.08] bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:bg-secondary"
+                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-foreground/[0.08] bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:bg-secondary"
                 >
                   {s.emojiId ? (
                     // eslint-disable-next-line @next/next/no-img-element

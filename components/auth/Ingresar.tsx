@@ -90,7 +90,7 @@ export function Ingresar() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 pb-16 pt-24">
-      <section className="rounded-[1.75rem] border border-black/[0.06] bg-card p-6 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-8">
+      <section className="rounded-[1.75rem] border border-foreground/[0.06] bg-card p-6 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-8">
         <p className="eyebrow">
           Herramientas <span className="text-primary">\</span>
         </p>
@@ -107,7 +107,7 @@ export function Ingresar() {
 
         {pedidoListo ? (
           <div className="mt-6 space-y-4">
-            <p className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
+            <p className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-200">
               <strong className="font-semibold">Listo, {nombre.split(" ")[0]}.</strong> Tu pedido le llegó a los admins de Herramientas.
               Avisale a alguno (por WhatsApp o Slack) para que te apruebe: después entrás con <strong className="font-semibold">{email}</strong> y la
               contraseña que elegiste.
@@ -208,7 +208,7 @@ export function Ingresar() {
             <button
               type="button"
               onClick={() => account.signIn()}
-              className={cn(boton, "border bg-white font-medium shadow-sm hover:bg-secondary")}
+              className={cn(boton, "border bg-white font-medium shadow-sm hover:bg-secondary dark:bg-card dark:hover:bg-secondary")}
             >
               <GoogleMark /> Continuar con Google
             </button>

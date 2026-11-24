@@ -95,7 +95,7 @@ export function PanelRedaccion({
                 onClick={() => togglePlataforma(p.value)}
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
-                  on ? "border-foreground bg-foreground text-background" : "border-black/[0.08] bg-card hover:bg-secondary"
+                  on ? "border-foreground bg-foreground text-background" : "border-foreground/[0.08] bg-card hover:bg-secondary"
                 )}
               >
                 <PlatformIcon platform={p.value} className="h-3.5 w-3.5" /> {p.label}
@@ -160,7 +160,7 @@ export function PanelRedaccion({
         <button
           type="button"
           onClick={onAdaptar}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium shadow-sm transition-colors hover:bg-secondary"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium shadow-sm transition-colors hover:bg-secondary"
         >
           <Smartphone className="h-3.5 w-3.5" /> Adaptar a historia
         </button>
@@ -191,7 +191,7 @@ function CopyCampo({ pieza, onRedactar }: { pieza: Pieza; onRedactar?: () => voi
         type="button"
         onClick={onRedactar}
         disabled={!onRedactar}
-        className="group relative block min-h-[5.5rem] w-full rounded-xl border border-black/[0.08] bg-background/60 px-3 py-2.5 text-left text-sm leading-relaxed transition-colors hover:border-black/15 hover:bg-card"
+        className="group relative block min-h-[5.5rem] w-full rounded-xl border border-foreground/[0.08] bg-background/60 px-3 py-2.5 text-left text-sm leading-relaxed transition-colors hover:border-foreground/15 hover:bg-card"
       >
         {texto ? (
           <span className="line-clamp-6 whitespace-pre-line">{texto}</span>
@@ -213,7 +213,7 @@ function SmallRound({ label, onClick, icon: Icon }: { label: string; onClick: ()
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="grid h-6 w-6 place-items-center rounded-full border border-black/[0.08] bg-card text-muted-foreground shadow-sm hover:text-foreground"
+      className="grid h-6 w-6 place-items-center rounded-full border border-foreground/[0.08] bg-card text-muted-foreground shadow-sm hover:text-foreground"
     >
       <Icon className="h-3 w-3" />
     </button>
@@ -287,7 +287,7 @@ export function PanelDiseno({
           <button
             type="button"
             onClick={() => setArmandoGif(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-4 text-sm font-medium hover:bg-secondary"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-4 text-sm font-medium hover:bg-secondary"
           >
             <Sparkles className="h-4 w-4" /> Armar el GIF con los frames
           </button>
@@ -359,7 +359,7 @@ export function PanelCM({ pieza, titulo, update }: PanelProps & { titulo?: strin
           pieza.programada ? "border-emerald-700/30 bg-emerald-600/12" : "border-dashed border-foreground/20 hover:bg-secondary/60"
         )}
       >
-        <CheckCircle2 className={cn("h-6 w-6 shrink-0", pieza.programada ? "text-emerald-700" : "text-muted-foreground")} />
+        <CheckCircle2 className={cn("h-6 w-6 shrink-0", pieza.programada ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground")} />
         <span className="min-w-0">
           <span className="block font-display text-2xl leading-none">{pieza.programada ? "Programada" : "Sin programar"}</span>
           <span className="mt-1 block text-xs text-muted-foreground">
@@ -403,7 +403,7 @@ export function PanelCM({ pieza, titulo, update }: PanelProps & { titulo?: strin
                     type="button"
                     onClick={() => bajar(m.id, [m])}
                     disabled={!!bajando}
-                    className="relative flex w-full items-center gap-3 overflow-hidden rounded-xl border border-black/[0.06] bg-card px-3 py-2 text-left text-sm shadow-sm transition-colors hover:bg-secondary disabled:cursor-wait"
+                    className="relative flex w-full items-center gap-3 overflow-hidden rounded-xl border border-foreground/[0.06] bg-card px-3 py-2 text-left text-sm shadow-sm transition-colors hover:bg-secondary disabled:cursor-wait"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -466,7 +466,7 @@ function MedidaBanner({ pieza, update }: PanelProps) {
             const b = BANNERS.find((x) => `${x.w}x${x.h}` === e.target.value);
             if (b) update({ ancho: b.w, alto: b.h }, true);
           }}
-          className="h-8 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium outline-none"
+          className="h-8 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium outline-none"
           aria-label="Medida del banner"
         >
           {BANNERS.map((b) => (
@@ -483,7 +483,7 @@ function MedidaBanner({ pieza, update }: PanelProps) {
           max={4000}
           onChange={(e) => update({ ancho: num(e.target.value) })}
           aria-label="Ancho en px"
-          className="h-8 w-20 rounded-full border border-black/[0.08] bg-card px-3 text-xs tabular-nums outline-none"
+          className="h-8 w-20 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs tabular-nums outline-none"
         />
         <span className="text-xs text-muted-foreground">×</span>
         <input
@@ -493,7 +493,7 @@ function MedidaBanner({ pieza, update }: PanelProps) {
           max={4000}
           onChange={(e) => update({ alto: num(e.target.value) })}
           aria-label="Alto en px"
-          className="h-8 w-20 rounded-full border border-black/[0.08] bg-card px-3 text-xs tabular-nums outline-none"
+          className="h-8 w-20 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs tabular-nums outline-none"
         />
         <span className="text-xs text-muted-foreground">px</span>
       </div>
@@ -522,7 +522,7 @@ function CamposAnuncio({ pieza, update }: PanelProps) {
           <select
             value={anuncio.cta || CTA_POR_DEFECTO}
             onChange={(e) => set({ cta: e.target.value }, true)}
-            className="h-9 rounded-xl border border-black/[0.08] bg-card px-3 text-sm outline-none"
+            className="h-9 rounded-xl border border-foreground/[0.08] bg-card px-3 text-sm outline-none"
           >
             {CTAS.map((c) => (
               <option key={c.es} value={c.es}>
@@ -545,7 +545,7 @@ function CamposAnuncio({ pieza, update }: PanelProps) {
                 onClick={() => toggle(p.id)}
                 className={cn(
                   "inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors",
-                  on ? "border-foreground bg-foreground text-background" : "border-black/[0.08] bg-card hover:bg-secondary"
+                  on ? "border-foreground bg-foreground text-background" : "border-foreground/[0.08] bg-card hover:bg-secondary"
                 )}
               >
                 {p.label}

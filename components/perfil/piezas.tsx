@@ -174,7 +174,7 @@ export function EstadoLinea({ perfil, className, vacio }: { perfil: Perfil | nul
 
 export function FueraChip({ hasta, className }: { hasta: string; className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[13px] font-medium text-amber-900", className)}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[13px] font-medium text-amber-900 dark:bg-amber-400/15 dark:text-amber-200", className)}>
       <Plane className="h-3.5 w-3.5" /> {textoFuera(hasta)}
     </span>
   );
@@ -189,7 +189,7 @@ export function EstadoChip({ perfil, className }: { perfil: Perfil | null | unde
   const estado = estadoVigente(perfil);
   if (fuera) {
     return (
-      <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900", className)}>
+      <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:bg-amber-400/15 dark:text-amber-200", className)}>
         <Plane className="h-3 w-3" /> {textoFuera(fuera).replace("Fuera de oficina", "Fuera")}
       </span>
     );

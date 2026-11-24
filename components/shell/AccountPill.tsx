@@ -3,19 +3,22 @@
 import { forwardRef, useEffect, useState, type ButtonHTMLAttributes } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
-import { Check, ChevronRight, Info, KeyRound, Loader2, LogIn, LogOut, Plane } from "lucide-react";
+import { Check, ChevronRight, Info, KeyRound, Loader2, LogIn, LogOut, Moon, Plane } from "lucide-react";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { Hint, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMiPerfil } from "@/hooks/useMiPerfil";
 import { estadoVigente, fotoElegida, fueraDeOficina, textoFuera, type Perfil } from "@/lib/perfil";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { useAccount } from "./AccountProvider";
+import { useModoNoche } from "./ModoNoche";
 
 const SYNCED = [
   "Tu perfil: foto, nombre para mostrar y estado",
   "Favoritos y recientes de emojis",
   "Ajustes de emojis, GIF y conversor",
+  "El modo noche",
   "Tus redacciones y los emojis y hashtags de cada cliente",
   "Tus tarjetas quedan a tu nombre",
 ];
@@ -172,6 +175,7 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
                 </span>
               </Link>
             </PopoverClose>
+            <ModoNocheSwitch />
             <button
               type="button"
               onClick={() => run(signOut)}
@@ -196,7 +200,7 @@ export function AccountPill({ compact = false }: { compact?: boolean }) {
                   type="button"
                   onClick={() => run(signIn)}
                   disabled={busy || !ready}
-                  className="flex h-10 w-full items-center justify-center gap-2.5 rounded-full border bg-white text-sm font-medium shadow-sm transition-colors hover:bg-secondary disabled:opacity-60"
+                  className="flex h-10 w-full items-center justify-center gap-2.5 rounded-full border bg-white text-sm font-medium shadow-sm transition-colors hover:bg-secondary disabled:opacity-60 dark:bg-card dark:hover:bg-secondary"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
                   Continuar con Google
@@ -231,9 +235,32 @@ function EstadoCorto({ perfil }: { perfil: Perfil | null }) {
   if (!perfil) return null;
   const fuera = fueraDeOficina(perfil);
   const estado = estadoVigente(perfil);
-  if (fuera) return <p className="mt-0.5 truncate text-xs font-medium text-amber-800">{textoFuera(fuera)}</p>;
+  if (fuera) return <p className="mt-0.5 truncate text-xs font-medium text-amber-800 dark:text-amber-300">{textoFuera(fuera)}</p>;
   if (estado) return <p className="mt-0.5 truncate text-xs">{[estado.emoji, estado.texto].filter(Boolean).join(" ")}</p>;
   return <p className="mt-0.5 truncate text-xs text-muted-foreground/80">Poné tu estado</p>;
+}
+
+/** El modo noche, debajo del perfil: toda la fila prende y apaga el switch. */
+function ModoNocheSwitch() {
+  const modo = useModoNoche();
+  if (!modo) return null;
+  const { noche, setNoche } = modo;
+  return (
+    <div className="-mx-1.5 border-t pt-2">
+      <label className="flex cursor-pointer items-center gap-3 rounded-2xl p-1.5 transition-colors hover:bg-secondary/70">
+        <span
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors",
+            noche ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground/70"
+          )}
+        >
+          <Moon className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1 text-sm font-medium">Modo noche</span>
+        <Switch checked={noche} onCheckedChange={setNoche} aria-label="Modo noche" />
+      </label>
+    </div>
+  );
 }
 
 /** Lo que se guarda en la cuenta, aparte: se ve al pasar el mouse (o al tocarlo, en el celular). */

@@ -196,7 +196,7 @@ export function HiloComentarios({
   const uno = (c: Comentario, respuesta: boolean): ReactNode => {
     const delCliente = c.del_cliente ?? (!c.autor_id && !c.interno);
     return (
-      <div key={c.id} className={cn("group flex gap-2.5", respuesta && "ml-5 border-l border-black/[0.08] pl-3")}>
+      <div key={c.id} className={cn("group flex gap-2.5", respuesta && "ml-5 border-l border-foreground/[0.08] pl-3")}>
         <span
           className={cn(
             "mt-0.5 grid shrink-0 place-items-center rounded-full font-bold",
@@ -262,7 +262,7 @@ export function HiloComentarios({
         </button>
       )}
 
-      <div className="relative rounded-2xl border border-black/[0.08] bg-background/60 focus-within:border-foreground/25 focus-within:bg-card">
+      <div className="relative rounded-2xl border border-foreground/[0.08] bg-background/60 focus-within:border-foreground/25 focus-within:bg-card">
         {nombre && (
           <input
             value={nombre.value}
@@ -270,11 +270,11 @@ export function HiloComentarios({
             maxLength={80}
             placeholder="Tu nombre"
             aria-label="Tu nombre"
-            className="block w-full border-b border-black/[0.06] bg-transparent px-3 py-2 text-sm font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground/70"
+            className="block w-full border-b border-foreground/[0.06] bg-transparent px-3 py-2 text-sm font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground/70"
           />
         )}
         {respondiendo && (
-          <div className="flex items-center gap-1.5 border-b border-black/[0.06] px-3 py-1.5 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-1.5 border-b border-foreground/[0.06] px-3 py-1.5 text-[11px] text-muted-foreground">
             <CornerDownRight className="h-3 w-3 shrink-0" />
             <span className="min-w-0 flex-1 truncate">
               Respondiendo a <span className="font-semibold text-foreground">{respondiendo.autor_nombre || "Cliente"}</span>: {respondiendo.texto}

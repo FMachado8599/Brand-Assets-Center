@@ -8,10 +8,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { NewClientHost } from "@/components/clients/NewClientHost";
 import { JamBurbuja } from "@/components/spotify/jam/JamBurbuja";
 import { activeModule, LAST_MODULE_KEY, PERFIL, type AppModule } from "@/lib/modules";
+import { aplicarModoNoche } from "@/lib/tema";
 import { AccountPill } from "./AccountPill";
 import { AccountProvider } from "./AccountProvider";
 import { NotificacionesPill, useNotificacionesVisibles } from "./Notificaciones";
 import { BarTargetProvider, ContextBarHost } from "./ContextBar";
+import { ModoNocheProvider } from "./ModoNoche";
 import { Sidebar } from "./Sidebar";
 import { VisitTracker } from "./VisitTracker";
 
@@ -39,8 +41,14 @@ export function AppFrame({ children }: { children: ReactNode }) {
     }
   }, [current.href]);
 
-  // La plani en el link del cliente (/p/…) va sola: sin la navegación ni la cuenta del estudio.
-  if (pathname.startsWith("/p/")) {
+  // La plani en el link del cliente (/p/…) va sola: sin la navegación ni la cuenta del estudio, y
+  // siempre de día (acá no está ModoNocheProvider, así que si se llega navegando se saca acá).
+  const delCliente = pathname.startsWith("/p/");
+  useEffect(() => {
+    if (delCliente) aplicarModoNoche(false);
+  }, [delCliente]);
+
+  if (delCliente) {
     return (
       <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
         {children}
@@ -52,29 +60,31 @@ export function AppFrame({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
       <AccountProvider>
-        <BarTargetProvider value={target}>
-          {/* right-scroll-bar-position: al abrir la sidebar se bloquea el scroll y desaparece la barra de
-              desplazamiento; con esta clase (de react-remove-scroll) la barra superior no salta de costado. */}
-          <div className="right-scroll-bar-position pointer-events-none fixed inset-x-0 top-0 z-40 flex items-start gap-1.5 p-2 sm:gap-2 sm:p-3">
-            {/* Columnas laterales del mismo ancho en pantallas anchas: la barra queda centrada de verdad. */}
-            <div className="flex shrink-0 lg:w-48">
-              <NavPill module={current} onClick={() => setNavOpen(true)} />
+        <ModoNocheProvider>
+          <BarTargetProvider value={target}>
+            {/* right-scroll-bar-position: al abrir la sidebar se bloquea el scroll y desaparece la barra de
+                desplazamiento; con esta clase (de react-remove-scroll) la barra superior no salta de costado. */}
+            <div className="right-scroll-bar-position pointer-events-none fixed inset-x-0 top-0 z-40 flex items-start gap-1.5 p-2 sm:gap-2 sm:p-3">
+              {/* Columnas laterales del mismo ancho en pantallas anchas: la barra queda centrada de verdad. */}
+              <div className="flex shrink-0 lg:w-48">
+                <NavPill module={current} onClick={() => setNavOpen(true)} />
+              </div>
+              <div className="flex min-w-0 flex-1 justify-center">
+                <ContextBarHost onTarget={setTarget} />
+              </div>
+              <div className="flex shrink-0 justify-end lg:w-48">
+                <CuentaYAvisos />
+              </div>
             </div>
-            <div className="flex min-w-0 flex-1 justify-center">
-              <ContextBarHost onTarget={setTarget} />
-            </div>
-            <div className="flex shrink-0 justify-end lg:w-48">
-              <CuentaYAvisos />
-            </div>
-          </div>
 
-          <Sidebar open={navOpen} onOpenChange={setNavOpen} current={current} />
-          {children}
-          <NewClientHost />
-          <JamBurbuja />
-          <Toaster />
-          <VisitTracker />
-        </BarTargetProvider>
+            <Sidebar open={navOpen} onOpenChange={setNavOpen} current={current} />
+            {children}
+            <NewClientHost />
+            <JamBurbuja />
+            <Toaster />
+            <VisitTracker />
+          </BarTargetProvider>
+        </ModoNocheProvider>
       </AccountProvider>
     </TooltipProvider>
   );

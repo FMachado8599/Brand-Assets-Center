@@ -72,7 +72,7 @@ export function IconDialog({
                   onClick={() => onSize(s)}
                   className={cn(
                     "h-8 flex-1 rounded-full border text-xs font-medium tabular-nums transition-colors",
-                    size === s ? "border-ink bg-ink text-cream" : "bg-card hover:bg-secondary"
+                    size === s ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-secondary"
                   )}
                 >
                   {s}

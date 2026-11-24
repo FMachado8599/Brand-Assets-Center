@@ -4,7 +4,9 @@
 
 @layer base {
   /* Cámara TBWA: crema, negro tinta y el amarillo de marca como acento (igual que Inicio). */
-  :root {
+  /* tema-dia: lo que se ve siempre de día, aunque esté prendido el modo noche (la presentación de Inicio). */
+  :root,
+  .tema-dia {
     --background: 43 26% 89%; /* crema #ebe7dd */
     --foreground: 240 12% 5%; /* tinta #0b0b0e */
     --card: 43 33% 96%; /* papel, un poco más claro que el fondo */
@@ -26,6 +28,54 @@
     /* Ámbar: el amarillo de marca no se ve como anillo de foco sobre crema; el ámbar sí, y también sobre negro. */
     --ring: 42 100% 42%;
     --radius: 0.4rem;
+
+    /* Los tonos del Board (lib/board/flujo.ts): el texto de cada estado y los grises de las etiquetas. */
+    --tono-vencida: #c0301a;
+    --tono-pronto: #a86a0c;
+    --tono-esperando: #5f4bd0;
+    --tono-vieja: #8a6a3b;
+    --tono-curso: #2563c9;
+    --tono-neutro: #6b6862;
+    --tono-finalizada: #0f8a70;
+    --tono-gris: rgba(32, 32, 32, 0.06);
+    --tono-gris-pausa: rgba(32, 32, 32, 0.07);
+  }
+  .tema-dia { color-scheme: light; }
+
+  /* Modo noche: el negro tinta de fondo y la crema como texto; el amarillo de marca sigue igual.
+     El fondo es un poco más claro que la tinta para que la barra y la sidebar (negras) sigan flotando.
+     Se prende con la clase "dark" en <html> (lib/tema.ts). */
+  .dark {
+    color-scheme: dark;
+    --background: 240 6% 9%; /* #151518 */
+    --foreground: 43 26% 89%; /* crema */
+    --card: 240 5% 12%;
+    --card-foreground: 43 26% 89%;
+    --popover: 240 5% 13%;
+    --popover-foreground: 43 26% 89%;
+    --primary: 49 100% 50%;
+    --primary-foreground: 240 12% 5%;
+    --secondary: 240 5% 17%;
+    --secondary-foreground: 43 26% 89%;
+    --muted: 240 5% 17%;
+    --muted-foreground: 40 6% 62%;
+    --accent: 240 5% 19%;
+    --accent-foreground: 43 26% 89%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 21%;
+    --input: 240 5% 27%;
+    --ring: 45 100% 50%;
+
+    --tono-vencida: #ff7a5c;
+    --tono-pronto: #f2b24a;
+    --tono-esperando: #a99bff;
+    --tono-vieja: #d4b27e;
+    --tono-curso: #6fa8ff;
+    --tono-neutro: #a8a49c;
+    --tono-finalizada: #3fd1ae;
+    --tono-gris: rgba(235, 231, 221, 0.08);
+    --tono-gris-pausa: rgba(235, 231, 221, 0.1);
   }
 }
 
@@ -46,16 +96,21 @@
     background-color: hsl(var(--card) / 0.95);
     backdrop-filter: saturate(1.3) blur(16px);
     -webkit-backdrop-filter: saturate(1.3) blur(16px);
-    border: 1px solid hsl(240 12% 5% / 0.1);
+    border: 1px solid hsl(var(--foreground) / 0.1);
     box-shadow:
       0 1px 1px hsl(240 12% 5% / 0.04),
       0 16px 36px -16px hsl(240 12% 5% / 0.32);
+  }
+  .dark .floating {
+    box-shadow:
+      0 1px 1px hsl(240 12% 5% / 0.3),
+      0 16px 36px -16px hsl(240 12% 5% / 0.8);
   }
   /* Superficie flotante negra: la píldora de módulos, la barra contextual, la cuenta y la sidebar.
      Casi opaca y sin backdrop-filter: así de oscura el desenfoque no se veía, y recalcularlo en cada
      cuadro (al scrollear, o sobre la luz animada de Inicio) traba las placas de video modestas. */
   .floating-ink {
-    color: hsl(var(--background));
+    color: hsl(43 26% 89%); /* crema: la píldora es negra de día y de noche */
     background-color: hsl(240 12% 5% / 0.96);
     border: 1px solid hsl(43 26% 89% / 0.12);
     box-shadow:
@@ -106,6 +161,8 @@
 .rd-editor:focus-visible { box-shadow: none; }
 .rd-hashtag { color: hsl(30 90% 36%); font-weight: 500; }
 .rd-mention { color: hsl(205 75% 38%); font-weight: 500; }
+.dark .rd-hashtag { color: hsl(32 95% 62%); }
+.dark .rd-mention { color: hsl(205 85% 68%); }
 /* Texto predictivo: la sugerencia en gris después del cursor, con un "Tab" chiquito al final. */
 .rd-ghost { color: hsl(var(--muted-foreground) / 0.6); pointer-events: none; user-select: none; }
 .rd-ghost-tab {
@@ -135,6 +192,14 @@
   );
   background-size: 220% 100%;
   animation: skeleton-shimmer 1.3s linear infinite;
+}
+.dark .skeleton {
+  background-image: linear-gradient(
+    100deg,
+    hsl(var(--secondary)) 30%,
+    hsl(var(--foreground) / 0.12) 50%,
+    hsl(var(--secondary)) 70%
+  );
 }
 @keyframes skeleton-shimmer {
   from { background-position: 120% 0; }

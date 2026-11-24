@@ -387,7 +387,7 @@ function Editor({ id }: { id: string }) {
               <select
                 value={plani.mes}
                 onChange={(e) => cambiarPeriodo(plani.anio, Number(e.target.value))}
-                className="h-8 flex-1 rounded-full border border-black/[0.08] bg-card px-3 text-sm"
+                className="h-8 flex-1 rounded-full border border-foreground/[0.08] bg-card px-3 text-sm"
               >
                 {MESES.map((m, i) => (
                   <option key={m} value={i + 1}>
@@ -398,7 +398,7 @@ function Editor({ id }: { id: string }) {
               <select
                 value={plani.anio}
                 onChange={(e) => cambiarPeriodo(Number(e.target.value), plani.mes)}
-                className="h-8 rounded-full border border-black/[0.08] bg-card px-3 text-sm"
+                className="h-8 rounded-full border border-foreground/[0.08] bg-card px-3 text-sm"
               >
                 {[plani.anio - 1, plani.anio, plani.anio + 1].map((a) => (
                   <option key={a} value={a}>
@@ -440,7 +440,7 @@ function Editor({ id }: { id: string }) {
                     href={linkCliente}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex h-8 items-center rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary"
+                    className="inline-flex h-8 items-center rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium hover:bg-secondary"
                   >
                     Ver
                   </a>
@@ -449,7 +449,7 @@ function Editor({ id }: { id: string }) {
                     onClick={nuevoLink}
                     title="Cambiar el link (el anterior deja de andar)"
                     aria-label="Cambiar el link"
-                    className="grid h-8 w-8 place-items-center rounded-full border border-black/[0.08] bg-card hover:bg-secondary"
+                    className="grid h-8 w-8 place-items-center rounded-full border border-foreground/[0.08] bg-card hover:bg-secondary"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
@@ -536,14 +536,14 @@ function Editor({ id }: { id: string }) {
         {/* ───── Portada ───── */}
         <header className="grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
           <div className="min-w-0">
-            <p className="site-label flex items-center gap-2 text-ink/50">
-              <Link href={`/clientes/${cliente.id}`} className="hover:text-ink">
+            <p className="site-label flex items-center gap-2 text-foreground/50">
+              <Link href={`/clientes/${cliente.id}`} className="hover:text-foreground">
                 {cliente.name}
               </Link>
             </p>
             <TipoChip tipo={tipo} className="mt-3" />
             <RevealTitle className="mt-4 font-display text-[clamp(3.4rem,11vw,8rem)] leading-[0.86] tracking-[-0.025em]" deps={[plani.id]}>
-              {MESES[plani.mes - 1]} <em className="text-ink/25">{plani.anio}</em>
+              {MESES[plani.mes - 1]} <em className="text-foreground/25">{plani.anio}</em>
             </RevealTitle>
           </div>
           <dl className="grid grid-cols-4 gap-x-5 gap-y-1 md:text-right">
@@ -561,7 +561,7 @@ function Editor({ id }: { id: string }) {
           </dl>
         </header>
 
-        <div className="mt-8 rounded-[1.75rem] border border-black/[0.06] bg-card/80 p-4 sm:p-5">
+        <div className="mt-8 rounded-[1.75rem] border border-foreground/[0.06] bg-card/80 p-4 sm:p-5">
           <EstadoStepper value={plani.estado} onChange={pasarA} />
           {CIERRE[plani.estado] && (
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-secondary/60 px-3.5 py-3">
@@ -581,7 +581,7 @@ function Editor({ id }: { id: string }) {
               </button>
             </div>
           )}
-          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 border-t border-black/[0.06] pt-3 text-xs text-muted-foreground">
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 border-t border-foreground/[0.06] pt-3 text-xs text-muted-foreground">
             <span>
               <b className="font-semibold text-foreground tabular-nums">{conMaterial}</b> de {piezas.length} con material final
             </span>
@@ -679,7 +679,7 @@ function Editor({ id }: { id: string }) {
                     <button
                       type="button"
                       aria-label={`Agregar una pieza el ${etiquetaDia(d.fecha)}`}
-                      className="ml-auto mb-0.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-black/[0.08] bg-card px-3 text-xs font-medium shadow-sm transition-colors hover:bg-secondary"
+                      className="ml-auto mb-0.5 inline-flex h-8 items-center gap-1.5 rounded-full border border-foreground/[0.08] bg-card px-3 text-xs font-medium shadow-sm transition-colors hover:bg-secondary"
                     >
                       <Plus className="h-3.5 w-3.5" /> Pieza
                     </button>
@@ -710,7 +710,7 @@ function Editor({ id }: { id: string }) {
           {dias.length > 0 && (
             <div className="flex justify-center">
               <NuevaPiezaMenu fecha={sugerida} conFecha align="center" onCrear={(f, fmt) => crear(f, fmt)}>
-                <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-card px-5 text-sm font-medium shadow-sm transition-colors hover:bg-secondary">
+                <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full border border-foreground/[0.08] bg-card px-5 text-sm font-medium shadow-sm transition-colors hover:bg-secondary">
                   <Plus className="h-4 w-4" /> Otra pieza
                 </button>
               </NuevaPiezaMenu>
@@ -768,7 +768,7 @@ function PendientesEnPiezas({
   const con = piezas.filter((p) => pendientes(porPieza.get(p.id)) > 0);
   if (!con.length) return null;
   return (
-    <div className="mt-4 border-t border-black/[0.06] pt-3">
+    <div className="mt-4 border-t border-foreground/[0.06] pt-3">
       <p className="eyebrow mb-1.5">Sin resolver en piezas</p>
       <ul className="space-y-0.5">
         {con.map((p) => (

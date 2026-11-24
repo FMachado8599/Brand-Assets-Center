@@ -25,7 +25,7 @@ export function ConverterSettings({
       <div
         className={cn(
           "flex items-center gap-2 rounded-xl px-3 py-2 text-xs",
-          configured ? "bg-emerald-50 text-emerald-800" : "bg-destructive/10 text-destructive"
+          configured ? "bg-emerald-50 dark:bg-emerald-400/10 text-emerald-800 dark:text-emerald-300" : "bg-destructive/10 text-destructive"
         )}
       >
         {configured ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}

@@ -79,7 +79,7 @@ export function ProductsSection({
               type="button"
               onClick={() => remove(p)}
               aria-label={`Quitar ${p.name}`}
-              className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
+              className="grid h-6 w-6 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
               <X className="h-3 w-3" />
             </button>
@@ -275,7 +275,7 @@ export function KitSection({ brand, kit }: { brand: Brand; kit: BrandKit }) {
                   key={tag}
                   type="button"
                   onClick={() => copyWithToast(`#${tag}`)}
-                  className="h-7 rounded-full bg-secondary/80 px-2.5 text-xs font-medium text-[hsl(30_90%_36%)] transition-colors hover:bg-primary hover:text-primary-foreground"
+                  className="h-7 rounded-full bg-secondary/80 px-2.5 text-xs font-medium text-[hsl(30_90%_36%)] transition-colors dark:text-[hsl(32_95%_62%)] hover:bg-primary hover:text-primary-foreground"
                 >
                   #{tag}
                 </button>

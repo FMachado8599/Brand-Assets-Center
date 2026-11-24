@@ -528,9 +528,9 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
           <div className="flex min-w-0 flex-1 items-start justify-center gap-3">
             <section
               aria-label="Editor"
-              className="flex min-w-0 max-w-3xl flex-1 flex-col rounded-[1.75rem] border border-black/[0.06] bg-card/95 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-24px_hsl(40_45%_20%/0.3)]"
+              className="flex min-w-0 max-w-3xl flex-1 flex-col rounded-[1.75rem] border border-foreground/[0.06] bg-card/95 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-24px_hsl(40_45%_20%/0.3)]"
             >
-              <header className="flex items-center gap-2 rounded-t-[1.75rem] border-b border-black/[0.05] px-3 py-2.5 sm:px-4">
+              <header className="flex items-center gap-2 rounded-t-[1.75rem] border-b border-foreground/[0.05] px-3 py-2.5 sm:px-4">
                 <TitleInput
                   key={current?.id ?? "nueva"}
                   title={current?.title ?? DEFAULT_TITLE}
@@ -588,7 +588,7 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
                 </div>
               )}
 
-              <footer className="sticky bottom-0 flex items-center gap-3 rounded-b-[1.75rem] border-t border-black/[0.05] bg-card/90 px-3 py-2 backdrop-blur sm:px-4">
+              <footer className="sticky bottom-0 flex items-center gap-3 rounded-b-[1.75rem] border-t border-foreground/[0.05] bg-card/90 px-3 py-2 backdrop-blur sm:px-4">
                 <div className="flex items-center gap-0.5 lg:hidden">
                   {PANELS.map((p) => (
                     <Bubble key={p.kind} kind={p.kind} size="sm" open={panel === p.kind} onClick={() => togglePanel(p.kind)} />

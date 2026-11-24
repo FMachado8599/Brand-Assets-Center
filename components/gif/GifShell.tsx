@@ -215,7 +215,7 @@ export function GifShell() {
                 <button
                   type="button"
                   onClick={() => setOnlyWarnings(false)}
-                  className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-foreground/80 hover:bg-black/5"
+                  className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium text-foreground/80 hover:bg-foreground/5"
                 >
                   <X className="h-3 w-3" /> Ver todos
                 </button>
@@ -319,7 +319,7 @@ function Stat({ children, tone }: { children: React.ReactNode; tone?: "warn" | "
     <span
       className={cn(
         "rounded-full border bg-card px-2.5 py-0.5 font-medium tabular-nums shadow-sm",
-        tone === "warn" && "border-amber-200 bg-amber-50 text-amber-900",
+        tone === "warn" && "border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 text-amber-900 dark:text-amber-200",
         tone === "error" && "border-destructive/30 bg-destructive/5 text-destructive"
       )}
     >

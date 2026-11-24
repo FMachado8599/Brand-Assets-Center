@@ -168,7 +168,7 @@ function Swatch({
   return (
     <li className="flex flex-col gap-2">
       <div
-        className={cn("group relative h-28 overflow-hidden rounded-2xl", isVeryLight(color.hex) && "ring-1 ring-inset ring-black/10")}
+        className={cn("group relative h-28 overflow-hidden rounded-2xl", isVeryLight(color.hex) && "ring-1 ring-inset ring-foreground/10")}
         style={{ background: color.hex, color: ink }}
       >
         <button
@@ -259,7 +259,7 @@ function AddColor({ onAdd }: { onAdd: (color: BrandColor) => void }) {
       className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-2.5"
     >
       <label
-        className="relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl ring-1 ring-inset ring-black/10"
+        className="relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl ring-1 ring-inset ring-foreground/10"
         style={{ background: valid ?? "conic-gradient(from 90deg, #f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e)" }}
       >
         {!valid && <Pipette className="h-4 w-4 text-white drop-shadow" />}

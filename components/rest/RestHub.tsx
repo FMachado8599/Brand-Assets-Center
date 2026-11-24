@@ -19,7 +19,7 @@ export function RestHub() {
       <header className="pb-8 duration-700 animate-in fade-in-0 md:pb-10">
         <p className="eyebrow">Rest</p>
         <h1 className="mt-4 text-balance font-display text-[clamp(2.6rem,7vw,5.5rem)] leading-[0.92] tracking-[-0.02em]">
-          Un recreo. <em className="text-ink/40">Cinco minutos y volvés.</em>
+          Un recreo. <em className="text-foreground/40">Cinco minutos y volvés.</em>
         </h1>
         <p className="mt-4 max-w-xl text-sm text-muted-foreground sm:text-base">
           Juegos cortos para cortar un rato. Cada lunes el ranking arranca de cero, así que siempre hay revancha.
@@ -46,9 +46,9 @@ function TarjetaJuego({ juego }: { juego: Juego }) {
   return (
     <Link
       href={juego.href}
-      className="group flex h-full flex-col overflow-hidden rounded-3xl border border-ink/15 bg-card shadow-[0_1px_0_hsl(240_12%_5%/0.04)] transition-shadow hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-3xl border border-foreground/15 bg-card shadow-[0_1px_0_hsl(240_12%_5%/0.04)] transition-shadow hover:shadow-md"
     >
-      <div className="relative h-40 overflow-hidden border-b border-ink/10 bg-background/50 sm:h-44">
+      <div className="relative h-40 overflow-hidden border-b border-foreground/10 bg-background/50 sm:h-44">
         {juego.id === "dino" ? <EscenaDino /> : <EscenaBuscaminas />}
       </div>
       <div className="flex flex-1 flex-col p-5 sm:p-6">
@@ -86,7 +86,7 @@ function Lider({ juego, modo, etiqueta }: { juego: JuegoId; modo: Modo; etiqueta
         <span className="text-xs text-muted-foreground">Nadie todavía: el puesto es tuyo</span>
       ) : (
         <>
-          <Crown className="h-3.5 w-3.5 shrink-0 text-ink/40" />
+          <Crown className="h-3.5 w-3.5 shrink-0 text-foreground/40" />
           <Avatar nombre={primero.nombre} avatar={primero.avatar} size={22} />
           <span className="min-w-0 truncate font-medium">{primero.yo ? "Vos" : primero.nombre}</span>
           <span className="ml-auto shrink-0 font-semibold tabular-nums">{formatPuntaje(juego, primero.puntaje)}</span>
@@ -141,7 +141,7 @@ const COLOR_NUMERO = ["", "#1d4ed8", "#15803d"];
 function EscenaBuscaminas() {
   return (
     <div className="grid h-full place-items-center px-6" aria-hidden>
-      <div className="grid grid-cols-7 gap-[2px] rounded-lg bg-ink/[0.12] p-[3px]">
+      <div className="grid grid-cols-7 gap-[2px] rounded-lg bg-foreground/[0.12] p-[3px]">
         {MUESTRA.flatMap((fila, r) =>
           [...fila].map((c, k) => {
             const cerrada = c === "F" || c === "#";

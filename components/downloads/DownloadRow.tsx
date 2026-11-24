@@ -367,7 +367,7 @@ function TransferStatus({ transfer, onRetry }: { transfer: Transfer; onRetry: ()
     );
   }
   return (
-    <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+    <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
       <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
       {transfer.driveUrl ? (
         <a href={transfer.driveUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">

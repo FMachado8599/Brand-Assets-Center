@@ -238,7 +238,7 @@ export function AddPieceDialog({
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium">
                           {p.label}
-                          {note && <span className="text-[11px] font-normal text-amber-700">{note}</span>}
+                          {note && <span className="text-[11px] font-normal text-amber-700 dark:text-amber-400">{note}</span>}
                         </span>
                         <span className="block text-xs text-muted-foreground">{p.hint}</span>
                       </span>
