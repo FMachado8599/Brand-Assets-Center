@@ -62,6 +62,9 @@ export type ListaMensajes = {
   mensajes: MensajeResumen[];
 };
 
+/** Un mail con un cliente, para su ficha: de qué carpeta es y si lo mandaste vos. */
+export type MailDeCliente = MensajeResumen & { carpeta: string; enviado: boolean };
+
 /** Lo mínimo para saber si llegó algo nuevo sin traer la lista. */
 export type EstadoCarpeta = { carpeta: string; total: number; noLeidos: number; uidNext: number };
 

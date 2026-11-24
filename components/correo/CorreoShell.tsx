@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertOctagon,
   Archive,
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Contact,
   FileText,
   Folder,
   Inbox,
@@ -26,9 +29,11 @@ import { useConfirm } from "@/components/ui/confirm";
 import { toast } from "@/components/ui/toaster";
 import { useDebounced } from "@/hooks/useDebounced";
 import { api, borradorDe, ErrorCorreo, fechaCorta, jsonInit, type Borrador } from "@/lib/correo/cliente";
+import { useContactos, type ClienteDeMail, type Contacto } from "@/lib/correo/contactos";
+import { correosCliente } from "@/lib/correo/clientesCorreo";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { publicarNoLeidos, sinCasillaCorreo } from "@/lib/correo/noLeidos";
 import {
-  nombreDireccion,
   type AccionMensaje,
   type Carpeta,
   type EstadoCarpeta,
@@ -40,7 +45,10 @@ import {
   type TipoCarpeta,
 } from "@/lib/correo/types";
 import { cn } from "@/lib/utils";
+import { ClientMark } from "@/components/clients/ClientMark";
+import { Avatar } from "./Avatar";
 import { Conectar, Marco } from "./Conectar";
+import { FotosContactos } from "./FotosContactos";
 import { Redactar } from "./Redactar";
 import { VistaMensaje } from "./VistaMensaje";
 
@@ -164,8 +172,17 @@ function Bandeja({
 }) {
   const confirm = useConfirm();
   const yo = estado.email ?? "";
+  // Desde otro lado de la app se puede llegar a un mail (?carpeta=…&uid=…) o a los de un cliente (?cliente=…).
+  // La bandeja se arma recién en el navegador (antes hay que saber si tenés casilla), así que se lee la URL acá.
+  const [inicial] = useState(() => {
+    const p = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+    const uid = Number(p.get("uid"));
+    return { carpeta: p.get("carpeta") || "INBOX", uid: Number.isInteger(uid) && uid > 0 ? uid : null, cliente: p.get("cliente") };
+  });
   const [carpetas, setCarpetas] = useState<Carpeta[]>([]);
-  const [carpeta, setCarpeta] = useState("INBOX");
+  const [carpeta, setCarpeta] = useState(inicial.carpeta);
+  const [cliente, setCliente] = useState<string | null>(inicial.cliente);
+  const [clientes, setClientes] = useState<ClienteDeMail[]>([]);
   const [pagina, setPagina] = useState(0);
   const [busqueda, setBusqueda] = useState("");
   const [q] = useDebounced(busqueda.trim(), 450);
@@ -177,6 +194,7 @@ function Bandeja({
   const [cargandoMensaje, setCargandoMensaje] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<Borrador | null>(null);
+  const [fotos, setFotos] = useState(false);
   const pedidoLista = useRef(0);
   const pedidoMensaje = useRef(0);
   const ultimo = useRef<EstadoCarpeta | null>(null);
@@ -214,6 +232,7 @@ function Bandeja({
       try {
         const params = new URLSearchParams({ carpeta, pagina: String(pagina) });
         if (q) params.set("q", q);
+        if (cliente) params.set("cliente", cliente);
         const r = await api<ListaMensajes>(`/api/correo/mensajes?${params}`);
         if (n !== pedidoLista.current) return;
         setLista(r);
@@ -224,7 +243,7 @@ function Bandeja({
         if (n === pedidoLista.current) setCargando(false);
       }
     },
-    [carpeta, pagina, q, fallo]
+    [carpeta, pagina, q, cliente, fallo]
   );
 
   useEffect(() => {
@@ -236,12 +255,44 @@ function Bandeja({
   }, [cargarLista]);
 
   // Cambiar de carpeta o de búsqueda vuelve a la primera página.
-  useEffect(() => setPagina(0), [carpeta, q]);
+  useEffect(() => setPagina(0), [carpeta, q, cliente]);
   useEffect(() => {
     ultimo.current = null;
     setAbierto(null);
     setMensaje(null);
   }, [carpeta]);
+
+  // Los clientes que tienen mails o dominios cargados, para filtrar la bandeja.
+  useEffect(() => {
+    correosCliente
+      .clientesConCorreo()
+      .then(setClientes)
+      .catch(() => setClientes([]));
+  }, []);
+
+  // Si se llegó a un mail puntual, se abre; y la URL queda limpia (al recargar no lo vuelve a abrir).
+  useEffect(() => {
+    if (inicial.uid) {
+      abrir(inicial.uid);
+      cargarCarpetas();
+    }
+    if (inicial.uid || inicial.carpeta !== "INBOX") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("uid");
+      url.searchParams.delete("carpeta");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+    // Solo al entrar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // El filtro de cliente queda en la URL: se puede volver o compartir el link.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (cliente) url.searchParams.set("cliente", cliente);
+    else url.searchParams.delete("cliente");
+    if (url.search !== window.location.search) window.history.replaceState(null, "", url.pathname + url.search);
+  }, [cliente]);
 
   // El tipo de la carpeta abierta, para el aviso de "llegó un mail" (solo en Recibidos).
   const actualTipo = useRef<TipoCarpeta | undefined>(undefined);
@@ -261,7 +312,7 @@ function Bandeja({
         if (antes.uidNext !== e.uidNext || antes.total !== e.total || antes.noLeidos !== e.noLeidos) {
           if (e.uidNext > antes.uidNext && actualTipo.current === "inbox") toast(e.uidNext - antes.uidNext > 1 ? "Llegaron mails nuevos" : "Llegó un mail nuevo");
           cargarCarpetas();
-          if (pagina === 0 && !q) cargarLista(true);
+          if (pagina === 0 && !q && !cliente) cargarLista(true);
         }
       } catch {
         /* sin red un rato: se vuelve a probar en el próximo */
@@ -276,7 +327,7 @@ function Bandeja({
       clearInterval(t);
       document.removeEventListener("visibilitychange", alVolver);
     };
-  }, [carpeta, pagina, q, cargarCarpetas, cargarLista]);
+  }, [carpeta, pagina, q, cliente, cargarCarpetas, cargarLista]);
 
   const cambiarEnLista = (uids: number[], cambio: Partial<MensajeResumen>) =>
     setLista((l) => (l ? { ...l, mensajes: l.mensajes.map((m) => (uids.includes(m.uid) ? { ...m, ...cambio } : m)) } : l));
@@ -284,18 +335,19 @@ function Bandeja({
   const sumarNoLeidos = (delta: number) =>
     setCarpetas((cs) => cs.map((c) => (c.path === carpeta ? { ...c, noLeidos: Math.max(0, c.noLeidos + delta) } : c)));
 
-  async function abrir(m: MensajeResumen) {
+  /** Abre un mail. Con su fila de la lista (m), si no estaba leído se marca ahí al toque. */
+  async function abrir(uid: number, m?: MensajeResumen) {
     const n = ++pedidoMensaje.current;
-    setAbierto(m.uid);
+    setAbierto(uid);
     setMensaje(null);
     setErrorMensaje(null);
     setCargandoMensaje(true);
     try {
-      const r = await api<Mensaje>(`/api/correo/mensaje?carpeta=${encodeURIComponent(carpeta)}&uid=${m.uid}`);
+      const r = await api<Mensaje>(`/api/correo/mensaje?carpeta=${encodeURIComponent(carpeta)}&uid=${uid}`);
       if (n !== pedidoMensaje.current) return;
       setMensaje(r);
-      if (!m.leido) {
-        cambiarEnLista([m.uid], { leido: true });
+      if (m && !m.leido) {
+        cambiarEnLista([uid], { leido: true });
         sumarNoLeidos(-1);
       }
     } catch (e) {
@@ -364,6 +416,9 @@ function Bandeja({
     }
   }
 
+  // Quién es cada uno de la página (foto, nombre, cliente): se pide de una vez para toda la lista.
+  const contactos = useContactos(lista ? lista.mensajes.flatMap((m) => (enviados ? m.para : m.de).map((d) => d.email)) : []);
+
   const total = lista?.total ?? 0;
   const porPagina = lista?.porPagina ?? 50;
   const desde = total ? pagina * porPagina + 1 : 0;
@@ -385,6 +440,7 @@ function Bandeja({
           }}
           className="hidden sm:grid"
         />
+        <BarButton label="Fotos de la gente que te escribe" icon={Contact} onClick={() => setFotos(true)} className="hidden sm:grid" />
         <BarButton label="Desconectar tu casilla" icon={LogOut} onClick={desconectar} className="hidden sm:grid" />
         <BarDivider />
         <BarAction label="Redactar" icon={PenSquare} onClick={() => responder("nuevo")} />
@@ -430,11 +486,12 @@ function Bandeja({
             <div className="min-w-0">
               <h1 className="truncate text-[15px] font-semibold">{q ? `“${q}” en ${actual?.nombre ?? ""}` : actual?.nombre ?? "Recibidos"}</h1>
               <p className="text-xs text-muted-foreground">
-                {cargando && !lista ? "Cargando…" : total ? `${desde}–${hasta} de ${total}` : q ? "Nada encontrado" : "Vacía"}
-                {!q && actual?.tipo === "inbox" && noLeidosInbox > 0 && ` · ${noLeidosInbox} sin leer`}
+                {cargando && !lista ? "Cargando…" : total ? `${desde}–${hasta} de ${total}` : q || cliente ? "Nada encontrado" : "Vacía"}
+                {!q && !cliente && actual?.tipo === "inbox" && noLeidosInbox > 0 && ` · ${noLeidosInbox} sin leer`}
               </p>
             </div>
             <div className="flex shrink-0 items-center">
+              <FiltroCliente clientes={clientes} elegido={cliente} onElegir={setCliente} />
               {cargando && lista && <Loader2 className="mr-1 h-4 w-4 animate-spin text-muted-foreground" />}
               <Paginar label="Más nuevos" icon={ChevronLeft} disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)} />
               <Paginar label="Más viejos" icon={ChevronRight} disabled={hasta >= total} onClick={() => setPagina((p) => p + 1)} />
@@ -460,7 +517,7 @@ function Bandeja({
             ) : (
               <ul>
                 {lista.mensajes.map((m) => (
-                  <Fila key={m.uid} m={m} activa={m.uid === abierto} enviados={enviados} onClick={() => abrir(m)} />
+                  <Fila key={m.uid} m={m} activa={m.uid === abierto} enviados={enviados} contactos={contactos} onClick={() => abrir(m.uid, m)} />
                 ))}
               </ul>
             )}
@@ -476,6 +533,7 @@ function Bandeja({
         >
           <VistaMensaje
             carpeta={carpeta}
+            yo={yo}
             mensaje={abierto ? mensaje : null}
             cargando={cargandoMensaje}
             error={abierto ? errorMensaje : null}
@@ -490,6 +548,8 @@ function Bandeja({
         </section>
       </main>
 
+      <FotosContactos open={fotos} onOpenChange={setFotos} />
+
       <Redactar
         borrador={borrador}
         onClose={() => setBorrador(null)}
@@ -500,6 +560,45 @@ function Bandeja({
         }}
       />
     </>
+  );
+}
+
+/** De qué cliente ver los mails: solo los clientes con mails o dominios cargados en su ficha. */
+function FiltroCliente({ clientes, elegido, onElegir }: { clientes: ClienteDeMail[]; elegido: string | null; onElegir: (id: string | null) => void }) {
+  const actual = clientes.find((c) => c.id === elegido);
+  if (!clientes.length && !elegido) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={actual ? `Mails de ${actual.name}. Cambiar de cliente` : "Ver los mails de un cliente"}
+          className={cn(
+            "mr-1 inline-flex h-8 max-w-[10rem] items-center gap-1.5 rounded-full border px-2 text-[13px] transition-colors",
+            actual ? "border-ink bg-ink text-cream" : "bg-card text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {actual ? <ClientMark brand={actual} className="h-5 w-5 shrink-0 rounded-full" pad="p-[12%]" /> : null}
+          <span className="truncate">{actual?.name ?? "Cliente"}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-[60vh] w-60 overflow-y-auto">
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Ver los mails de</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => onElegir(null)} className="gap-2">
+          <span className="grid h-5 w-5 place-items-center">{!elegido && <Check className="h-4 w-4" />}</span>
+          Todos
+        </DropdownMenuItem>
+        {clientes.length > 0 && <DropdownMenuSeparator />}
+        {clientes.map((c) => (
+          <DropdownMenuItem key={c.id} onSelect={() => onElegir(c.id)} className="gap-2">
+            <ClientMark brand={c} className="h-5 w-5 shrink-0 rounded-full" pad="p-[12%]" />
+            <span className="min-w-0 flex-1 truncate">{c.name}</span>
+            {elegido === c.id && <Check className="h-4 w-4 shrink-0" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -523,9 +622,26 @@ function BotonCarpeta({ c, activa, onClick }: { c: Carpeta; activa: boolean; onC
   );
 }
 
-function Fila({ m, activa, enviados, onClick }: { m: MensajeResumen; activa: boolean; enviados: boolean; onClick: () => void }) {
+function Fila({
+  m,
+  activa,
+  enviados,
+  contactos,
+  onClick,
+}: {
+  m: MensajeResumen;
+  activa: boolean;
+  enviados: boolean;
+  contactos: Map<string, Contacto>;
+  onClick: () => void;
+}) {
   const quien = enviados ? m.para : m.de;
-  const nombre = quien.length ? quien.map(nombreDireccion).join(", ") : "—";
+  // El nombre que trae el mail; si no trae (solo la dirección), el que conoce la app.
+  const nombreDe = (d: (typeof quien)[number]) => d.nombre?.trim() || contactos.get(d.email)?.nombre || d.email;
+  const nombre = quien.length ? quien.map(nombreDe).join(", ") : "—";
+  const primero = quien[0];
+  const contacto = primero ? contactos.get(primero.email) : undefined;
+  const cliente = quien.map((d) => contactos.get(d.email)?.clientes[0]).find(Boolean);
   return (
     <li>
       <button
@@ -537,12 +653,20 @@ function Fila({ m, activa, enviados, onClick }: { m: MensajeResumen; activa: boo
           activa ? "bg-primary/20" : "hover:bg-black/[0.03]"
         )}
       >
-        <span aria-hidden className={cn("mt-[7px] h-2 w-2 shrink-0 rounded-full", m.leido ? "bg-transparent" : "bg-primary ring-1 ring-ink/20")} />
+        <span aria-hidden className={cn("mt-[15px] h-2 w-2 shrink-0 rounded-full", m.leido ? "bg-transparent" : "bg-primary ring-1 ring-ink/20")} />
+        <Avatar d={primero} contacto={contacto} className="mt-0.5 h-9 w-9 text-sm" />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
-            <span className={cn("truncate text-sm", !m.leido && "font-semibold")}>
-              {enviados && <span className="text-muted-foreground">Para: </span>}
-              {nombre}
+            <span className={cn("flex min-w-0 items-center gap-1.5 text-sm", !m.leido && "font-semibold")}>
+              <span className="truncate">
+                {enviados && <span className="text-muted-foreground">Para: </span>}
+                {nombre}
+              </span>
+              {cliente && (
+                <span title={cliente.name} className="inline-flex shrink-0 items-center">
+                  <ClientMark brand={cliente} className="h-4 w-4 rounded-[5px]" pad="p-[10%]" />
+                </span>
+              )}
             </span>
             <span className={cn("shrink-0 text-xs tabular-nums", m.leido ? "text-muted-foreground" : "font-semibold")}>{fechaCorta(m.fecha)}</span>
           </span>

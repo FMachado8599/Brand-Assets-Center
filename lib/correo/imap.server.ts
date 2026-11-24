@@ -1,5 +1,5 @@
 import "server-only";
-import { ImapFlow, type FetchMessageObject, type ListResponse, type MessageStructureObject } from "imapflow";
+import { ImapFlow, type FetchMessageObject, type ListResponse, type MessageStructureObject, type SearchObject } from "imapflow";
 import { simpleParser, type AddressObject, type ParsedMail } from "mailparser";
 import { CORREO } from "./config";
 import type { AccionMensaje, Adjunto, Carpeta, CodigoError, Direccion, EstadoCarpeta, ListaMensajes, Mensaje, MensajeResumen, TipoCarpeta } from "./types";
@@ -137,8 +137,11 @@ export async function estadoCarpeta(imap: ImapFlow, carpeta: string): Promise<Es
 
 /* ───────────── Lista de mails ───────────── */
 
+/** El nombre tal cual lo muestra la gente: sin las comillas que le ponen algunos (Outlook manda 'Juan Pérez'). */
+const limpiarNombre = (n?: string) => n?.trim().replace(/^(['"])(.*)\1$/, "$2").trim() || null;
+
 const direcciones = (lista?: { name?: string; address?: string }[]): Direccion[] =>
-  (lista ?? []).filter((a) => a.address).map((a) => ({ nombre: a.name?.trim() || null, email: a.address!.toLowerCase() }));
+  (lista ?? []).filter((a) => a.address).map((a) => ({ nombre: limpiarNombre(a.name), email: a.address!.toLowerCase() }));
 
 function tieneAdjuntos(nodo?: MessageStructureObject): boolean {
   if (!nodo) return false;
@@ -168,15 +171,27 @@ function resumen(m: FetchMessageObject): MensajeResumen {
 
 const CAMPOS = { uid: true, envelope: true, flags: true, bodyStructure: true, internalDate: true, size: true } as const;
 
-export async function listarMensajes(imap: ImapFlow, carpeta: string, pagina: number, porPagina: number, q?: string): Promise<ListaMensajes> {
+/**
+ * Los mails de una carpeta, los últimos primero. Con `q` busca en el asunto, la gente y el texto; con
+ * `filtro` (ej: los de un cliente), solo los que cumplen. Los dos juntos: los que cumplen las dos cosas.
+ */
+export async function listarMensajes(
+  imap: ImapFlow,
+  carpeta: string,
+  pagina: number,
+  porPagina: number,
+  q?: string,
+  filtro?: SearchObject
+): Promise<ListaMensajes> {
   const lock = await imap.getMailboxLock(carpeta, { readOnly: true });
   try {
     const box = imap.mailbox;
     const existen = box ? box.exists : 0;
     const mensajes: MensajeResumen[] = [];
 
-    if (q) {
-      const uids = ((await imap.search({ text: q }, { uid: true })) || []).sort((a, b) => b - a);
+    if (q || filtro) {
+      const criterio: SearchObject = { ...(filtro ?? {}), ...(q ? { text: q } : {}) };
+      const uids = ((await imap.search(criterio, { uid: true })) || []).sort((a, b) => b - a);
       const pag = uids.slice(pagina * porPagina, (pagina + 1) * porPagina);
       if (pag.length) for await (const m of imap.fetch(pag.join(","), CAMPOS, { uid: true })) mensajes.push(resumen(m));
       mensajes.sort((a, b) => b.uid - a.uid);
@@ -192,6 +207,39 @@ export async function listarMensajes(imap: ImapFlow, carpeta: string, pagina: nu
       conSeq.sort((a, b) => b.seq - a.seq).forEach((x) => mensajes.push(x.m));
     }
     return { carpeta, total: existen, pagina, porPagina, mensajes };
+  } finally {
+    lock.release();
+  }
+}
+
+/* ───────────── Quiénes escriben ───────────── */
+
+export type Remitente = { email: string; nombre: string | null; mails: number; ultimo: string };
+
+/**
+ * Los que te escribieron en los últimos `cuantos` mails de la carpeta (solo los sobres, sin abrir los
+ * mails), con cuántos mandó cada uno: de ahí sale la lista para ponerles foto.
+ */
+export async function remitentesRecientes(imap: ImapFlow, carpeta: string, cuantos: number, yo: string): Promise<Remitente[]> {
+  const lock = await imap.getMailboxLock(carpeta, { readOnly: true });
+  try {
+    const existen = imap.mailbox ? imap.mailbox.exists : 0;
+    if (!existen) return [];
+    const porMail = new Map<string, Remitente>();
+    for await (const m of imap.fetch(`${Math.max(1, existen - cuantos + 1)}:${existen}`, { envelope: true, internalDate: true })) {
+      const fecha = (m.envelope?.date ?? (m.internalDate ? new Date(m.internalDate) : new Date(0))).toISOString();
+      for (const d of direcciones(m.envelope?.from)) {
+        if (d.email === yo) continue;
+        const r = porMail.get(d.email);
+        if (!r) porMail.set(d.email, { email: d.email, nombre: d.nombre, mails: 1, ultimo: fecha });
+        else {
+          r.mails++;
+          if (fecha > r.ultimo) r.ultimo = fecha;
+          if (!r.nombre && d.nombre) r.nombre = d.nombre;
+        }
+      }
+    }
+    return [...porMail.values()].sort((a, b) => b.mails - a.mails || b.ultimo.localeCompare(a.ultimo));
   } finally {
     lock.release();
   }
