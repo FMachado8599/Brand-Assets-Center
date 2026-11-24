@@ -1,7 +1,8 @@
 -- ============================================================
 -- Presentaciones para el cliente: se comparten con un link privado (un token largo al azar, uno
 -- por presentación) y el cliente la ve, comenta y aprueba o pide cambios pieza por pieza. No
--- necesita cuenta: el link es la llave, y el estudio lo puede cortar o cambiar cuando quiera.
+-- necesita cuenta, pero el link solo no alcanza: entra con un mail del cliente y un código
+-- (migracion-presentaciones-acceso.sql, que va después de esta). El estudio lo puede cortar o cambiar.
 --
 -- El cliente nunca toca las tablas: todo pasa por estas funciones (SECURITY DEFINER), que
 -- validan el token y devuelven solo lo que el cliente puede ver (sin indicaciones internas,
@@ -157,9 +158,11 @@ revoke all on function public.presentacion_publica_aprobar(text, uuid, text) fro
 revoke all on function public.presentacion_publica_archivo(text, text) from public;
 revoke all on function public.servidor_guardar_llave(text, text) from public, anon;
 revoke all on function public.drive_conexion_servidor(text) from public;
-grant execute on function public.presentacion_publica(text) to anon, authenticated;
-grant execute on function public.presentacion_publica_comentar(text, uuid, text, text) to anon, authenticated;
-grant execute on function public.presentacion_publica_aprobar(text, uuid, text) to anon, authenticated;
-grant execute on function public.presentacion_publica_archivo(text, text) to anon, authenticated;
+-- Estas cuatro ya no se abren para nadie: con el link solo no alcanza. Las usan las de
+-- migracion-presentaciones-acceso.sql, que piden además la entrada con el mail del cliente.
+revoke all on function public.presentacion_publica(text) from anon, authenticated;
+revoke all on function public.presentacion_publica_comentar(text, uuid, text, text) from anon, authenticated;
+revoke all on function public.presentacion_publica_aprobar(text, uuid, text) from anon, authenticated;
+revoke all on function public.presentacion_publica_archivo(text, text) from anon, authenticated;
 grant execute on function public.servidor_guardar_llave(text, text) to authenticated;
 grant execute on function public.drive_conexion_servidor(text) to anon, authenticated;
