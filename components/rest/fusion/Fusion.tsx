@@ -174,7 +174,8 @@ export function Fusion({ mejor, onGuardada, onOtra }: { mejor: number | null; on
 
         <div
           role="application"
-          aria-label={`Fusión, ${puntos(tablero.puntaje)}. Flechas o WASD para deslizar las fichas.`}
+          // Fija: el tablero tiene el foco y, si cambiara en cada jugada, el lector de pantalla la volvería a leer.
+          aria-label="Fusión. Flechas o WASD para deslizar las fichas."
           tabIndex={0}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
