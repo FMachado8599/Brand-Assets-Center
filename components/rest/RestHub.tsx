@@ -4,10 +4,13 @@ import Link from "next/link";
 import { ArrowUpRight, Crown, Flag } from "lucide-react";
 import { useRanking } from "@/hooks/useRanking";
 import { CACTUS_CHICO, CACTUS_GRANDE, CELDA, DINO, NUBE } from "@/lib/rest/dino/sprites";
+import type { Ficha } from "@/lib/rest/fusion";
 import { DIFICULTADES, formatPuntaje, JUEGOS, type Juego, type JuegoId } from "@/lib/rest/juegos";
 import type { Modo } from "@/lib/rest/partidas";
 import { cn } from "@/lib/utils";
+import { FichaVista } from "./fusion/Ficha";
 import { Avatar } from "./Ranking";
+import { CuerpoVibora, Fruta } from "./viborita/Dibujo";
 
 /** Entrada escalonada de las tarjetas (con movimiento reducido, globals.css la apaga). */
 const entrada = (i: number) => ({ animationDelay: `${120 + i * 80}ms` });
@@ -49,7 +52,7 @@ function TarjetaJuego({ juego }: { juego: Juego }) {
       className="group flex h-full flex-col overflow-hidden rounded-3xl border border-foreground/15 bg-card shadow-[0_1px_0_hsl(240_12%_5%/0.04)] transition-shadow hover:shadow-md"
     >
       <div className="relative h-40 overflow-hidden border-b border-foreground/10 bg-background/50 sm:h-44">
-        {juego.id === "dino" ? <EscenaDino /> : <EscenaBuscaminas />}
+        <Escena id={juego.id} />
       </div>
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="flex items-end justify-between gap-3">
@@ -59,10 +62,10 @@ function TarjetaJuego({ juego }: { juego: Juego }) {
         <p className="mt-2 text-sm text-muted-foreground">{juego.bajada}</p>
         <div className="mt-5 space-y-1.5 border-t pt-4">
           <p className="eyebrow mb-2">Primeros de la semana</p>
-          {juego.id === "dino" ? (
-            <Lider juego="dino" modo="" />
-          ) : (
+          {juego.id === "buscaminas" ? (
             DIFICULTADES.map((d) => <Lider key={d.value} juego="buscaminas" modo={d.value} etiqueta={d.label} />)
+          ) : (
+            <Lider juego={juego.id} modo="" />
           )}
         </div>
       </div>
@@ -99,6 +102,20 @@ function Lider({ juego, modo, etiqueta }: { juego: JuegoId; modo: Modo; etiqueta
       )}
     </div>
   );
+}
+
+/** El dibujo de arriba de cada tarjeta. */
+function Escena({ id }: { id: JuegoId }) {
+  switch (id) {
+    case "dino":
+      return <EscenaDino />;
+    case "buscaminas":
+      return <EscenaBuscaminas />;
+    case "viborita":
+      return <EscenaViborita />;
+    case "fusion":
+      return <EscenaFusion />;
+  }
 }
 
 /** Un dibujo hecho de celdas de pixel art, en SVG (nítido a cualquier tamaño). */
@@ -159,6 +176,63 @@ function EscenaBuscaminas() {
             );
           })
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Una víbora a mitad de camino hacia la fruta (de cabeza a cola). Al pasar por encima, avanza. */
+const VIBORA = [
+  [14, 3], [13, 3], [12, 3], [11, 3], [10, 3], [10, 4], [10, 5], [9, 5], [8, 5], [7, 5], [6, 5], [6, 4],
+].map(([x, y]) => ({ x, y }));
+
+function EscenaViborita() {
+  return (
+    <svg viewBox="0 0 26 8" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 block h-full w-full" aria-hidden>
+      <defs>
+        <pattern id="rest-hub-cuadros" width={2} height={2} patternUnits="userSpaceOnUse">
+          <rect width={1} height={1} className="fill-foreground/[0.035]" />
+          <rect x={1} y={1} width={1} height={1} className="fill-foreground/[0.035]" />
+        </pattern>
+      </defs>
+      <rect width={26} height={8} fill="url(#rest-hub-cuadros)" />
+      <Fruta x={18} y={3} />
+      <g className="transition-transform duration-500 ease-smooth group-hover:translate-x-[2px]">
+        <CuerpoVibora celdas={VIBORA} dir="derecha" />
+      </g>
+    </svg>
+  );
+}
+
+/** Un tablero a mitad de partida: [fila, columna, valor]. Al pasar por encima, el 2 de la esquina se junta con el de al lado. */
+const MUESTRA_FUSION: [number, number, number][] = [
+  [0, 1, 2], [0, 3, 4],
+  [1, 1, 8], [1, 2, 16], [1, 3, 32],
+  [2, 2, 64], [2, 3, 128],
+  [3, 2, 512], [3, 3, 2048],
+];
+const ficha = ([fila, col, valor]: [number, number, number], id: number): Ficha => ({ id, fila, col, valor });
+
+function EscenaFusion() {
+  return (
+    <div className="grid h-full place-items-center" aria-hidden>
+      <div
+        className="relative aspect-square h-[8.5rem] rounded-xl bg-foreground/[0.12] p-[var(--g)] [--g:4px] sm:h-36"
+        style={{ containerType: "inline-size" }}
+      >
+        <div className="grid h-full grid-cols-4 grid-rows-4 gap-[var(--g)]">
+          {Array.from({ length: 16 }, (_, i) => (
+            <div key={i} className="rounded-[6px] bg-foreground/[0.05] dark:bg-background" />
+          ))}
+        </div>
+        <div className="absolute inset-[var(--g)]">
+          {MUESTRA_FUSION.map((f, i) => (
+            <FichaVista key={i} ficha={ficha(f, i)} chica />
+          ))}
+          <div className="absolute inset-0 z-10 transition-transform duration-500 ease-smooth group-hover:translate-x-[calc((100%_-_3*var(--g))/4_+_var(--g))]">
+            <FichaVista ficha={ficha([0, 0, 2], 99)} chica />
+          </div>
+        </div>
       </div>
     </div>
   );

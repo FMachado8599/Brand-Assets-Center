@@ -33,7 +33,7 @@ export const mensaje = (error: unknown) =>
 /** Cuántos muestra cada ranking (y, si estás más abajo, tu fila aparte). */
 export const LIMITE_RANKING = 20;
 
-/** "" en el dino; la dificultad en el buscaminas. */
+/** La dificultad en el buscaminas; "" en los demás. */
 export type Modo = Dificultad | "";
 
 /**

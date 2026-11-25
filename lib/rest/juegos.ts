@@ -1,5 +1,5 @@
 /** Los juegos de Rest. Los ids y los modos son los mismos que valida la base (supabase/migracion-juegos.sql). */
-export type JuegoId = "dino" | "buscaminas";
+export type JuegoId = "dino" | "buscaminas" | "viborita" | "fusion";
 export type Dificultad = "principiante" | "intermedio" | "experto";
 export type Periodo = "semana" | "siempre";
 
@@ -10,7 +10,7 @@ export type Juego = {
   bajada: string;
   /** Cómo se juega, en una línea. */
   controles: string;
-  /** El dino gana con más puntos; el buscaminas, con menos tiempo. */
+  /** El buscaminas gana con menos tiempo; los demás, con más puntos. */
   gana: "mas" | "menos";
 };
 
@@ -30,6 +30,22 @@ export const JUEGOS: Juego[] = [
     bajada: "Despejá el tablero sin pisar una mina, en el menor tiempo posible.",
     controles: "Click para abrir, click derecho para la bandera. En el celular, mantené apretado.",
     gana: "menos",
+  },
+  {
+    id: "viborita",
+    href: "/rest/viborita",
+    nombre: "Viborita",
+    bajada: "Comé frutas, crecé y no te choques: ni con los bordes ni con tu propia cola.",
+    controles: "Flechas o WASD para doblar, Espacio para pausar. En el celular, deslizá el dedo.",
+    gana: "mas",
+  },
+  {
+    id: "fusion",
+    href: "/rest/fusion",
+    nombre: "Fusión",
+    bajada: "Juntá fichas iguales hasta llegar a 2048. Cada fusión suma al puntaje.",
+    controles: "Flechas o WASD para deslizar las fichas; en el celular, deslizá el dedo. «Nueva partida» guarda lo que llevás.",
+    gana: "mas",
   },
 ];
 
