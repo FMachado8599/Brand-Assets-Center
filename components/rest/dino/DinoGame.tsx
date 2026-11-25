@@ -5,18 +5,11 @@ import { Loader2 } from "lucide-react";
 import { useStoredState } from "@/hooks/useStoredState";
 import { ALTO, ANCHO, Motor, PASO_MS, type EstadoDino } from "@/lib/rest/dino/motor";
 import { empezarPartida, mensaje, terminarPartida, type Resultado } from "@/lib/rest/partidas";
+import { esDeOtro } from "@/lib/rest/teclado";
 import { textoResultado } from "../Ranking";
 
 const esSalto = (e: KeyboardEvent) => e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW";
 const esAbajo = (e: KeyboardEvent) => e.code === "ArrowDown" || e.code === "KeyS";
-
-/** Escribiendo o con el foco en otro control: ahí las teclas son de ese control, salvo en plena partida. */
-function esDeOtro(target: EventTarget | null) {
-  const el = target as HTMLElement | null;
-  if (!el || el === document.body) return false;
-  if (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return "escribiendo";
-  return el.closest("button, a, [role=tab], [role=menuitem]") ? "control" : false;
-}
 
 /** Cómo terminó la última partida: el puntaje y qué dijo la base al guardarlo. */
 type Final = { puntaje: number; guardando: boolean; resultado?: Resultado; error?: string };

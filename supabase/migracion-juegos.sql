@@ -5,8 +5,8 @@
 --    da con el tiempo que pasó de verdad no entra al ranking.
 --  - Ranking por juego (y por dificultad en el buscaminas): el mejor puntaje de cada persona,
 --    de esta semana (arranca el lunes, hora de Montevideo) o de siempre.
---  - Dino: gana el puntaje más alto. Buscaminas: el menor tiempo (en milisegundos), y solo
---    cuentan las partidas ganadas.
+--  - Dino, Viborita y Fusión: gana el puntaje más alto. Buscaminas: el menor tiempo (en
+--    milisegundos), y solo cuentan las partidas ganadas.
 -- Correr DESPUÉS de migracion-acceso.sql (usa has_access()) y migracion-usuarios.sql (profiles).
 -- Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez.
 -- ============================================================
@@ -15,13 +15,18 @@
 create table if not exists public.juego_partidas (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  juego text not null check (juego in ('dino', 'buscaminas')),
-  -- '' en el dino; la dificultad en el buscaminas.
+  juego text not null check (juego in ('dino', 'buscaminas', 'viborita', 'fusion')),
+  -- La dificultad en el buscaminas; '' en los demás.
   modo text not null default '' check (modo in ('', 'principiante', 'intermedio', 'experto')),
   empezada timestamptz not null default now(),
   terminada timestamptz,
   puntaje integer check (puntaje >= 0)
 );
+
+-- Si la tabla ya existía (de cuando había solo dino y buscaminas), se rehace la lista de juegos.
+alter table public.juego_partidas drop constraint if exists juego_partidas_juego_check;
+alter table public.juego_partidas add constraint juego_partidas_juego_check
+  check (juego in ('dino', 'buscaminas', 'viborita', 'fusion'));
 
 create index if not exists juego_partidas_ranking_idx
   on public.juego_partidas (juego, modo, terminada desc) where puntaje is not null;
@@ -36,6 +41,11 @@ alter table public.juego_partidas enable row level security;
 -- con margen, más de 21 por segundo jugado no es posible.
 -- El buscaminas no puede durar menos de lo que la base vio pasar entre el primer click y el
 -- último (con 3 s de margen por la red), ni menos que un piso por dificultad.
+-- La viborita da un paso cada 65 ms como mucho y cada fruta lleva al menos un paso: no más de
+-- 16 frutas por segundo, ni más de las que entran en la grilla de 24 × 16 (ver lib/rest/viborita.ts).
+-- En Fusión pasan al menos 80 ms entre jugada y jugada (12,5 por segundo) y cada una suma una ficha
+-- de 4 como mucho: lo que hay en el tablero no pasa de b = 4 × (jugadas + 2), y el puntaje no pasa
+-- de b × log2(b) (ver lib/rest/fusion.ts).
 create or replace function public.juego_puntaje_valido(p_juego text, p_modo text, p_ms numeric, p_puntaje integer)
 returns boolean language sql immutable set search_path = '' as $$
   select case p_juego
@@ -43,6 +53,9 @@ returns boolean language sql immutable set search_path = '' as $$
     when 'buscaminas' then
       p_puntaje >= p_ms - 3000
       and p_puntaje >= case p_modo when 'principiante' then 500 when 'intermedio' then 3000 else 10000 end
+    when 'viborita' then p_puntaje <= ((p_ms / 1000.0) + 3) * 16 and p_puntaje <= 24 * 16 - 3
+    when 'fusion' then
+      p_puntaje <= (4 * (12.5 * ((p_ms / 1000.0) + 3) + 2)) * log(2, 4 * (12.5 * ((p_ms / 1000.0) + 3) + 2))
     else false
   end;
 $$;
@@ -62,6 +75,7 @@ begin
   if not (
     (p_juego = 'dino' and v_modo = '')
     or (p_juego = 'buscaminas' and v_modo in ('principiante', 'intermedio', 'experto'))
+    or (p_juego in ('viborita', 'fusion') and v_modo = '')
   ) then
     raise exception 'Juego o dificultad inválidos';
   end if;
@@ -114,13 +128,13 @@ begin
   end if;
 
   -- La mejor marca de antes, para saber si esta la supera.
-  select case when v.juego = 'dino' then max(p.puntaje) else min(p.puntaje) end into anterior
+  select case when v.juego = 'buscaminas' then min(p.puntaje) else max(p.puntaje) end into anterior
   from public.juego_partidas p
   where p.user_id = uid and p.juego = v.juego and p.modo = v.modo and p.puntaje is not null;
 
   update public.juego_partidas set terminada = now(), puntaje = p_puntaje where id = v.id;
 
-  es_record := anterior is null or (case when v.juego = 'dino' then p_puntaje > anterior else p_puntaje < anterior end);
+  es_record := anterior is null or (case when v.juego = 'buscaminas' then p_puntaje < anterior else p_puntaje > anterior end);
   select r.puesto into puesto_semana from public.ranking_juego(v.juego, v.modo, 'semana', 1000) r where r.yo;
   select r.puesto into puesto_siempre from public.ranking_juego(v.juego, v.modo, 'siempre', 1000) r where r.yo;
   return next;
@@ -164,13 +178,13 @@ language sql stable security definer set search_path = '' as $$
       count(*) over (partition by t.user_id) as jugadas
     from terminadas t
     order by t.user_id,
-      case when p_juego = 'dino' then -t.puntaje else t.puntaje end,
+      case when p_juego = 'buscaminas' then t.puntaje else -t.puntaje end,
       t.terminada
   ),
   ranking as (
     select m.*,
-      rank() over (order by case when p_juego = 'dino' then -m.puntaje else m.puntaje end) as puesto,
-      row_number() over (order by case when p_juego = 'dino' then -m.puntaje else m.puntaje end, m.terminada) as orden
+      rank() over (order by case when p_juego = 'buscaminas' then m.puntaje else -m.puntaje end) as puesto,
+      row_number() over (order by case when p_juego = 'buscaminas' then m.puntaje else -m.puntaje end, m.terminada) as orden
     from mejores m
   )
   select r.puesto,

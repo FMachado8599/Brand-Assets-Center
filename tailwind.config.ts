@@ -42,10 +42,20 @@ const config: Config = {
       keyframes: {
         "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
         "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
+        // Fusión (Rest): la ficha nueva aparece creciendo y la que nace de juntar dos da un saltito.
+        "ficha-nueva": { from: { transform: "scale(0)", opacity: "0" }, to: { transform: "scale(1)", opacity: "1" } },
+        "ficha-fusion": {
+          "0%": { transform: "scale(0.6)", opacity: "0" },
+          "55%": { transform: "scale(1.12)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Empiezan cuando termina el deslizamiento (100 ms); hasta entonces no se ven.
+        "ficha-nueva": "ficha-nueva 180ms ease-out 100ms backwards",
+        "ficha-fusion": "ficha-fusion 200ms ease-out 90ms backwards",
       },
     },
   },
