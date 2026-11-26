@@ -93,7 +93,7 @@ function LoTuyo({ d }: { d: DatosInicio }) {
                   </span>
                   <span className="shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-medium" style={{ background: TONO[tono].bg, color: TONO[tono].fg }}>
                     {valida ? "Validar" : TONO[tono].label}
-                    {fecha ? ` · ${fechaCorta(fecha)}` : ""}
+                    {fecha && <span className="hidden sm:inline"> · {fechaCorta(fecha)}</span>}
                   </span>
                 </Link>
               </li>
