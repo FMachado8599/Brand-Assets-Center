@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/toaster";
 import { useDebounced } from "@/hooks/useDebounced";
 import { usePagedSearch } from "@/hooks/usePagedSearch";
 import { useStoredState } from "@/hooks/useStoredState";
+import { registrarUso } from "@/lib/inicio/uso";
 import type { Gif, GifFormat, GifKind } from "@/lib/library/gifs";
 import { copyGif, copyText, downloadGif, fetchGifs } from "@/lib/library/gifs.client";
 import { Loading, MissingKey, MoreButton, SearchError } from "../LibraryParts";
@@ -39,6 +40,7 @@ export function GifsShell({ configured }: { configured: boolean }) {
     try {
       await copyGif(gif);
       toast(`${sticker ? "Sticker" : "GIF"} copiado: pegalo en Slack, Gmail, Docs o Slides`);
+      registrarUso("gif", { detalle: sticker ? "sticker" : "gif" });
     } catch {
       toast("El navegador no dejó copiar: probá con descargarlo", "error");
     }
@@ -51,7 +53,10 @@ export function GifsShell({ configured }: { configured: boolean }) {
       toast("El navegador no dejó copiar el link", "error");
     }
   };
-  const download = (gif: Gif, format: GifFormat = "gif") => downloadGif(gif, format);
+  const download = (gif: Gif, format: GifFormat = "gif") => {
+    registrarUso("gif", { detalle: format });
+    return downloadGif(gif, format);
+  };
 
   return (
     <div className="min-h-screen">

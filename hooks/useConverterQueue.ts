@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { registrarUso } from "@/lib/inicio/uso";
 import {
   buildOptions,
   extensionOf,
@@ -135,7 +136,10 @@ export function useConverterQueue(operation: Operation, settings: QueueSettings)
         while (Date.now() - started < TIMEOUT_MS) {
           await new Promise((r) => setTimeout(r, POLL_MS));
           const s = await api<{ status: string; url?: string; message?: string }>(`/api/freeconvert/jobs/${created.jobId}`);
-          if (s.status === "done") return patch(item.id, { status: "done", url: s.url });
+          if (s.status === "done") {
+            registrarUso(operation === "compress" ? "compresion" : "conversion", { detalle: output, bytes: item.file.size });
+            return patch(item.id, { status: "done", url: s.url });
+          }
           if (s.status === "error") throw new Error(s.message);
         }
         throw new Error("Se agotó el tiempo de espera");

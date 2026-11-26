@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Archive, Download, FileUp, Play, Plus, RefreshCw, Settings, ShieldCheck, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BarAction, BarButton, BarDivider, BarPopover, BarSegmented, ContextBar } from "@/components/shell/ContextBar";
 import { isBusy, useConverterQueue, type QueueSettings } from "@/hooks/useConverterQueue";
 import { useStoredState } from "@/hooks/useStoredState";
+import { tomarArchivos } from "@/lib/inicio/entrega";
 import { outputName, type FormatTarget, type Operation, type Targets } from "@/lib/converter/catalog";
 import { cn } from "@/lib/utils";
 import { ConverterSettings } from "./ConverterSettings";
@@ -39,6 +40,20 @@ export function ConverterShell({ configured }: { configured: boolean }) {
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Los que se soltaron en el Inicio ("Convertir" o "Comprimir"): se suman al abrir, con esa operación.
+  const [deInicio, setDeInicio] = useState<File[] | null>(null);
+  useEffect(() => {
+    const p = tomarArchivos(["conversor", "compresor"]);
+    if (!p) return;
+    if (p.destino === "compresor") setOperation("compress");
+    setDeInicio(p.archivos);
+  }, []);
+  useEffect(() => {
+    if (!deInicio) return;
+    queue.addFiles(deInicio);
+    setDeInicio(null);
+  }, [deInicio, queue]);
 
   const mode = MODES.find((m) => m.value === operation)!;
   const { items } = queue;

@@ -123,6 +123,18 @@ export function DownloadsShell({ drive, metricas = false }: { drive: DriveConfig
     [items, load]
   );
 
+  // Desde el Inicio se llega con ?links=… (lo que se pegó allá): se suman al abrir, una sola vez.
+  const desdeInicio = useRef(false);
+  useEffect(() => {
+    if (desdeInicio.current) return;
+    desdeInicio.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const texto = params.get("links");
+    if (!texto) return;
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+    add(texto);
+  }, [add]);
+
   // Ctrl+V en cualquier parte de la página agrega los links, sin tener que enfocar nada.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {

@@ -1,5 +1,5 @@
 /** Los juegos de Rest. Los ids y los modos son los mismos que valida la base (supabase/migracion-juegos.sql). */
-export type JuegoId = "dino" | "buscaminas" | "viborita" | "fusion";
+export type JuegoId = "dino" | "buscaminas" | "viborita" | "fusion" | "paleta";
 export type Dificultad = "principiante" | "intermedio" | "experto";
 export type Periodo = "semana" | "siempre";
 
@@ -45,6 +45,14 @@ export const JUEGOS: Juego[] = [
     nombre: "Fusión",
     bajada: "Juntá fichas iguales hasta llegar a 2048. Cada fusión suma al puntaje.",
     controles: "Flechas o WASD para deslizar las fichas; en el celular, deslizá el dedo. «Nueva partida» guarda lo que llevás.",
+    gana: "mas",
+  },
+  {
+    id: "paleta",
+    href: "/rest/paleta",
+    nombre: "Paleta",
+    bajada: "¿De quién es esta paleta? Adiviná la marca del estudio por sus colores, contra reloj.",
+    controles: "Click en la marca, o las teclas 1 a 4. Equivocarse cuesta 2 segundos. Espacio para arrancar.",
     gana: "mas",
   },
 ];

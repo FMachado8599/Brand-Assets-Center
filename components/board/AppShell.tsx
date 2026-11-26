@@ -14,6 +14,7 @@ import { MissingConfig } from "./MissingConfig";
 import { SettingsDialog } from "../settings/SettingsDialog";
 import { BarAction, BarButton, BarDivider, BarPopover, BarSearch, ContextBar } from "@/components/shell/ContextBar";
 import { useAccount } from "@/components/shell/AccountProvider";
+import { useAlArrancarConMarca } from "@/components/inicio/MarcaActiva";
 import { Plus, Settings, SlidersHorizontal, X } from "lucide-react";
 
 export function AppShell() {
@@ -25,19 +26,35 @@ export function AppShell() {
   /** "Nueva tarjeta" desde la ficha de un cliente: arranca con ese cliente elegido. */
   const [newFor, setNewFor] = useState<string | null>(null);
 
-  // Desde Clientes se llega con ?cliente=<id> (ver las suyas) o ?nueva=<id> (crear una para él).
+  // Desde Clientes se llega con ?cliente=<id> (ver las suyas) o ?nueva=<id> (crear una para él); desde el
+  // Inicio, con ?abrir=<id> (seguir con esa tarjeta: se abre cuando llegan las tarjetas).
+  const [desdeLink, setDesdeLink] = useState<boolean | null>(null);
+  const [abrir, setAbrir] = useState<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const client = params.get("cliente");
     const fresh = params.get("nueva");
+    const open = params.get("abrir");
     if (client) filters.setBrandIds([client]);
     if (fresh) {
       setNewFor(fresh);
       actions.openNew();
     }
-    if (client || fresh) window.history.replaceState(window.history.state, "", window.location.pathname);
+    if (open) setAbrir(open);
+    if (client || fresh || open) window.history.replaceState(window.history.state, "", window.location.pathname);
+    setDesdeLink(Boolean(client || fresh || open));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    if (!abrir || loading) return;
+    const card = cards.find((c) => c.id === abrir);
+    setAbrir(null);
+    if (card) actions.openEdit(card);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrir, loading, cards]);
+
+  // Con el modo marca prendido, se ven las tarjetas de esa marca.
+  useAlArrancarConMarca((m) => filters.setBrandIds([m.id]), { saltear: Boolean(desdeLink), listo: desdeLink !== null });
 
   const groups = groupCards(filters.visible, brands, products);
   const filterCount =

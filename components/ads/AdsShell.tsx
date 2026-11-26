@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toaster";
 import { useClients } from "@/hooks/useClients";
 import { useStoredState } from "@/hooks/useStoredState";
+import { useAlArrancarConMarca } from "@/components/inicio/MarcaActiva";
+import { tomarArchivos } from "@/lib/inicio/entrega";
 import { pieceInfo, placementInfo } from "@/lib/ads/placements";
 import { ctaText } from "@/lib/ads/text";
 import { initials } from "@/lib/clients/color";
@@ -62,7 +64,7 @@ function pieceFolder(piece: Piece, index: number) {
 }
 
 export function AdsShell() {
-  const [stored, setOpts] = useStoredState<AdOptions>("ads:opciones", DEFAULT_OPTIONS);
+  const [stored, setOpts, optsListos] = useStoredState<AdOptions>("ads:opciones", DEFAULT_OPTIONS);
   const opts = { ...DEFAULT_OPTIONS, ...stored };
   const set = (patch: Partial<AdOptions>) => setOpts((o) => ({ ...o, ...patch }));
   const [pieces, setPieces] = useState<Piece[]>([]);
@@ -118,6 +120,20 @@ export function AdsShell() {
     },
     [addPiece]
   );
+
+  // Lo que se soltó en el Inicio ("Verlo en Ads") arma la pieza sola.
+  useEffect(() => {
+    const p = tomarArchivos("ads");
+    if (p) quickAdd(p.archivos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Con el modo marca prendido, arranca con esa marca (su Instagram, si lo tiene en la ficha).
+  useAlArrancarConMarca((c) => {
+    if (opts.clientId === c.id) return;
+    const instagram = c.socials?.find((s) => s.network === "instagram")?.handle;
+    set({ clientId: c.id, account: instagram ?? handleOf(c.name) });
+  }, { listo: optsListos });
 
   /** Abre el orden de los slides; si se suman archivos, quedan al final, marcados como nuevos. */
   const openOrder = async (piece: Piece, files?: File[]) => {

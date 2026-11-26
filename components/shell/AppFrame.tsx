@@ -6,6 +6,9 @@ import { PanelLeft } from "lucide-react";
 import { TooltipProvider, Hint } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { NewClientHost } from "@/components/clients/NewClientHost";
+import { Buscador } from "@/components/inicio/Buscador";
+import { Flotantes } from "@/components/inicio/Flotantes";
+import { MarcaActivaProvider } from "@/components/inicio/MarcaActiva";
 import { JamBurbuja } from "@/components/spotify/jam/JamBurbuja";
 import { activeModule, LAST_MODULE_KEY, PERFIL, type AppModule } from "@/lib/modules";
 import { aplicarModoNoche } from "@/lib/tema";
@@ -61,6 +64,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
     <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
       <AccountProvider>
         <ModoNocheProvider>
+          <MarcaActivaProvider>
           <BarTargetProvider value={target}>
             {/* right-scroll-bar-position: al abrir la sidebar se bloquea el scroll y desaparece la barra de
                 desplazamiento; con esta clase (de react-remove-scroll) la barra superior no salta de costado. */}
@@ -81,9 +85,12 @@ export function AppFrame({ children }: { children: ReactNode }) {
             {children}
             <NewClientHost />
             <JamBurbuja />
+            <Flotantes />
+            <Buscador />
             <Toaster />
             <VisitTracker />
           </BarTargetProvider>
+          </MarcaActivaProvider>
         </ModoNocheProvider>
       </AccountProvider>
     </TooltipProvider>

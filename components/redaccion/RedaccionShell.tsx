@@ -32,6 +32,8 @@ import {
 import { toast } from "@/components/ui/toaster";
 import { useBrandKits, useBrands } from "@/hooks/useBrandKits";
 import { useRedacciones } from "@/hooks/useRedacciones";
+import { useAlArrancarConMarca } from "@/components/inicio/MarcaActiva";
+import { registrarUso } from "@/lib/inicio/uso";
 import { usePrediccion } from "@/hooks/usePrediccion";
 import { slim, useSharedEmojis } from "@/hooks/useSharedEmojis";
 import { copyPlain, copyRich } from "@/lib/cards/clipboard";
@@ -224,6 +226,19 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
     [current, brandId, dropIfEmpty, show]
   );
 
+  // Con el modo marca prendido (y sin un link que diga qué abrir), arranca con esa marca: si la que
+  // quedó abierta es de otra, empieza una nueva para la marca.
+  useAlArrancarConMarca(
+    (m) => {
+      if (current?.brandId === m.id) return;
+      dropIfEmpty(current);
+      writeLocal(CLIENT_KEY, m.id);
+      setDraftBrand(m.id);
+      show(null);
+    },
+    { saltear: Boolean(fromUrl.current?.open || fromUrl.current?.client), listo: restored && store.loaded }
+  );
+
   const setBrand = (id: string | null) => {
     writeLocal(CLIENT_KEY, id);
     if (current) store.update(current.id, { brandId: id });
@@ -295,12 +310,13 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
         return;
       }
       toast(`${COPIED[kind]} · ${textStats(value).chars} caracteres`);
+      registrarUso("redaccion", { detalle: kind, brandId });
       if (kind === "all") {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
       }
     },
-    [current, text]
+    [current, text, brandId]
   );
 
   const [canShare, setCanShare] = useState(false);

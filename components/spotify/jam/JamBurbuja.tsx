@@ -24,6 +24,10 @@ export function avisarBurbuja(mostrar: boolean) {
   window.dispatchEvent(new CustomEvent<boolean>(BURBUJA_KEY, { detail: mostrar }));
 }
 
+/** Desde otra parte de la app (el Inicio, el modo foco) se le pide que se abra; con `true`, con la cola a la vista. */
+export const ABRIR_JAM = "spotify:abrir-burbuja";
+export const abrirJam = (cola = false) => window.dispatchEvent(new CustomEvent<boolean>(ABRIR_JAM, { detail: cola }));
+
 const entra = "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200";
 const angosta = () => window.matchMedia("(max-width: 639px)").matches;
 
@@ -46,6 +50,15 @@ export function JamBurbuja() {
     window.addEventListener(BURBUJA_KEY, alCambiar);
     return () => window.removeEventListener(BURBUJA_KEY, alCambiar);
   }, [setMostrar]);
+
+  useEffect(() => {
+    const alPedir = (e: Event) => {
+      setAbierta(true);
+      if ((e as CustomEvent<boolean>).detail) setCola(true);
+    };
+    window.addEventListener(ABRIR_JAM, alPedir);
+    return () => window.removeEventListener(ABRIR_JAM, alPedir);
+  }, []);
 
   const activa = Boolean(account?.user) && mostrar && pathname !== "/spotify";
   const { estado, posicion, sumar } = useSpotifyJam(activa, abierta ? 10_000 : 20_000);

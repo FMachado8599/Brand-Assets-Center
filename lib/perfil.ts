@@ -31,12 +31,28 @@ export type Perfil = {
   portada: "estudio" | "color" | null;
   /** Sus redes, como links completos (solo las que cargó). */
   redes: Redes;
+  /** "MM-DD", sin año (supabase/migracion-inicio.sql): para saludarlo en el Inicio. */
+  cumple: string | null;
+  /** AAAA-MM-DD: el día que entró al estudio (aniversarios y bienvenidas). */
+  ingreso: string | null;
 };
 
 export type PerfilPatch = Partial<
   Pick<
     Perfil,
-    "nombre_visible" | "foto_origen" | "foto_url" | "foto_path" | "estado_emoji" | "estado_texto" | "estado_vence" | "fuera_hasta" | "acento" | "portada" | "redes"
+    | "nombre_visible"
+    | "foto_origen"
+    | "foto_url"
+    | "foto_path"
+    | "estado_emoji"
+    | "estado_texto"
+    | "estado_vence"
+    | "fuera_hasta"
+    | "acento"
+    | "portada"
+    | "redes"
+    | "cumple"
+    | "ingreso"
   >
 >;
 
@@ -129,8 +145,13 @@ export function normalizarPerfil(row: Record<string, unknown>): Perfil {
     acento: s("acento"),
     portada: s("portada") === "color" ? "color" : s("portada") === "estudio" ? "estudio" : null,
     redes: limpiarRedes(row.redes),
+    cumple: /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(s("cumple") ?? "") ? s("cumple") : null,
+    ingreso: /^\d{4}-\d{2}-\d{2}/.test(s("ingreso") ?? "") ? s("ingreso")!.slice(0, 10) : null,
   };
 }
+
+/** La fila trae las columnas de migracion-inicio.sql (cumple e ingreso). */
+export const tieneColumnasInicio = (row: Record<string, unknown>) => "cumple" in row;
 
 /** La fila trae las columnas de migracion-perfil.sql. */
 export const tieneColumnasPerfil = (row: Record<string, unknown>) => "foto_origen" in row;
@@ -140,6 +161,9 @@ export const faltaMigracionPerfil = (message: string) =>
   /nombre_visible|foto_origen|foto_url|foto_path|estado_emoji|estado_texto|estado_vence|fuera_hasta|acento|portada|redes|avatares|bucket not found|42703/i.test(message);
 
 export function perfilErrorMessage(message: string) {
+  if (/cumple|ingreso/i.test(message) && /column|schema cache|42703/i.test(message)) return "Falta correr supabase/migracion-inicio.sql en Supabase.";
+  if (/profiles_cumple_valido/i.test(message)) return "Esa fecha de cumpleaños no es válida.";
+  if (/profiles_ingreso_valido/i.test(message)) return "Esa fecha de ingreso no es válida.";
   if (faltaMigracionPerfil(message)) return "Falta correr supabase/migracion-perfil.sql en Supabase.";
   if (/profiles_acento_hex/i.test(message)) return "Ese color no es válido.";
   if (/profiles_estado_largo|profiles_nombre_visible_largo/i.test(message)) return "Es demasiado largo.";

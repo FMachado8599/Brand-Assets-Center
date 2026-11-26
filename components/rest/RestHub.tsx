@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Crown, Flag } from "lucide-react";
 import { useRanking } from "@/hooks/useRanking";
@@ -115,7 +116,33 @@ function Escena({ id }: { id: JuegoId }) {
       return <EscenaViborita />;
     case "fusion":
       return <EscenaFusion />;
+    case "paleta":
+      return <EscenaPaleta />;
   }
+}
+
+/** Una paleta de franjas: al pasar por encima, se abren como un abanico. */
+function EscenaPaleta() {
+  const colores = ["#FFD600", "#0B0B0E", "#FF5C39", "#5B8CFF", "#2BD4A4"];
+  return (
+    <div className="absolute inset-0 grid place-items-center" aria-hidden>
+      <div className="relative h-16 w-48">
+        {colores.map((c, i) => (
+          <span
+            key={c}
+            className="absolute inset-y-0 left-1/2 w-12 origin-bottom rounded-xl shadow-md ring-1 ring-inset ring-black/5 transition-transform duration-500 ease-smooth [transform:var(--cerrado)] group-hover:[transform:var(--abierto)]"
+            style={
+              {
+                background: c,
+                "--cerrado": `translateX(-50%) rotate(${(i - 2) * 6}deg)`,
+                "--abierto": `translateX(calc(-50% + ${(i - 2) * 34}px)) rotate(${(i - 2) * 4}deg)`,
+              } as CSSProperties
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /** Un dibujo hecho de celdas de pixel art, en SVG (nítido a cualquier tamaño). */

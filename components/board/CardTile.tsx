@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { registrarUso } from "@/lib/inicio/uso";
 import type { Brand, Card as CardType, Category, FontFace, Product } from "@/lib/types";
 import { parseBlocks, toRichHtml, toRtf, toSvg, toPlainText, facesUsed } from "@/lib/cards/export";
 import { copyRich, copyPlain, downloadRtf, downloadSvg } from "@/lib/cards/clipboard";
@@ -56,6 +57,7 @@ export function CardTile({ card, brand, category, product, fonts, onEdit, onDele
     }
     setCopied(true);
     toast("Copiado con formato");
+    registrarUso("tarjeta", { detalle: "formato", brandId: card.brand_id });
     setTimeout(() => setCopied(false), 1600);
   };
 
@@ -90,6 +92,7 @@ export function CardTile({ card, brand, category, product, fonts, onEdit, onDele
                 const blocks = build();
                 await copyPlain(toPlainText(blocks));
                 toast("Copiado como texto simple");
+                registrarUso("tarjeta", { detalle: "texto", brandId: card.brand_id });
               }}
             >
               <Type /> Copiar sin formato

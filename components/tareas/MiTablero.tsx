@@ -75,13 +75,20 @@ export function MiTablero() {
   const [vista, setVista] = useStoredState<"tablero" | "tabla">("board:vista", "tablero");
   const [misMarcas, setMisMarcas] = useState(false);
 
+  // Desde el Inicio: /board?marca=<id> muestra las tareas de esa marca, de todo el estudio.
+  const [marca, setMarca] = useState<string | null>(null);
+
   // Desde la campanita: /board?tarea=123 al entrar, o el evento si ya se está en el Board.
   useEffect(() => {
-    const id = Number(new URLSearchParams(window.location.search).get("tarea"));
-    if (id) {
-      setAbierta(id);
-      window.history.replaceState(null, "", window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get("tarea"));
+    const deMarca = params.get("marca");
+    if (deMarca) {
+      setMarca(deMarca);
+      setPersona(TODO);
     }
+    if (id) setAbierta(id);
+    if (id || deMarca) window.history.replaceState(null, "", window.location.pathname);
     const abrir = (e: Event) => {
       const tarea = Number((e as CustomEvent<number>).detail);
       if (tarea) setAbierta(tarea);
@@ -102,7 +109,8 @@ export function MiTablero() {
   const suyas = useMemo(() => {
     if (!ctx) return [] as { t: TareaFlujo; deOtro: boolean }[];
     const q = fold(buscar).trim();
-    const coincide = (t: TareaFlujo) => !q || fold(t.titulo).includes(q) || fold(t.proyecto).includes(q) || fold(t.tablero ?? "").includes(q);
+    const coincide = (t: TareaFlujo) =>
+      (!marca || t.brand_id === marca) && (!q || fold(t.titulo).includes(q) || fold(t.proyecto).includes(q) || fold(t.tablero ?? "").includes(q));
     if (quien === TODO) return tareas.filter(coincide).map((t) => ({ t, deOtro: false }));
     const bc = quienPersona?.bc_persona_id ?? null;
     const out: { t: TareaFlujo; deOtro: boolean }[] = [];
@@ -114,7 +122,7 @@ export function MiTablero() {
       if (mia || valida || asignada) out.push({ t, deOtro: !mia && !valida });
     }
     return out;
-  }, [tareas, ctx, quien, quienPersona, buscar]);
+  }, [tareas, ctx, quien, quienPersona, buscar, marca]);
 
   // Fuera de la vista: las que cada uno ocultó y las pausadas que todavía no empezaron (confunden).
   const ocultasSet = preferencias.ocultas;
@@ -207,6 +215,18 @@ export function MiTablero() {
         <BoardNav />
         <BarDivider />
         <BarSearch value={buscar} onChange={setBuscar} placeholder="Buscar tarea o marca" />
+        {marca && (
+          <>
+            <BarDivider />
+            <button
+              type="button"
+              onClick={() => setMarca(null)}
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-cream/10 px-3 text-[13px] font-medium text-cream hover:bg-cream/15"
+            >
+              {marcaPorId.get(marca)?.name ?? "Una marca"} <span aria-hidden>✕</span>
+            </button>
+          </>
+        )}
       </ContextBar>
 
       <main className="pb-4 pt-[6.5rem]">

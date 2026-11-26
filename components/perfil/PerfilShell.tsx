@@ -15,6 +15,7 @@ import { fotoElegida, fueraDeOficina, nombreDe } from "@/lib/perfil";
 import { abrirPerfil } from "./abrir";
 import { AcentoEditor, EstadoEditor, FotoEditor, NombreEditor, PortadaEditor, RedesEditor } from "./Editores";
 import { ContrasenaEditor } from "./Contrasena";
+import { FechasEditor } from "./Fechas";
 import { Companeros, EnElEstudio } from "./EnElEstudio";
 import { EstadoLinea, FotoPerfil, Portada, PuestoPills, RedesLinks } from "./piezas";
 import { relacionesDe } from "./relaciones";
@@ -167,6 +168,9 @@ export function PerfilShell() {
                   <PortadaEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
                 </div>
               </div>
+            </Section>
+            <Section title="Fechas para festejar" hint="Las ve el estudio en el Inicio, para saludarte.">
+              <FechasEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
             </Section>
             <Section title="Tus redes" hint="Si te animás: el link o tu usuario. Las ve el estudio en tu perfil.">
               <RedesEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
