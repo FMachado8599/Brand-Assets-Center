@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, BarChart3, FileDown, Table2, X } from "lucide-react";
+import { AlertCircle, BarChart3, FileDown, Table2, X } from "lucide-react";
 import { PLATFORM_NAMES, PlatformIcon } from "@/components/downloads/PlatformIcon";
-import { BarAction, BarButton, BarDivider, BarSegmented, ContextBar } from "@/components/shell/ContextBar";
+import { BarAction, BarDivider, BarMigas, BarSegmented, ContextBar } from "@/components/shell/ContextBar";
 import { toast } from "@/components/ui/toaster";
 import { formatBytes } from "@/lib/converter/catalog";
 import type { Platform } from "@/lib/downloads/types";
@@ -271,7 +270,6 @@ function BarList({
 /* ───────────── La página ───────────── */
 
 export function DownloadMetrics() {
-  const router = useRouter();
   const [periodo, setPeriodo] = useState<Periodo>("30");
   const [filas, setFilas] = useState<Fila[] | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -349,7 +347,9 @@ export function DownloadMetrics() {
   return (
     <div className="min-h-screen">
       <ContextBar>
-        <BarButton label="Volver a Descargas" icon={ArrowLeft} onClick={() => router.push("/descargas")} />
+        <BarMigas migas={[{ href: "/descargas", titulo: "Descargas" }]} titulo="Métricas de Descargas">
+          <span className="hidden whitespace-nowrap px-2 text-sm font-semibold tracking-tight text-cream sm:inline">Métricas</span>
+        </BarMigas>
         <BarDivider />
         <BarSegmented<Periodo> label="Período" value={periodo} onChange={setPeriodo} options={PERIODOS} />
         <BarDivider />

@@ -9,12 +9,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
 import { useClients } from "@/hooks/useClients";
 import { cambiarEquipo, useEquipo } from "@/hooks/useEquipo";
-import { equipoRepo, NIVEL_LABEL, type EquipoData, type Persona } from "@/lib/board/equipo";
+import { equipoRepo, NIVEL_LABEL, resumenMarcas, type EquipoData, type Persona } from "@/lib/board/equipo";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { abrirPerfil } from "@/components/perfil/abrir";
 import { EstadoChip } from "@/components/perfil/piezas";
-import { Avatar, BoardNav, hace } from "./comun";
+import { AjustesNav, Avatar, hace } from "./comun";
 import { HubsPanel } from "./equipo/HubsPanel";
 import { Organigrama } from "./equipo/Organigrama";
 import { MarcasDialog } from "./equipo/MarcasDialog";
@@ -30,7 +30,7 @@ const ROLES: Opcion[] = [
 
 /**
  * Board → Equipo: quién es quién. Los admins configuran puestos, hubs, roles y quién está activo;
- * cada uno puede elegir de qué marcas es designado.
+ * cada uno puede elegir sus marcas principales y secundarias.
  */
 export function EquipoView() {
   const { data, error, sinMigracion, loaded, admin } = useEquipo();
@@ -52,7 +52,7 @@ export function EquipoView() {
   return (
     <div className="min-h-screen">
       <ContextBar>
-        <BoardNav />
+        <AjustesNav />
         <BarDivider />
         <BarSearch value={buscar} onChange={setBuscar} placeholder={pestana === "personas" ? "Buscar una persona" : "Buscar"} />
         {admin && (
@@ -64,7 +64,7 @@ export function EquipoView() {
         <div className="mb-6 text-center">
           <h1 className="font-display text-4xl leading-none tracking-[-0.01em] sm:text-5xl">Organización</h1>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            Quién depende de quién, qué hace cada uno (puestos, sectores, hubs) y de qué marcas es designado.
+            Quién depende de quién, qué hace cada uno (puestos, sectores, hubs) y sus marcas principales y secundarias.
             {loaded && data && !admin && " Los puestos y los hubs los configura un admin; tus marcas las podés elegir vos."}
             {loaded && data?.conActividad &&
               " Activo se calcula solo: sin nada en Basecamp ni en la app por 30 días, queda inactivo (los admins no se tocan; lo que cambies a mano queda fijo)."}
@@ -122,7 +122,7 @@ function PersonasPanel({ data, buscar, admin }: { data: EquipoData; buscar: stri
   const puestoPorId = useMemo(() => new Map(data.puestos.map((p) => [p.id, p])), [data.puestos]);
   const hubOpciones: Opcion[] = useMemo(() => data.hubs.map((h) => ({ value: h.id, label: h.nombre })), [data.hubs]);
   const sectoresDe = (p: Persona) => new Set(p.puestos.flatMap((id) => puestoPorId.get(id)?.sectores ?? []));
-  const marcasCuenta = (p: Persona) => data.designaciones.filter((d) => d.persona_id === p.id).length;
+  const marcasCuenta = (p: Persona) => resumenMarcas(p.id, data);
 
   const lista = useMemo(() => {
     const q = fold(buscar).trim();
@@ -246,7 +246,7 @@ function PersonasPanel({ data, buscar, admin }: { data: EquipoData; buscar: stri
                     !n && "text-muted-foreground"
                   )}
                 >
-                  {n ? `${n} ${n === 1 ? "marca" : "marcas"}` : admin || esYo ? "Elegir" : "Ninguna"}
+                  {n ?? (admin || esYo ? "Elegir" : "Ninguna")}
                 </button>
 
                 {admin ? (

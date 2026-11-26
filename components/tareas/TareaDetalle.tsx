@@ -458,7 +458,7 @@ export function TareaDetalle({
             {movimientos === null ? (
               <div className="skeleton h-16 rounded-2xl" />
             ) : !movimientos.length ? (
-              <p className="text-sm text-muted-foreground">Todavía no se movió desde que está en el Board.</p>
+              <p className="text-sm text-muted-foreground">Todavía no se movió desde que está en Status.</p>
             ) : (
               <ol className="space-y-2 border-l pl-4">
                 {movimientos.map((m) => (

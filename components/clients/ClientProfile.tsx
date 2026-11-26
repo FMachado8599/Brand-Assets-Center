@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, PenLine, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { useData } from "@/components/data/DataProvider";
-import { BarButton, BarDivider, ContextBar } from "@/components/shell/ContextBar";
+import { BarButton, BarDivider, BarMigas, ContextBar } from "@/components/shell/ContextBar";
 import { useConfirm } from "@/components/ui/confirm";
 import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
@@ -152,14 +152,18 @@ export function ClientProfile({ id }: { id: string }) {
 
   const bar = (
     <ContextBar>
-      <BarButton label="Todos los clientes" icon={ArrowLeft} onClick={() => router.push("/clientes")} />
-      {brand && (
-        <>
-          <BarDivider />
+      <BarMigas migas={[{ href: "/clientes", titulo: "Clientes" }]} titulo={brand?.name}>
+        {brand ? (
           <span className="flex max-w-[11rem] items-center gap-2 px-1.5 md:max-w-[16rem]">
             <ClientMark brand={brand} className="h-7 w-7 rounded-full text-xs" pad="p-[18%]" />
             <span className="hidden truncate text-sm font-semibold tracking-tight text-cream sm:inline">{brand.name}</span>
           </span>
+        ) : (
+          <span aria-hidden className="mx-1.5 h-7 w-7 rounded-full bg-cream/10" />
+        )}
+      </BarMigas>
+      {brand && (
+        <>
           <BarDivider />
           <BarButton label="Nueva tarjeta" icon={StickyNote} onClick={() => router.push(`/tarjetas?nueva=${id}`)} />
           <BarButton label="Nueva redacción" icon={PenLine} onClick={() => router.push(`/redaccion?cliente=${id}`)} />

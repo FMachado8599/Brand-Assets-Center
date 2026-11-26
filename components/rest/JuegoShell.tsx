@@ -2,11 +2,10 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutGrid } from "lucide-react";
-import { BarButton, BarDivider, BarSegmented, ContextBar } from "@/components/shell/ContextBar";
+import { BarDivider, BarMigas, BarSegmented, ContextBar } from "@/components/shell/ContextBar";
 import { juego, JUEGOS, type JuegoId } from "@/lib/rest/juegos";
 
-/** La página de un juego: en la barra se cambia de juego (y lo que sume cada uno); al costado, el ranking. */
+/** La página de un juego: en la barra, las migas (Rest › el juego, que ahí se cambia) y lo que sume cada uno; al costado, el ranking. */
 export function JuegoShell({
   actual,
   barra,
@@ -23,14 +22,15 @@ export function JuegoShell({
   return (
     <>
       <ContextBar>
-        <BarButton label="Todos los juegos" icon={LayoutGrid} onClick={() => router.push("/rest")} />
-        <BarDivider />
-        <BarSegmented
-          label="Juego"
-          value={actual}
-          onChange={(id) => router.push(juego(id).href)}
-          options={JUEGOS.map((j) => ({ value: j.id, label: j.nombre }))}
-        />
+        {/* Rest es la lista de juegos; el último nivel es el juego, y desde ahí se pasa a otro. */}
+        <BarMigas migas={[{ href: "/rest", titulo: "Rest" }]} titulo={info.nombre}>
+          <BarSegmented
+            label="Juego"
+            value={actual}
+            onChange={(id) => router.push(juego(id).href)}
+            options={JUEGOS.map((j) => ({ value: j.id, label: j.nombre }))}
+          />
+        </BarMigas>
         {barra && (
           <>
             <BarDivider />

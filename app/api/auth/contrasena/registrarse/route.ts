@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Pedir una cuenta desde /ingresar: nombre, mail y contraseña. Queda pendiente hasta que un admin la
- * aprueba en Board → Accesos. La respuesta es siempre la misma (no dice si el mail ya tenía cuenta).
+ * aprueba en Ajustes → Accesos. La respuesta es siempre la misma (no dice si el mail ya tenía cuenta).
  */
 export async function POST(req: Request) {
   if (!ingresoConContrasenaListo()) return noConfigurado();

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Switch } from "@/components/ui/switch";
 import { useClients } from "@/hooks/useClients";
 import { cambiarEquipo } from "@/hooks/useEquipo";
-import { equipoRepo, NIVEL_LABEL, type EquipoData, type Persona } from "@/lib/board/equipo";
+import { equipoRepo, NIVEL_LABEL, resumenMarcas, type EquipoData, type Persona } from "@/lib/board/equipo";
 import { Avatar, hace } from "../comun";
 import { MarcasDialog } from "./MarcasDialog";
 import { Chip, MultiPick, SelectSimple, type Opcion } from "./piezas";
@@ -46,7 +46,7 @@ export function PersonaDialog({ persona, data, admin, onClose }: { persona: Pers
   }, [p, data.personas]);
 
   if (!p) return <Dialog open={false} />;
-  const n = data.designaciones.filter((d) => d.persona_id === p.id).length;
+  const n = resumenMarcas(p.id, data);
   const fila = "grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-3 text-sm";
 
   return (
@@ -114,7 +114,7 @@ export function PersonaDialog({ persona, data, admin, onClose }: { persona: Pers
                 onClick={() => setMarcas(true)}
                 className="h-8 justify-self-start rounded-full border px-3 text-[13px] font-medium transition-colors hover:border-foreground/30"
               >
-                {n ? `${n} ${n === 1 ? "marca" : "marcas"}` : admin || p.id === yo ? "Elegir" : "Ninguna"}
+                {n ?? (admin || p.id === yo ? "Elegir" : "Ninguna")}
               </button>
             </div>
             <div className={fila}>

@@ -14,10 +14,14 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Search, X, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ArrowLeft, ChevronRight, Loader2, Search, X, type LucideIcon } from "lucide-react";
 import { Hint } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { activeModule } from "@/lib/modules";
 import { cn } from "@/lib/utils";
+import { usePaginaVolver, useVolver, type Destino } from "@/lib/volver";
 
 /** Un ícono de lucide o uno propio (ej: el logo de Basecamp) que acepte className. */
 export type BarIcon = LucideIcon | ComponentType<{ className?: string }>;
@@ -47,11 +51,15 @@ export function ContextBar({ children }: { children: ReactNode }) {
 const FADE_RIGHT = "linear-gradient(to right, #000 calc(100% - 32px), transparent)";
 
 export function ContextBarHost({ onTarget }: { onTarget: (el: HTMLElement | null) => void }) {
+  const row = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>();
-  const [empty, setEmpty] = useState(true);
+  const [hasContent, setHasContent] = useState(false);
   const [more, setMore] = useState(false);
+  // Cada herramienta arranca la barra con la flecha de volver; Inicio (y lo que no es una herramienta), no.
+  const back = activeModule(usePathname()).href !== "/";
+  const empty = !hasContent && !back;
 
   // ¿Queda contenido escondido a la derecha? Pasa en pantallas chicas.
   const checkOverflow = () => {
@@ -60,17 +68,21 @@ export function ContextBarHost({ onTarget }: { onTarget: (el: HTMLElement | null
   };
 
   useLayoutEffect(() => {
+    onTarget(inner.current);
+    return () => onTarget(null);
+  }, [onTarget]);
+
+  useLayoutEffect(() => {
     const el = inner.current!;
-    onTarget(el);
     const measure = () => {
-      const hasContent = el.childElementCount > 0;
-      setEmpty(!hasContent);
-      // Sin contenido conservamos el último ancho: entre una página y otra no queremos que colapse a cero.
-      if (hasContent) setWidth(el.scrollWidth + 2);
+      const filled = el.childElementCount > 0;
+      setHasContent(filled);
+      // Sin contenido (ni flecha) conservamos el último ancho: entre una página y otra no queremos que colapse a cero.
+      if (filled || back) setWidth(row.current!.scrollWidth + 2);
       requestAnimationFrame(checkOverflow);
     };
     const ro = new ResizeObserver(measure);
-    ro.observe(el);
+    ro.observe(row.current!);
     if (scroller.current) ro.observe(scroller.current);
     const mo = new MutationObserver(measure);
     mo.observe(el, { childList: true });
@@ -78,9 +90,8 @@ export function ContextBarHost({ onTarget }: { onTarget: (el: HTMLElement | null
     return () => {
       ro.disconnect();
       mo.disconnect();
-      onTarget(null);
     };
-  }, [onTarget]);
+  }, [back]);
 
   return (
     <div
@@ -98,9 +109,73 @@ export function ContextBarHost({ onTarget }: { onTarget: (el: HTMLElement | null
         className="no-scrollbar h-full overflow-x-auto"
         style={more ? { maskImage: FADE_RIGHT, WebkitMaskImage: FADE_RIGHT } : undefined}
       >
-        <div ref={inner} className="flex h-full w-max items-center p-1.5" />
+        <div ref={row} className="flex h-full w-max items-center p-1.5">
+          {back && (
+            <>
+              <BackButton />
+              {hasContent && <BarDivider />}
+            </>
+          )}
+          <div ref={inner} className="flex h-full items-center" />
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * La flecha del principio de la barra: vuelve a la pantalla anterior o, si se entró directo, sube un nivel
+ * (ver lib/volver.ts). La pone la barra sola en cada herramienta: las páginas no la montan.
+ */
+function BackButton() {
+  const { destino, volver } = useVolver();
+  return <BarButton label={destino.titulo ? `Volver a ${destino.titulo}` : "Volver"} icon={ArrowLeft} onClick={volver} />;
+}
+
+/**
+ * Migas: dónde está la pantalla dentro de su herramienta, para las que tienen niveles (la ficha de un
+ * cliente, una presentación, las métricas de Descargas, un juego). Va primero en la barra, después de la
+ * flecha: los niveles de arriba son links (en pantallas chicas se ocultan y queda la flecha) y el último,
+ * `children`, es la pantalla abierta.
+ *
+ * El nivel de arriba (el último de `migas`) es a donde lleva la flecha si se entró directo, y `titulo` es
+ * el nombre de esta pantalla para el "Volver a …" de la siguiente.
+ */
+export function BarMigas({
+  migas,
+  titulo,
+  desde = "md",
+  children,
+}: {
+  migas: Destino[];
+  titulo?: string;
+  /** Desde qué ancho se ven los niveles de arriba (donde la barra va llena, mejor más tarde). */
+  desde?: "md" | "lg";
+  children: ReactNode;
+}) {
+  usePaginaVolver({ titulo, padre: migas[migas.length - 1] });
+  const arriba = desde === "lg" ? "hidden lg:flex" : "hidden md:flex";
+  const separador = <ChevronRight aria-hidden className="h-3.5 w-3.5 shrink-0 text-cream/30" />;
+  return (
+    <nav aria-label="Estás en" className="flex shrink-0 items-center">
+      <ol className="flex items-center">
+        {migas.map((m, i) => (
+          <li key={m.href} className={cn(arriba, "items-center")}>
+            {i > 0 && separador}
+            <Link
+              href={m.href}
+              className="flex h-9 items-center whitespace-nowrap rounded-full px-2.5 text-sm font-medium text-cream/55 transition-colors hover:bg-cream/10 hover:text-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+            >
+              {m.titulo}
+            </Link>
+          </li>
+        ))}
+        <li aria-current="page" className="flex items-center">
+          {migas.length > 0 && <span className={cn(arriba, "items-center")}>{separador}</span>}
+          {children}
+        </li>
+      </ol>
+    </nav>
   );
 }
 

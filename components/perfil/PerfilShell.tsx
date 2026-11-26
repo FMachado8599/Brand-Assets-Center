@@ -22,7 +22,7 @@ import { relacionesDe } from "./relaciones";
 /**
  * /perfil: el perfil propio. Lo personal (foto, nombre, estado, color) se edita acá y se guarda solo;
  * lo del Board (puesto, hub, jefes, marcas) se muestra tal cual lo cargó un admin, y las marcas propias
- * se eligen desde acá. Abajo, la gente con la que trabajás: tocás a alguien y ves su perfil.
+ * (principales y secundarias, entre las de Basecamp) se eligen desde acá. Abajo, la gente con la que trabajás: tocás a alguien y ves su perfil.
  */
 export function PerfilShell() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export function PerfilShell() {
         </>
       )}
       {conBoard && (
-        <BarButton label="Ir al Board" icon={SquareKanban} onClick={() => router.push("/board")} />
+        <BarButton label="Ir a Status" icon={SquareKanban} onClick={() => router.push("/board")} />
       )}
     </ContextBar>
   );
@@ -146,7 +146,7 @@ export function PerfilShell() {
         </header>
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <Section title="Estado" hint="Lo ve todo el estudio: en tu perfil, en el Board y en el organigrama.">
+          <Section title="Estado" hint="Lo ve todo el estudio: en tu perfil, en Status y en el organigrama.">
             <EstadoEditor key={perfil.id} perfil={perfil} guardar={guardar} disabled={bloqueado} />
           </Section>
 
@@ -181,7 +181,7 @@ export function PerfilShell() {
           <div className="mt-4 grid grid-cols-1 gap-4">
             <Section
               title="En el estudio"
-              hint={yo ? "Del Board. Puesto, hub y jefes los carga un admin en Organización; tus marcas las elegís vos." : undefined}
+              hint={yo ? "De Status. Puesto, hub y jefes los carga un admin en Organización. Tus marcas salen de Basecamp: vos elegís cuáles son principales y cuáles secundarias." : undefined}
             >
               {!equipo.loaded ? (
                 <div className="skeleton h-40 rounded-2xl" />
@@ -196,13 +196,13 @@ export function PerfilShell() {
                       onClick={() => setMarcas(true)}
                       className="h-8 rounded-full border bg-card px-3 text-[13px] font-medium shadow-sm transition-colors hover:border-foreground/30"
                     >
-                      {rel.marcas.length ? "Cambiar tus marcas" : "Elegir tus marcas"}
+                      Principales y secundarias
                     </button>
                   }
                 />
               ) : (
                 <p className="rounded-2xl border border-dashed border-foreground/15 px-4 py-5 text-center text-sm text-muted-foreground">
-                  Todavía no estás en el equipo del Board. Un admin te suma desde{" "}
+                  Todavía no estás en el equipo de Status. Un admin te suma desde{" "}
                   <Link href="/board/organizacion" className="font-medium text-foreground underline-offset-2 hover:underline">
                     Organización
                   </Link>{" "}
@@ -212,11 +212,15 @@ export function PerfilShell() {
             </Section>
 
             {rel && (
-              <Section title="Con quién trabajás" hint="Los designados de tus mismas marcas y la gente de tu hub. Tocá a alguien para ver su perfil.">
+              <Section title="Con quién trabajás" hint="Los que trabajan tus mismas marcas y la gente de tu hub. Tocá a alguien para ver su perfil.">
                 <Companeros
                   companeros={rel.companeros}
                   onPersona={abrirPerfil}
-                  vacio={rel.marcas.length || rel.hub ? "Todavía no hay nadie más en tus marcas ni en tu hub." : "Elegí tus marcas y vas a ver acá a la gente con la que las trabajás."}
+                  vacio={
+                    rel.marcas.length || rel.secundarias.length || rel.hub
+                      ? "Todavía no hay nadie más en tus marcas ni en tu hub."
+                      : "Marcá tus marcas principales y secundarias y vas a ver acá a la gente con la que las trabajás."
+                  }
                 />
               </Section>
             )}

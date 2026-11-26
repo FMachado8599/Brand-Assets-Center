@@ -27,6 +27,7 @@ import {
   BarAction,
   BarButton,
   BarDivider,
+  BarMigas,
   BarPopover,
   BarSegmented,
   ContextBar,
@@ -327,7 +328,7 @@ function Editor({ id }: { id: string }) {
     if (r.tarea && r.etapa) {
       const etapa = ETAPA_LABEL[r.etapa as Etapa] ?? r.etapa;
       const aviso = r.avisados ? (r.avisados === 1 ? " y le avisamos a su designado" : ` y les avisamos a ${r.avisados} personas`) : "";
-      toast(`${titulo}. En el Board, la tarea pasó a ${etapa}${aviso}.`);
+      toast(`${titulo}. En Status, la tarea pasó a ${etapa}${aviso}.`);
     } else toast(cierre?.siguiente === estado ? `${titulo}: pasó a ${estadoInfo(estado).label}` : titulo);
   };
 
@@ -340,16 +341,24 @@ function Editor({ id }: { id: string }) {
 
   const bar = (
     <ContextBar>
-      <BarButton label="Todas las presentaciones" icon={ArrowLeft} onClick={() => router.push("/presentaciones")} />
-      {plani && brand && (
-        <>
-          <BarDivider />
+      <BarMigas
+        migas={[{ href: "/presentaciones", titulo: "Presentaciones" }]}
+        titulo={plani && brand ? `${brand.name} · ${MESES[plani.mes - 1]}` : undefined}
+        desde="lg"
+      >
+        {plani && brand ? (
           <span className="flex max-w-[12rem] items-center gap-2 px-1.5">
             <ClientMark brand={brand} className="h-7 w-7 rounded-full text-[10px]" pad="p-[18%]" />
             <span className="hidden truncate text-sm font-semibold tracking-tight text-cream lg:inline">
               {brand.name} · {MESES[plani.mes - 1]}
             </span>
           </span>
+        ) : (
+          <span aria-hidden className="mx-1.5 h-7 w-7 rounded-full bg-cream/10" />
+        )}
+      </BarMigas>
+      {plani && brand && (
+        <>
           <BarDivider />
           <BarSegmented<Rol> label="Ver como" value={rol} onChange={(v) => setRol(v)} options={ROLES.map((r) => ({ value: r.value, label: r.label }))} />
           <BarDivider />
@@ -569,7 +578,7 @@ function Editor({ id }: { id: string }) {
                 <b className="font-semibold">{estadoInfo(plani.estado).label}:</b>{" "}
                 <span className="text-muted-foreground">
                   {estadoInfo(plani.estado).hint}. Cuando esté, pasala a {estadoInfo(CIERRE[plani.estado]!.siguiente).label}
-                  {plani.bc_tarea_id ? " (la tarea también pasa en el Board)" : ""}. Si después hay ajustes, se puede volver.
+                  {plani.bc_tarea_id ? " (la tarea también pasa en Status)" : ""}. Si después hay ajustes, se puede volver.
                 </span>
               </p>
               <button
@@ -618,7 +627,7 @@ function Editor({ id }: { id: string }) {
             </button>
           ) : integraciones && !integraciones.basecamp ? (
             <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <BasecampMark className="h-3.5 w-3.5" /> Con Basecamp conectado (lo conecta un admin en Board → Basecamp), la tarea de la presentación se ve acá.
+              <BasecampMark className="h-3.5 w-3.5" /> Con Basecamp conectado (lo conecta un admin en Ajustes → Basecamp), la tarea de la presentación se ve acá.
             </p>
           ) : null}
         </div>

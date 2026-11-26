@@ -5,7 +5,7 @@ import { EquipoView } from "@/components/tareas/EquipoView";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Organización · Board",
+  title: "Organización · Ajustes",
   description: "El organigrama del estudio: quién depende de quién, puestos, sectores, hubs y marcas de cada uno.",
 };
 

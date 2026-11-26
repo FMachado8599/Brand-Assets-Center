@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Columns3, Table2, Tags } from "lucide-react";
 import { ClientMark } from "@/components/clients/ClientMark";
@@ -9,6 +9,7 @@ import { useClients } from "@/hooks/useClients";
 import { useEquipo } from "@/hooks/useEquipo";
 import { cambiarTarea, useFlujo } from "@/hooks/useFlujo";
 import { useStoredState } from "@/hooks/useStoredState";
+import { veBasecamp } from "@/lib/board/equipo";
 import {
   armarContexto,
   claveOrden,
@@ -30,6 +31,7 @@ import {
 import { ponerPreferencia, usePreferenciasTareas } from "@/hooks/usePreferenciasTareas";
 import { ABRIR_TAREA } from "@/lib/notificaciones/prioridad";
 import { fold } from "@/lib/redaccion/text";
+import { STUDIO_DOMAIN } from "@/lib/site";
 import type { Brand } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useArrastre, type Destino } from "./arrastre";
@@ -239,7 +241,7 @@ export function MiTablero() {
               <button
                 type="button"
                 onClick={() => setMisMarcas(true)}
-                title="De qué marcas sos el designado en tu sector: sus tareas nuevas te llegan a vos"
+                title="Tus marcas principales (sus tareas nuevas te llegan a vos) y secundarias (también las trabajás)"
                 className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
               >
                 <Tags className="h-3.5 w-3.5" /> Mis marcas
@@ -295,6 +297,10 @@ export function MiTablero() {
         {falta ? (
           <Aviso>
             Falta correr <code className="rounded bg-foreground/10 px-1 text-[12px]">{falta}</code> en Supabase.
+          </Aviso>
+        ) : equipo && !veBasecamp(equipo.yo) ? (
+          <Aviso>
+            Lo de Basecamp (las tareas y sus avisos) lo ven solo las cuentas @{STUDIO_DOMAIN}. Si tendrías que verlo, pedíselo a un admin.
           </Aviso>
         ) : error || errorEquipo ? (
           <Aviso>{error ?? errorEquipo}</Aviso>
@@ -408,24 +414,37 @@ export function Indicador({ eje = "y" }: { eje?: "x" | "y" }) {
   );
 }
 
+type FilaTabla = { t: TareaFlujo; tenue: boolean };
+
 /**
- * La vista de tabla de Mi tablero: las mismas tareas que el tablero, en una lista. En el orden de
- * las etapas y, dentro de cada una, por prioridad. Tocar una fila abre la tarea.
+ * La vista de tabla: las mismas tareas que el tablero, en una lista. En Mi tablero, en el orden de
+ * las etapas y, dentro de cada una, por prioridad. En Equipo, por persona (`secciones`: una cabecera
+ * por persona y sus tareas, de la más prioritaria a la menos). Tocar una fila abre la tarea.
  */
-function TablaTareas({
+export function TablaTareas({
   filas,
+  secciones,
   ctx,
   marcaPorId,
   onAbrir,
+  vacio = "Nada acá.",
+  className = "mx-4 sm:mx-6",
 }: {
-  filas: { t: TareaFlujo; tenue: boolean }[];
+  filas?: FilaTabla[];
+  secciones?: { key: string; cabecera: ReactNode; filas: FilaTabla[] }[];
   ctx: Contexto;
   marcaPorId: Map<string, unknown>;
   onAbrir: (id: number) => void;
+  vacio?: string;
+  /** Los márgenes de afuera (Equipo ya los tiene en la página). */
+  className?: string;
 }) {
-  if (!filas.length) return <p className="mx-4 rounded-3xl border bg-card p-8 text-center text-sm text-muted-foreground sm:mx-6">Nada acá.</p>;
+  const grupos = secciones ?? [{ key: "todas", cabecera: null as ReactNode, filas: filas ?? [] }];
+  if (!grupos.some((g) => g.filas.length)) {
+    return <p className={cn("rounded-3xl border bg-card p-8 text-center text-sm text-muted-foreground", className)}>{vacio}</p>;
+  }
   return (
-    <div className="mx-4 overflow-hidden rounded-3xl border bg-card shadow-sm sm:mx-6">
+    <div className={cn("overflow-hidden rounded-3xl border bg-card shadow-sm", className)}>
       <div className="max-h-[calc(100dvh-10.5rem)] overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 border-b bg-secondary/80 text-left backdrop-blur">
@@ -438,51 +457,62 @@ function TablaTareas({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {filas.map(({ t, tenue }) => {
-              const marca = t.brand_id ? (marcaPorId.get(t.brand_id) as Brand | undefined) : undefined;
-              const tono = TONO[tonoDe(t)];
-              const etapa = etapaDe(t);
-              const quien = responsableDe(t, ctx).persona;
-              const fecha = fechaDe(t);
-              return (
-                <tr
-                  key={t.id}
-                  tabIndex={0}
-                  onClick={() => onAbrir(t.id)}
-                  onKeyDown={(e) => e.key === "Enter" && onAbrir(t.id)}
-                  className={cn("cursor-pointer outline-none transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50", tenue && "opacity-55")}
-                >
-                  <td className="px-4 py-2.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <ClientMark
-                        brand={marca ?? { name: t.proyecto, color: "#52525B", logo_url: null, logo_bg: "light" }}
-                        className="h-7 w-7 shrink-0 rounded-md text-[9px]"
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{t.titulo || "Sin título"}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {marca?.name ?? t.proyecto}
-                          {t.tablero ? ` · ${t.tablero}` : ""}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">{TITULO[etapa] ?? ETAPA_LABEL[etapa]}</td>
-                  <td className="hidden max-w-[10rem] truncate px-3 py-2.5 text-muted-foreground lg:table-cell">{quien?.nombre ?? "—"}</td>
-                  <td className={cn("hidden whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground sm:table-cell", fecha.vieja && "line-through decoration-muted-foreground/50")}>
-                    {fecha.fecha ? fechaCorta(fecha.fecha) : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span
-                      className="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                      style={{ color: tono.fg, background: tono.bg === "transparent" ? "var(--tono-gris)" : tono.bg }}
+            {grupos.map((g) => (
+              <Fragment key={g.key}>
+                {g.cabecera != null && (
+                  <tr className="bg-secondary/40">
+                    <td colSpan={5} className="px-4 py-2">
+                      {g.cabecera}
+                    </td>
+                  </tr>
+                )}
+                {g.filas.map(({ t, tenue }) => {
+                  const marca = t.brand_id ? (marcaPorId.get(t.brand_id) as Brand | undefined) : undefined;
+                  const tono = TONO[tonoDe(t)];
+                  const etapa = etapaDe(t);
+                  const quien = responsableDe(t, ctx).persona;
+                  const fecha = fechaDe(t);
+                  return (
+                    <tr
+                      key={t.id}
+                      tabIndex={0}
+                      onClick={() => onAbrir(t.id)}
+                      onKeyDown={(e) => e.key === "Enter" && onAbrir(t.id)}
+                      className={cn("cursor-pointer outline-none transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50", tenue && "opacity-55")}
                     >
-                      {tono.label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+                      <td className="px-4 py-2.5">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <ClientMark
+                            brand={marca ?? { name: t.proyecto, color: "#52525B", logo_url: null, logo_bg: "light" }}
+                            className="h-7 w-7 shrink-0 rounded-md text-[9px]"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{t.titulo || "Sin título"}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {marca?.name ?? t.proyecto}
+                              {t.tablero ? ` · ${t.tablero}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-3 py-2.5 text-muted-foreground md:table-cell">{TITULO[etapa] ?? ETAPA_LABEL[etapa]}</td>
+                      <td className="hidden max-w-[10rem] truncate px-3 py-2.5 text-muted-foreground lg:table-cell">{quien?.nombre ?? "—"}</td>
+                      <td className={cn("hidden whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground sm:table-cell", fecha.vieja && "line-through decoration-muted-foreground/50")}>
+                        {fecha.fecha ? fechaCorta(fecha.fecha) : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span
+                          className="inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                          style={{ color: tono.fg, background: tono.bg === "transparent" ? "var(--tono-gris)" : tono.bg }}
+                        >
+                          {tono.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>
