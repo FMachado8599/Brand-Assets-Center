@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Expand, FolderOpen, MessageSquare, Shrink, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Expand, FolderOpen, MessageSquare, Shrink, X } from "lucide-react";
 import { ClientMark } from "@/components/clients/ClientMark";
-import { BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
+import { BarButton, BarDivider, BarMigas, BarNote, ContextBar } from "@/components/shell/ContextBar";
 import { useClients } from "@/hooks/useClients";
 import { useComentarios } from "@/hooks/useComentarios";
 import { useTipos } from "@/hooks/useTipos";
@@ -48,8 +47,6 @@ type Props = {
   onAprobar?: (piezaId: string, estado: Aprobacion) => void;
   /** Cliente: su nombre para firmar los comentarios. */
   nombre?: { value: string; onChange: (v: string) => void };
-  /** Estudio: volver al editor (la barra de la app). */
-  onVolver?: () => void;
 };
 
 /**
@@ -67,7 +64,7 @@ export function PresentacionVista({ herramientas = [], ...props }: Props & { her
   );
 }
 
-function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, onVolver, gente }: Props) {
+function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar, onResolver, onBorrar, yo, onAprobar, nombre, gente }: Props) {
   const deck = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(0);
   const [full, setFull] = useState(false);
@@ -166,14 +163,18 @@ function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar
     <div className="relative bg-background">
       {modo === "estudio" ? (
         <ContextBar>
-          <BarButton label="Volver al editor" icon={ArrowLeft} onClick={onVolver} />
-          <BarDivider />
-          <span className="flex items-center gap-2 px-1.5">
-            <ClientMark brand={brand} className="h-7 w-7 rounded-full text-[10px]" pad="p-[18%]" />
-            <span className="hidden text-sm font-semibold text-cream sm:inline">
-              {brand.name} · {MESES[plani.mes - 1]}
+          <BarMigas
+            migas={[
+              { href: "/presentaciones", titulo: "Presentaciones" },
+              { href: `/presentaciones/${plani.id}`, titulo: `${brand.name} · ${MESES[plani.mes - 1]}` },
+            ]}
+            titulo="la presentación"
+          >
+            <span className="flex items-center gap-2 px-1.5">
+              <ClientMark brand={brand} className="h-7 w-7 rounded-full text-[10px] md:hidden" pad="p-[18%]" />
+              <span className="hidden text-sm font-semibold text-cream sm:inline">Presentar</span>
             </span>
-          </span>
+          </BarMigas>
           <BarDivider />
           {controles}
         </ContextBar>
@@ -289,7 +290,6 @@ function Vista({ plani, tipoNombre, piezas, brand, modo, comentarios, onComentar
 
 /** La presentación desde la app (estudio): lee la plani y sus comentarios con la sesión. */
 export function Presentacion({ id }: { id: string }) {
-  const router = useRouter();
   const { plani, piezas, loading, error } = usePlani(id);
   const { clients } = useClients();
   const comentarios = useComentarios(id);
@@ -324,7 +324,6 @@ export function Presentacion({ id }: { id: string }) {
       onResolver={comentarios.resolver}
       onBorrar={comentarios.borrar}
       yo={comentarios.yo}
-      onVolver={() => router.push(`/presentaciones/${id}`)}
     />
   );
 }

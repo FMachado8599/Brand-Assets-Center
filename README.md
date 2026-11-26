@@ -28,6 +28,8 @@ La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su
 
 - **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra. Las librerías (Emojis, GIFs, Íconos) van aparte, al final, bajo **Librerías**.
 - **La barra flotante del centro** cambia según el módulo: es desde donde se hace todo (buscar, filtrar, agregar, exportar, configurar). Al pasar de un módulo a otro se transforma en lugar de recargarse.
+- **La flecha del principio de la barra** vuelve, en cada herramienta: si llegaste navegando por la app, a la pantalla anterior (de la ficha de un cliente a "Nueva tarjeta" y de vuelta a la ficha); si entraste directo (un link, una pestaña nueva), sube un nivel, o a Inicio. Con el mouse encima dice a dónde va ("Volver a Clientes").
+- **Las migas** van al lado de la flecha en las pantallas que tienen niveles: la ficha de un cliente (*Clientes › el cliente*), una presentación (*Presentaciones › el cliente · el mes*, y *› Presentar*), las métricas de Descargas y cada juego de Rest. Los niveles de arriba son links; en el celular se ocultan y queda la flecha.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
 - **El avatar de arriba a la derecha** es la cuenta: iniciar sesión con Google o cerrarla (ver "Cuentas y visitas").
@@ -50,6 +52,8 @@ Se prende y se apaga desde la foto de perfil (arriba a la derecha), debajo de tu
 - Lo que ve el cliente se ve siempre de día: la plani compartida (`/p/…`) y el modo Presentar. Inicio sin sesión y Privacidad también, con la clase `tema-dia` (vuelve a poner las variables de día).
 
 La barra está en `components/shell/ContextBar.tsx`: cada página monta `<ContextBar>` con sus controles y estos se "teletransportan" a la barra del layout. Sus piezas (`BarButton`, `BarSearch`, `BarSegmented`…) ya vienen pensadas para fondo negro.
+
+La flecha de volver la pone la barra sola en toda herramienta (todo lo que `activeModule` no resuelve como Inicio): una página nueva no tiene que hacer nada. Para saber a dónde volver, `lib/volver.ts` guarda en el estado de cada entrada del historial la pantalla anterior (envuelve `history.pushState` y `replaceState`, igual que Next): así nunca saca de la app y sigue andando al recargar. Una pantalla con niveles pone primero en su barra `<BarMigas migas={[{ href: "/clientes", titulo: "Clientes" }]} titulo={cliente.name}>…</BarMigas>`: el último nivel de `migas` es a dónde sube la flecha si se entró directo, y `titulo` es su nombre para el "Volver a …" de la pantalla siguiente.
 
 ---
 

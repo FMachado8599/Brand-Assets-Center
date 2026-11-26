@@ -27,6 +27,7 @@ import {
   BarAction,
   BarButton,
   BarDivider,
+  BarMigas,
   BarPopover,
   BarSegmented,
   ContextBar,
@@ -340,16 +341,24 @@ function Editor({ id }: { id: string }) {
 
   const bar = (
     <ContextBar>
-      <BarButton label="Todas las presentaciones" icon={ArrowLeft} onClick={() => router.push("/presentaciones")} />
-      {plani && brand && (
-        <>
-          <BarDivider />
+      <BarMigas
+        migas={[{ href: "/presentaciones", titulo: "Presentaciones" }]}
+        titulo={plani && brand ? `${brand.name} · ${MESES[plani.mes - 1]}` : undefined}
+        desde="lg"
+      >
+        {plani && brand ? (
           <span className="flex max-w-[12rem] items-center gap-2 px-1.5">
             <ClientMark brand={brand} className="h-7 w-7 rounded-full text-[10px]" pad="p-[18%]" />
             <span className="hidden truncate text-sm font-semibold tracking-tight text-cream lg:inline">
               {brand.name} · {MESES[plani.mes - 1]}
             </span>
           </span>
+        ) : (
+          <span aria-hidden className="mx-1.5 h-7 w-7 rounded-full bg-cream/10" />
+        )}
+      </BarMigas>
+      {plani && brand && (
+        <>
           <BarDivider />
           <BarSegmented<Rol> label="Ver como" value={rol} onChange={(v) => setRol(v)} options={ROLES.map((r) => ({ value: r.value, label: r.label }))} />
           <BarDivider />
