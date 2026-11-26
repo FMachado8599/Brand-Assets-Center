@@ -17,7 +17,16 @@ export type SyncInfo = {
 export type Integraciones = {
   listo: { secreto: boolean; basecamp: boolean; google: boolean };
   basecamp: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: BasecampDatos } | null;
-  google: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: { raiz_url?: string | null; raiz_nombre?: string | null; completo?: boolean } } | null;
+  google: { cuenta_id: string | null; cuenta_nombre: string | null; conectada_por: string | null; conectada: string; datos: {
+      raiz_url?: string | null;
+      raiz_nombre?: string | null;
+      completo?: boolean;
+      /** Se dio el permiso de Google Calendar (el Calendario de la app lo usa). */
+      calendario?: boolean;
+      calendario_id?: string | null;
+      calendario_nombre?: string | null;
+    };
+  } | null;
   sync: SyncInfo | null;
 };
 

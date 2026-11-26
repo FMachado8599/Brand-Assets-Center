@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "./crypto";
 import { ReconectarError } from "./reconectar";
 
-export type Proveedor = "basecamp" | "google" | "influencity";
+export type Proveedor = "basecamp" | "google" | "influencity" | "slack";
 
 /** Una conexión, con los tokens ya descifrados. Solo existe en el servidor. */
 export type Conexion = {
@@ -48,7 +48,7 @@ export async function leerConexion(db: SupabaseClient, proveedor: Proveedor): Pr
     accessToken = decrypt(data.access_token);
     refreshToken = data.refresh_token ? decrypt(data.refresh_token) : null;
   } catch {
-    const nombre = proveedor === "basecamp" ? "Basecamp" : proveedor === "google" ? "Google Drive" : proveedor;
+    const nombre = proveedor === "basecamp" ? "Basecamp" : proveedor === "google" ? "Google Drive" : proveedor === "slack" ? "Slack" : proveedor;
     throw new ReconectarError(
       `La conexión con ${nombre} no se puede usar acá: se hizo desde otro lado. Volvé a conectar ${nombre} (lo hace un admin).`
     );

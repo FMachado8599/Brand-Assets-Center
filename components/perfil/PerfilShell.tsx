@@ -9,12 +9,16 @@ import { BarButton, BarDivider, ContextBar } from "@/components/shell/ContextBar
 import { useAccount } from "@/components/shell/AccountProvider";
 import { MarcasDialog } from "@/components/tareas/equipo/MarcasDialog";
 import { useClients } from "@/hooks/useClients";
-import { useEquipo } from "@/hooks/useEquipo";
+import { cambiarEquipo, useEquipo } from "@/hooks/useEquipo";
 import { useMiPerfil } from "@/hooks/useMiPerfil";
+import { equipoRepo } from "@/lib/board/equipo";
+import { cumpleDe } from "@/lib/cumple";
 import { fotoElegida, fueraDeOficina, nombreDe } from "@/lib/perfil";
 import { abrirPerfil } from "./abrir";
 import { AcentoEditor, EstadoEditor, FotoEditor, NombreEditor, PortadaEditor, RedesEditor } from "./Editores";
 import { ContrasenaEditor } from "./Contrasena";
+import { CumpleEditor } from "./CumpleEditor";
+import { SlackPrefs } from "./SlackPrefs";
 import { Companeros, EnElEstudio } from "./EnElEstudio";
 import { EstadoLinea, FotoPerfil, Portada, PuestoPills, RedesLinks } from "./piezas";
 import { relacionesDe } from "./relaciones";
@@ -171,6 +175,24 @@ export function PerfilShell() {
             <Section title="Tus redes" hint="Si te animás: el link o tu usuario. Las ve el estudio en tu perfil.">
               <RedesEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
             </Section>
+            {yo && (
+              <Section
+                title="Tu cumpleaños"
+                hint="Si querés: solo el día y el mes. Lo ve el estudio en tu perfil y en el Calendario, y ese día Slack les avisa a tus compañeros."
+              >
+                <CumpleEditor
+                  valor={cumpleDe(yo)}
+                  guardar={(c) =>
+                    cambiarEquipo(() => equipoRepo.miCumple(c?.dia ?? null, c?.mes ?? null), c ? "Cumpleaños guardado" : "Cumpleaños borrado")
+                  }
+                />
+              </Section>
+            )}
+            {yo && (
+              <Section title="Avisos por Slack" hint="Lo que te llega por privado. Lo que sea de una marca va a su canal.">
+                <SlackPrefs equipoId={yo.id} />
+              </Section>
+            )}
             <Section title="Contraseña">
               <ContrasenaEditor />
             </Section>

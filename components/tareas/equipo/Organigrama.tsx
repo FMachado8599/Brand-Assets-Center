@@ -537,7 +537,7 @@ function AgregarPersona({ abierto, onClose, onCreada, data }: { abierto: boolean
     const nueva: Persona = data.personas.find((p) => p.id === id) ?? {
       id, nombre: nombre.trim(), email: email || null, bc_persona_id: null, rol: "empleado", hub_id: null, activo: true, puestos: [],
       avatar_url: null, avatar_bc: null, cargo: null, activo_manual: null, ultima_actividad: null, actividad_medida: false, jefes: [], en_organigrama: false,
-      perfil: null,
+      perfil: null, cumple_dia: null, cumple_mes: null,
     };
     onCreada(nueva);
   }

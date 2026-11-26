@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, PenLine, StickyNote, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Download, Megaphone, PenLine, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { useData } from "@/components/data/DataProvider";
 import { BarButton, BarDivider, ContextBar } from "@/components/shell/ContextBar";
@@ -20,6 +20,7 @@ import { socialKey, socialLabel, socialName, type BrandSocial } from "@/lib/clie
 import { hasSupabase } from "@/lib/supabase";
 import type { Brand, LogoBg } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { AvisarEquipo } from "./AvisarEquipo";
 import { ClientMark, logoBackground } from "./ClientMark";
 import { ColorChoice } from "./ColorChoice";
 import { LogoDrop } from "./LogoDrop";
@@ -49,6 +50,7 @@ export function ClientProfile({ id }: { id: string }) {
   const kits = useBrandKits();
   const brand = clients.find((c) => c.id === id) ?? null;
   const leaving = useRef(false);
+  const [avisar, setAvisar] = useState(false);
 
   useEffect(() => {
     if (brand) document.title = `${brand.name} · Clientes · Herramientas`;
@@ -163,6 +165,7 @@ export function ClientProfile({ id }: { id: string }) {
           <BarDivider />
           <BarButton label="Nueva tarjeta" icon={StickyNote} onClick={() => router.push(`/tarjetas?nueva=${id}`)} />
           <BarButton label="Nueva redacción" icon={PenLine} onClick={() => router.push(`/redaccion?cliente=${id}`)} />
+          <BarButton label="Avisar al equipo por Slack" icon={Megaphone} onClick={() => setAvisar(true)} />
         </>
       )}
     </ContextBar>
@@ -197,6 +200,7 @@ export function ClientProfile({ id }: { id: string }) {
   return (
     <>
       {bar}
+      <AvisarEquipo brand={brand} open={avisar} onClose={() => setAvisar(false)} />
       <main className="mx-auto max-w-6xl px-4 pb-20 pt-[5.5rem] sm:px-6">
         {hasProfile === false && <MigrationNotice className="mb-6" />}
 

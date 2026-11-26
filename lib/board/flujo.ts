@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { EquipoData, Persona } from "./equipo";
 import type { TareaBoard } from "./tareas";
+import { despacharSlack } from "@/lib/slack/despachar";
 
 /**
  * El flujo de cada tarea dentro del estudio (supabase/migracion-flujo.sql): en qué etapa está en la
@@ -398,7 +399,8 @@ export const flujoRepo = {
     hacer(supabase.rpc("tarea_mover", { p_tarea: id, p_etapa: etapa, p_orden: orden ?? null, p_nota: nota ?? null })),
   ordenar: (id: number, orden: number) => hacer(supabase.rpc("tarea_ordenar", { p_tarea: id, p_orden: orden })),
   asignar: (id: number, persona: string | null, orden?: number | null) =>
-    hacer(supabase.rpc("tarea_asignar", { p_tarea: id, p_persona: persona, p_orden: orden ?? null })),
+    // Pasarle una tarea a alguien le avisa; si lo pidió por Slack, también le llega ahí.
+    hacer(supabase.rpc("tarea_asignar", { p_tarea: id, p_persona: persona, p_orden: orden ?? null })).then(() => despacharSlack()),
   pausar: (id: number, pausada: boolean, motivo?: string) =>
     hacer(supabase.rpc("tarea_pausar", { p_tarea: id, p_pausada: pausada, p_motivo: motivo ?? null })),
   vigencia: (id: number, fecha: string | null) =>

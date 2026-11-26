@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { studioSession } from "@/lib/access";
-import { Drive, DRIVE_SCOPE, emailDeIdToken, expiraEn, googleExchangeCode } from "@/lib/integraciones/google";
+import { CALENDAR_SCOPE, Drive, DRIVE_SCOPE, emailDeIdToken, expiraEn, googleExchangeCode } from "@/lib/integraciones/google";
 import { terminarOAuth, volverCon } from "@/lib/integraciones/oauth-state";
 import { anotarLlaveServidor } from "@/lib/integraciones/llave-servidor";
 import { appOrigin, esAdminApp, guardarConexion, leerConexion } from "@/lib/integraciones/store";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Vuelta de Google: se guardan los tokens cifrados y se crea (o se recupera) la carpeta raíz de las
- * presentaciones en ese Drive.
+ * presentaciones en ese Drive. Si también se dio el permiso de Google Calendar, queda anotado.
  */
 export async function GET(request: NextRequest) {
   const volver = terminarOAuth(request, "google");
@@ -34,7 +34,12 @@ export async function GET(request: NextRequest) {
     // Si es la misma cuenta que ya estaba, se conserva la carpeta raíz (y todo lo que hay adentro).
     const anterior = await leerConexion(db, "google").catch(() => null);
     // Con el permiso completo la app ve las carpetas del estudio (PAUTAS DIGITAL), no solo las suyas.
-    const datos = { ...(anterior && anterior.cuenta_id === email ? anterior.datos : {}), completo: true };
+    // calendario: si también se dio el permiso de Google Calendar (el Calendario de la app lo usa).
+    const datos = {
+      ...(anterior && anterior.cuenta_id === email ? anterior.datos : {}),
+      completo: true,
+      calendario: granted.includes(CALENDAR_SCOPE),
+    };
 
     await guardarConexion(db, {
       proveedor: "google",

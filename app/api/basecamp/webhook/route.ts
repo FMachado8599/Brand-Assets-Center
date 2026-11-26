@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { llaveValida } from "@/lib/integraciones/basecamp-webhook";
+import { appOrigin } from "@/lib/integraciones/store";
+import { despacharColaSinFallar } from "@/lib/slack/envios";
 import { createSupabaseAnon, faltaSupabase, hasSupabaseEnv } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
@@ -30,5 +32,7 @@ export async function POST(request: NextRequest) {
     const status = /Llave de Basecamp/i.test(error.message) ? 401 : 500;
     return NextResponse.json({ error: error.message }, { status });
   }
+  // Si el aviso nombró o le asignó algo a alguien que lo pidió por Slack, le llega ahora.
+  await despacharColaSinFallar(appOrigin(request.url));
   return NextResponse.json({ ok: true, resultado: data });
 }
