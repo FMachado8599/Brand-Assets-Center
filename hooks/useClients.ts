@@ -2,6 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { cleanPalette } from "@/lib/clients/color";
+import { cleanGroups, cleanLogos } from "@/lib/clients/logos";
+import { cleanSocials } from "@/lib/clients/socials";
 import type { Brand } from "@/lib/types";
 
 const hasSupabase = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -14,6 +16,12 @@ type State = {
   loaded: boolean;
   /** La base ya tiene la ficha (migracion-clientes.sql). null: no se sabe (no hay clientes para mirar). */
   hasProfile: boolean | null;
+  /** La base ya tiene las redes (migracion-redes.sql). null: no se sabe. */
+  hasSocials: boolean | null;
+  /** La base ya tiene el kit de voz (migracion-voz-marca.sql). null: no se sabe. */
+  hasVozMarca: boolean | null;
+  /** La base ya tiene varios logos por cliente (migracion-logos.sql). null: no se sabe. */
+  hasLogos: boolean | null;
 };
 
 /**
@@ -22,8 +30,8 @@ type State = {
  * fuera de React, así sobrevive al pasar de un módulo a otro y un cliente
  * creado desde cualquier lado aparece en todos al instante.
  */
-let state: State = { clients: [], loaded: !hasSupabase, hasProfile: null };
-const SERVER: State = { clients: [], loaded: false, hasProfile: null };
+let state: State = { clients: [], loaded: !hasSupabase, hasProfile: null, hasSocials: null, hasVozMarca: null, hasLogos: null };
+const SERVER: State = { clients: [], loaded: false, hasProfile: null, hasSocials: null, hasVozMarca: null, hasLogos: null };
 const listeners = new Set<() => void>();
 let started = false;
 /** Solo cuenta la respuesta del último pedido: una lectura vieja no pisa a una más nueva. */
@@ -38,12 +46,18 @@ const byName = (a: Brand, b: Brand) => a.name.localeCompare(b.name, "es", { sens
 
 /** Normaliza lo que viene de la base (la paleta es jsonb: puede venir cualquier cosa). */
 function tidy(brand: Brand): Brand {
+  const logoGroups = cleanGroups(brand.logo_groups);
   return {
     ...brand,
     logo_bg: brand.logo_bg === "dark" || brand.logo_bg === "brand" ? brand.logo_bg : "light",
     palette: cleanPalette(brand.palette),
     font_families: Array.isArray(brand.font_families) ? brand.font_families : [],
     notes: brand.notes ?? "",
+    socials: cleanSocials(brand.socials),
+    logo_from: brand.logo_from ?? null,
+    voz_marca: brand.voz_marca ?? {},
+    logos: cleanLogos(brand.logos, logoGroups),
+    logo_groups: logoGroups,
   };
 }
 
@@ -61,7 +75,14 @@ export async function refreshClients() {
     if (error) console.warn("[clientes] no se pudieron leer:", error.message);
     if (data) {
       const rows = data as Brand[];
-      set({ clients: rows.map(tidy), loaded: true, hasProfile: rows.length ? "palette" in rows[0] : null });
+      set({
+        clients: rows.map(tidy),
+        loaded: true,
+        hasProfile: rows.length ? "palette" in rows[0] : null,
+        hasSocials: rows.length ? "socials" in rows[0] : null,
+        hasVozMarca: rows.length ? "voz_marca" in rows[0] : null,
+        hasLogos: rows.length ? "logos" in rows[0] : null,
+      });
     } else set({ loaded: true });
   }
   return { error };
@@ -98,5 +119,13 @@ export function useClients() {
   useEffect(() => {
     if (!started) refreshClients();
   }, []);
-  return { clients: snap.clients, loading: !snap.loaded, hasProfile: snap.hasProfile, refresh: refreshClients };
+  return {
+    clients: snap.clients,
+    loading: !snap.loaded,
+    hasProfile: snap.hasProfile,
+    hasSocials: snap.hasSocials,
+    hasVozMarca: snap.hasVozMarca,
+    hasLogos: snap.hasLogos,
+    refresh: refreshClients,
+  };
 }

@@ -7,7 +7,7 @@ import { FeedbackSection } from "@/components/site/FeedbackSection";
 import { InicioMotion } from "@/components/site/InicioMotion";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { studioSession } from "@/lib/access";
-import { MODULES } from "@/lib/modules";
+import { TOOLS } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { createSupabaseServer, hasSupabaseEnv } from "@/lib/supabase-server";
 
@@ -15,8 +15,6 @@ export const metadata: Metadata = {
   title: { absolute: `Herramientas · ${STUDIO}` },
   description: "Las herramientas internas del estudio: tarjetas con tipografía, emojis, GIFs, conversor de archivos y redacción.",
 };
-
-const TOOLS = MODULES.filter((m) => m.href !== "/" && !m.soon);
 
 const SYNCED = [
   "Favoritos y recientes de emojis",
@@ -34,7 +32,8 @@ export default async function InicioPage() {
 
   return (
     <InicioMotion>
-    <div className="bg-ink">
+    {/* tema-dia: la presentación es editorial (negro y crema) y se ve igual con el modo noche. */}
+    <div className="tema-dia bg-ink">
       {/* Portada */}
       <section className="grain flex min-h-[100svh] flex-col overflow-hidden bg-ink text-cream">
         <div data-intro="light" aria-hidden className="site-light pointer-events-none absolute -left-[22%] -top-[35%] h-[85vmax] w-[85vmax] rounded-full" />

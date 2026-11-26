@@ -121,7 +121,7 @@ function Status({ item }: { item: QueueItem }) {
       );
     case "done":
       return (
-        <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
           <CheckCircle2 className="h-3.5 w-3.5" /> Listo
         </span>
       );

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, PenLine, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { useData } from "@/components/data/DataProvider";
-import { BarButton, BarDivider, ContextBar } from "@/components/shell/ContextBar";
+import { BarButton, BarDivider, BarMigas, ContextBar } from "@/components/shell/ContextBar";
 import { useConfirm } from "@/components/ui/confirm";
 import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
@@ -15,6 +15,8 @@ import { forgetClient, getClient, refreshClients, rememberClient, useClients } f
 import { useRedacciones } from "@/hooks/useRedacciones";
 import { brandsRepo, clientErrorMessage, type BrandPatch } from "@/lib/repos/brands";
 import { LOGO_ACCEPT, logoProblem } from "@/lib/clients/logo";
+import { inLibrary, logoPaths } from "@/lib/clients/logos";
+import { socialKey, socialLabel, socialName, type BrandSocial } from "@/lib/clients/socials";
 import { hasSupabase } from "@/lib/supabase";
 import type { Brand, LogoBg } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -22,8 +24,12 @@ import { ClientMark, logoBackground } from "./ClientMark";
 import { ColorChoice } from "./ColorChoice";
 import { LogoDrop } from "./LogoDrop";
 import { FontsSection } from "./profile/FontsSection";
+import { LogosSection } from "./profile/LogosSection";
 import { PaletteSection } from "./profile/PaletteSection";
+import { VozMarcaSection } from "./profile/VozMarca";
 import { MigrationNotice } from "./profile/Section";
+import { TrabajoDelMes } from "./profile/PlaniSections";
+import { fetchProfilePhoto, LogoFromSocials, SocialsField } from "./profile/Socials";
 import { CardsSection, KitSection, ProductsSection, RedaccionesSection } from "./profile/WorkSections";
 
 const SAVE_DELAY = 600;
@@ -37,7 +43,7 @@ const SAVE_DELAY = 600;
 export function ClientProfile({ id }: { id: string }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const { clients, loading, hasProfile } = useClients();
+  const { clients, loading, hasProfile, hasSocials, hasVozMarca, hasLogos } = useClients();
   const { cards, products, fonts, reload, loading: dataLoading } = useData();
   const redacciones = useRedacciones();
   const kits = useBrandKits();
@@ -126,14 +132,14 @@ export function ClientProfile({ id }: { id: string }) {
     const sure = await confirm({
       title: `¿Eliminar ${brand.name}?`,
       description:
-        "Se borran su ficha, su logo y sus productos. Las tarjetas y las redacciones no se borran: quedan sin cliente. No se puede deshacer.",
+        "Se borran su ficha, sus logos y sus productos. Las tarjetas y las redacciones no se borran: quedan sin cliente. No se puede deshacer.",
       confirmLabel: "Eliminar",
       destructive: true,
     });
     if (!sure) return;
     const { error } = await brandsRepo.remove(id);
     if (error) return toast(clientErrorMessage(error), "error");
-    brandsRepo.removeLogoFile(brand.logo_path);
+    brandsRepo.removeLogoFiles([...logoPaths(brand)]);
     leaving.current = true;
     pending.current = {};
     router.push("/clientes");
@@ -146,14 +152,18 @@ export function ClientProfile({ id }: { id: string }) {
 
   const bar = (
     <ContextBar>
-      <BarButton label="Todos los clientes" icon={ArrowLeft} onClick={() => router.push("/clientes")} />
-      {brand && (
-        <>
-          <BarDivider />
+      <BarMigas migas={[{ href: "/clientes", titulo: "Clientes" }]} titulo={brand?.name}>
+        {brand ? (
           <span className="flex max-w-[11rem] items-center gap-2 px-1.5 md:max-w-[16rem]">
             <ClientMark brand={brand} className="h-7 w-7 rounded-full text-xs" pad="p-[18%]" />
             <span className="hidden truncate text-sm font-semibold tracking-tight text-cream sm:inline">{brand.name}</span>
           </span>
+        ) : (
+          <span aria-hidden className="mx-1.5 h-7 w-7 rounded-full bg-cream/10" />
+        )}
+      </BarMigas>
+      {brand && (
+        <>
           <BarDivider />
           <BarButton label="Nueva tarjeta" icon={StickyNote} onClick={() => router.push(`/tarjetas?nueva=${id}`)} />
           <BarButton label="Nueva redacción" icon={PenLine} onClick={() => router.push(`/redaccion?cliente=${id}`)} />
@@ -198,7 +208,9 @@ export function ClientProfile({ id }: { id: string }) {
           brand={brand}
           save={save}
           saveSoon={saveSoon}
+          socialsMissing={hasSocials === false}
           stats={[
+            ["#logos", brand.logos?.length ?? 0, "logo", "logos"],
             ["#tarjetas", own.cards.length, "tarjeta", "tarjetas"],
             ["#productos", own.products.length, "producto", "productos"],
             ["#tipografias", brand.font_families?.length ?? 0, "tipografía", "tipografías"],
@@ -207,7 +219,10 @@ export function ClientProfile({ id }: { id: string }) {
         />
 
         <div className="mt-8 grid gap-4">
+          <LogosSection brand={brand} save={save} missing={hasLogos === false} />
+          <TrabajoDelMes brand={brand} />
           <PaletteSection brand={brand} saveSoon={saveSoon} />
+          <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
           <div className="grid gap-4 lg:grid-cols-2">
             <CardsSection brand={brand} cards={own.cards} products={products} />
@@ -245,17 +260,25 @@ function ProfileHeader({
   brand,
   save,
   saveSoon,
+  socialsMissing,
   stats,
 }: {
   brand: Brand;
   save: (patch: BrandPatch, done?: string) => Promise<boolean>;
   saveSoon: (patch: BrandPatch) => void;
+  socialsMissing: boolean;
   stats: [string, number, string, string][];
 }) {
   const [logoBusy, setLogoBusy] = useState(false);
+  /** La cuenta cuya foto de perfil se está subiendo como logo. */
+  const [picking, setPicking] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const changeLogo = async (file: File) => {
+  /** logo_from solo viaja si hay algo que anotar o borrar: sin migracion-redes.sql la columna no existe. */
+  const fromPatch = (from: string | null): BrandPatch => (from || brand.logo_from ? { logo_from: from } : {});
+
+  /** `from`: la cuenta de la que salió (si es una foto de perfil). */
+  const changeLogo = async (file: File, from: BrandSocial | null = null) => {
     setLogoBusy(true);
     const up = await brandsRepo.uploadLogo(file);
     if (up.error) {
@@ -264,14 +287,35 @@ function ProfileHeader({
       return;
     }
     const old = brand.logo_path;
-    const ok = await save({ logo_url: up.url, logo_path: up.path }, brand.logo_url ? "Logo cambiado" : "Logo agregado");
-    brandsRepo.removeLogoFile(ok ? old : up.path);
+    const done = from
+      ? `Logo: la foto de perfil de ${socialLabel(from)} en ${socialName(from.network)}`
+      : brand.logo_url
+        ? "Logo cambiado"
+        : "Logo agregado";
+    const ok = await save({ logo_url: up.url, logo_path: up.path, ...fromPatch(from && socialKey(from)) }, done);
+    // El de antes se borra, salvo que sea uno de sus logos (sigue en la lista).
+    brandsRepo.removeLogoFile(ok ? (inLibrary(getClient(brand.id) ?? brand, old) ? null : old) : up.path);
     setLogoBusy(false);
   };
 
   const removeLogo = async () => {
     const old = brand.logo_path;
-    if (await save({ logo_url: null, logo_path: null }, "Logo quitado")) brandsRepo.removeLogoFile(old);
+    if (await save({ logo_url: null, logo_path: null, ...fromPatch(null) }, "Logo quitado") && !inLibrary(getClient(brand.id) ?? brand, old))
+      brandsRepo.removeLogoFile(old);
+  };
+
+  const logoFromSocial = async (account: BrandSocial) => {
+    setPicking(socialKey(account));
+    try {
+      const file = await fetchProfilePhoto(account);
+      const problem = logoProblem(file);
+      if (problem) toast(problem, "error");
+      else await changeLogo(file, account);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "No se pudo traer la foto", "error");
+    } finally {
+      setPicking(null);
+    }
   };
 
   const downloadLogo = async () => {
@@ -298,8 +342,9 @@ function ProfileHeader({
       <div>
         <LogoDrop
           preview={brand.logo_url ?? null}
+          photo={!!brand.logo_from}
           background={logoBackground(brand)}
-          onFile={changeLogo}
+          onFile={(file) => changeLogo(file)}
           busy={logoBusy}
           hint="Soltá el logo acá o hacé click · SVG, PNG o JPG"
           className="aspect-[4/3] w-full rounded-[1.75rem]"
@@ -316,7 +361,7 @@ function ProfileHeader({
                     aria-label={b.label}
                     onClick={() => save({ logo_bg: b.value })}
                     className={cn(
-                      "h-6 w-6 rounded-full ring-1 ring-inset ring-black/15 ring-offset-2 ring-offset-secondary transition-transform hover:scale-110",
+                      "h-6 w-6 rounded-full ring-1 ring-inset ring-foreground/15 ring-offset-2 ring-offset-secondary transition-transform hover:scale-110",
                       (brand.logo_bg ?? "light") === b.value && "ring-2 ring-foreground"
                     )}
                     style={{ background: logoBackground(brand, b.value) }}
@@ -356,6 +401,7 @@ function ProfileHeader({
             />
           </div>
         )}
+        {!socialsMissing && <LogoFromSocials brand={brand} picking={picking} onPick={logoFromSocial} onClear={removeLogo} />}
       </div>
 
       <div className="flex min-w-0 flex-col">
@@ -380,6 +426,8 @@ function ProfileHeader({
             onChange={(color) => saveSoon({ color })}
           />
         </div>
+
+        <SocialsField brand={brand} save={save} missing={socialsMissing} />
 
         <Notes key={`notas-${brand.id}`} value={brand.notes ?? ""} onChange={(notes) => saveSoon({ notes })} />
       </div>
@@ -455,7 +503,7 @@ function Notes({ value, onChange }: { value: string; onChange: (notes: string) =
         }}
         maxLength={20000}
         placeholder="Tono de voz, contactos, links al drive, lo que no hay que olvidar…"
-        className="mt-2 block w-full resize-none rounded-2xl border border-black/[0.06] bg-card/80 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus:bg-card focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-0"
+        className="mt-2 block w-full resize-none rounded-2xl border border-foreground/[0.06] bg-card/80 px-4 py-3 text-[15px] leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus:bg-card focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-0"
       />
     </label>
   );

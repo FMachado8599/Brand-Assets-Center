@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AppFrame } from "@/components/shell/AppFrame";
 import { display } from "@/components/site/fonts";
+import { MODO_NOCHE_SCRIPT } from "@/lib/tema";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +17,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={display.variable}>
+    // suppressHydrationWarning: el script del <head> le pone la clase del modo noche antes de que llegue React.
+    <html lang="es" className={display.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: MODO_NOCHE_SCRIPT }} />
+      </head>
       <body>
         <AppFrame>{children}</AppFrame>
       </body>

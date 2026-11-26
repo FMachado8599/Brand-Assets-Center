@@ -1,22 +1,31 @@
 export type DurationSource = "filename" | "default" | "manual";
 
+export type Size = { width: number; height: number };
+
 export type Frame = {
   id: string;
   file: File;
   filename: string;
   /** URL local para las miniaturas (object URL). */
   url: string;
-  /** Grupo al que pertenece: prefijo + medida, ej "verano_300x250". */
+  /**
+   * Grupo al que pertenece. Los que se llaman igual y terminan en número comparten clave
+   * (ej "banner|@300x250"); un grupo de un solo frame es una imagen suelta.
+   */
   groupKey: string;
-  prefix: string;
-  width: number;
-  height: number;
+  /** Nombre del GIF del grupo (todos los frames del grupo lo comparten). */
+  groupName: string;
+  /** El nombre que retoma si se saca del GIF y queda suelta. */
+  ownName: string;
+  /** Medida que dice el nombre del archivo (300x250_1.jpg), si la dice. */
+  namedSize?: Size;
+  /** Medida real del archivo. */
+  natural: Size;
+  /** El número del final del nombre; manda en el orden hasta que se ordena a mano. */
   order: number;
   /** null = usa la duración por defecto de los ajustes. */
   durationMs: number | null;
   durationSource: DurationSource;
-  /** Medida real del archivo, para avisar si no coincide con el nombre. */
-  natural?: { width: number; height: number };
 };
 
 export type InvalidFile = { id: string; filename: string; url?: string; reason: string };

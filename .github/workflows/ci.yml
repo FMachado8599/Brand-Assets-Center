@@ -1,0 +1,61 @@
+# Prueba cada push y cada pull request hacia new-feature o main: instala, chequea los tipos,
+# hace el build de producción y abre todas las páginas (scripts/humo.mjs).
+# Un pull request hacia new-feature que no sea borrador se mergea solo cuando la prueba pasa.
+# Hacia main (producción) no: ese se mergea a mano. Ver README → "Flujo de trabajo".
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [new-feature, main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probar:
+    name: Probar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Instalar
+        run: pnpm install --frozen-lockfile
+      - name: Tipos
+        run: pnpm exec tsc --noEmit
+      - name: Build
+        run: pnpm build
+      - name: Prueba de humo
+        run: node scripts/humo.mjs
+
+  mergear:
+    name: Mergear a new-feature
+    needs: probar
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.base_ref == 'new-feature' &&
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Mergear el pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --merge

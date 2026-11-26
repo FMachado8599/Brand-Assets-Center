@@ -3,8 +3,11 @@
  * los formatos de exportación.
  */
 
-/** Un hashtag empieza donde no hay una letra antes ("mail#tag" no cuenta) y tiene al menos una letra. */
-const HASHTAG = /(?<![\p{L}\p{N}_&#])#([\p{L}\p{N}_]*\p{L}[\p{L}\p{N}_]*)/gu;
+/**
+ * Un hashtag empieza donde no hay una letra antes ("mail#tag" no cuenta) y tiene al menos una letra
+ * o un número: #Final2026 y también #2026 (Instagram los acepta).
+ */
+const HASHTAG = /(?<![\p{L}\p{N}_&#])#([\p{L}\p{N}_]*[\p{L}\p{N}][\p{L}\p{N}_]*)/gu;
 const MENTION = /(?<![\p{L}\p{N}_@.])@([\p{L}\p{N}_.]*[\p{L}\p{N}_])/gu;
 
 /** Para buscar y comparar sin que importen mayúsculas ni tildes. */
@@ -18,7 +21,7 @@ export function fold(s: string) {
 /** "#Changan", "changan" o " #changan, " → "Changan" / "changan" (sin #). Vacío si no sirve como hashtag. */
 export function cleanHashtag(raw: string) {
   const tag = raw.trim().replace(/^#+/, "").replace(/[^\p{L}\p{N}_]/gu, "");
-  return /\p{L}/u.test(tag) ? tag.slice(0, 60) : "";
+  return /[\p{L}\p{N}]/u.test(tag) ? tag.slice(0, 60) : "";
 }
 
 /** Varios hashtags escritos de una ("#a #b, c"). */

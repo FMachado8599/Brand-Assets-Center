@@ -28,7 +28,7 @@ export function Section({
       id={id}
       aria-label={title}
       className={cn(
-        "scroll-mt-24 rounded-[1.75rem] border border-black/[0.06] bg-card/95 p-5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-6",
+        "scroll-mt-24 rounded-[1.75rem] border border-foreground/[0.06] bg-card/95 p-5 shadow-[0_1px_2px_hsl(40_30%_20%/0.04),0_18px_40px_-28px_hsl(40_45%_20%/0.3)] sm:p-6",
         className
       )}
     >
@@ -93,7 +93,7 @@ export function MigrationNotice({ className }: { className?: string }) {
       <DatabaseZap className="mt-0.5 h-4 w-4 shrink-0" />
       <p>
         Para guardar logos, colores, tipografías y notas falta un paso en la base: correr{" "}
-        <code className="rounded bg-ink/10 px-1 text-[13px]">supabase/migracion-clientes.sql</code> en Supabase → SQL Editor.
+        <code className="rounded bg-foreground/10 px-1 text-[13px]">supabase/migracion-clientes.sql</code> en Supabase → SQL Editor.
       </p>
     </div>
   );

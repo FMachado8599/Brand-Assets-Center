@@ -5,6 +5,7 @@ import { Copy, Pipette, Plus, Star, Trash2, X } from "lucide-react";
 import { Hint } from "@/components/ui/tooltip";
 import { hexToRgb, inkOn, isVeryLight, normalizeHex, rgbText } from "@/lib/clients/color";
 import { logoColors } from "@/lib/clients/logo";
+import { previewOf } from "@/lib/clients/logos";
 import type { BrandPatch } from "@/lib/repos/brands";
 import type { Brand, BrandColor } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -26,14 +27,16 @@ export function PaletteSection({ brand, saveSoon }: { brand: Brand; saveSoon: (p
   const [adding, setAdding] = useState(false);
   const [fromLogo, setFromLogo] = useState<string[]>([]);
 
+  // Del logo de arriba o, si no hay, del primero de sus logos que se pueda mostrar.
+  const source = brand.logo_url ?? (brand.logos ?? []).map(previewOf).find(Boolean)?.url ?? null;
   useEffect(() => {
     let alive = true;
-    if (!brand.logo_url) setFromLogo([]);
-    else logoColors(brand.logo_url, 6).then((colors) => alive && setFromLogo(colors));
+    if (!source) setFromLogo([]);
+    else logoColors(source, 6).then((colors) => alive && setFromLogo(colors));
     return () => {
       alive = false;
     };
-  }, [brand.logo_url]);
+  }, [source]);
 
   const suggestions = fromLogo.filter((hex) => !palette.some((c) => near(c.hex, hex)));
 
@@ -165,7 +168,7 @@ function Swatch({
   return (
     <li className="flex flex-col gap-2">
       <div
-        className={cn("group relative h-28 overflow-hidden rounded-2xl", isVeryLight(color.hex) && "ring-1 ring-inset ring-black/10")}
+        className={cn("group relative h-28 overflow-hidden rounded-2xl", isVeryLight(color.hex) && "ring-1 ring-inset ring-foreground/10")}
         style={{ background: color.hex, color: ink }}
       >
         <button
@@ -256,7 +259,7 @@ function AddColor({ onAdd }: { onAdd: (color: BrandColor) => void }) {
       className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-2.5"
     >
       <label
-        className="relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl ring-1 ring-inset ring-black/10"
+        className="relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl ring-1 ring-inset ring-foreground/10"
         style={{ background: valid ?? "conic-gradient(from 90deg, #f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e)" }}
       >
         {!valid && <Pipette className="h-4 w-4 text-white drop-shadow" />}

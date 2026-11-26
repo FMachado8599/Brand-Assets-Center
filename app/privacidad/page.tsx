@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Qué datos guarda Herramientas, para qué los usa y cómo pedir que se borren.",
 };
 
-const UPDATED = "9 de octubre de 2026";
+const UPDATED = "13 de noviembre de 2026";
 
 const contact = CONTACT_EMAIL ? (
   <>
@@ -57,6 +57,13 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
           anónimo. <strong>No guardamos tu dirección IP.</strong>
         </li>
         <li>
+          <strong>Descargas.</strong> Cuando bajás algo en Descargas queda anotado con tu cuenta: cuándo, de qué
+          plataforma y posteo (el link, el título y la cuenta que lo publicó), qué bajaste (video, foto, portada o
+          audio), a dónde lo guardaste y si fue desde la red de la oficina. Para saber eso comparamos tu IP con la de la
+          oficina en el momento; tu IP no se guarda. Lo ve solo quien administra Descargas, para las estadísticas del
+          estudio. En YouTube, tu nombre también se ve en la PC de la oficina que baja los videos, mientras lo baja.
+        </li>
+        <li>
           <strong>En tu navegador.</strong> Una copia de tus preferencias y redacciones, para que todo cargue al
           instante. Al cerrar sesión se borra de ese navegador lo que ya está guardado en tu cuenta.
         </li>
@@ -79,7 +86,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
       <ul>
         <li>
           <strong>Supabase:</strong> la base de datos y el inicio de sesión. Ahí se guardan tu cuenta, tus preferencias,
-          tus redacciones y las visitas.
+          tus redacciones, las visitas y el registro de descargas. Las imágenes de Retoque pasan por ahí solo mientras
+          se procesan: se borran apenas termina.
         </li>
         <li>
           <strong>Vercel:</strong> donde está alojada la app.
@@ -95,6 +103,14 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
         <li>
           <strong>FreeConvert:</strong> los archivos que convertís o comprimís en el Conversor van directo a FreeConvert
           para procesarse.
+        </li>
+        <li>
+          <strong>Magnific:</strong> las imágenes a las que les quitás el fondo en Retoque se mandan a Magnific para
+          procesarse. Lo que buscás en Íconos también se le manda, para encontrar los íconos.
+        </li>
+        <li>
+          <strong>GIPHY:</strong> lo que buscás en GIFs se manda a GIPHY para encontrar los GIFs, y los GIFs se ven
+          desde GIPHY. Solo viaja la búsqueda.
         </li>
       </ul>
     ),
@@ -112,10 +128,13 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
     title: "Cuánto tiempo",
     body: (
       <>
-        <p>Lo de tu cuenta, mientras la cuenta exista. Las visitas, para las estadísticas internas del estudio.</p>
+        <p>
+          Lo de tu cuenta, mientras la cuenta exista. Las visitas y el registro de descargas, para las estadísticas
+          internas del estudio.
+        </p>
         <p>
           Si pedís que borremos tu cuenta, se borran también tus preferencias y tus redacciones. Las tarjetas que creaste
-          siguen en el tablero compartido y tus visitas quedan en las estadísticas, pero sin tu nombre.
+          siguen en el tablero compartido, y tus visitas y descargas quedan en las estadísticas, pero sin tu nombre.
         </p>
       </>
     ),
@@ -132,7 +151,8 @@ const SECTIONS: { title: string; body: ReactNode }[] = [
 
 export default function PrivacidadPage() {
   return (
-    <div className="bg-cream text-ink">
+    // tema-dia: como Inicio, Privacidad es editorial y se ve igual con el modo noche.
+    <div className="tema-dia bg-cream text-ink">
       <header className="grain overflow-hidden bg-ink text-cream">
         <div className="relative z-10 mx-auto max-w-6xl px-5 pb-16 pt-32 sm:px-8 md:pb-24">
           <p className="site-label text-cream/60">

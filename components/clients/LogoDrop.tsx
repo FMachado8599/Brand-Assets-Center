@@ -17,9 +17,12 @@ export function LogoDrop({
   busy,
   className,
   hint = "Soltá el logo o hacé click",
+  photo,
   children,
 }: {
   preview: string | null;
+  /** El logo es una foto de perfil: se muestra redonda, como en la red. */
+  photo?: boolean;
   background?: string;
   onFile: (file: File) => void;
   busy?: boolean;
@@ -53,7 +56,7 @@ export function LogoDrop({
       }}
       className={cn(
         "group relative overflow-hidden rounded-2xl transition-shadow",
-        preview ? "ring-1 ring-inset ring-black/[0.08]" : "border-2 border-dashed border-foreground/15 bg-secondary/40",
+        preview ? "ring-1 ring-inset ring-foreground/[0.08]" : "border-2 border-dashed border-foreground/15 bg-secondary/40",
         over && "ring-2 ring-ring ring-offset-2 ring-offset-card",
         className
       )}
@@ -64,11 +67,16 @@ export function LogoDrop({
         onClick={() => input.current?.click()}
         disabled={busy}
         aria-label={preview ? "Cambiar el logo" : "Subir el logo"}
-        className="absolute inset-0 grid place-items-center rounded-2xl"
+        className="absolute inset-0 grid grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] place-items-center rounded-2xl"
       >
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="" draggable={false} className="h-full w-full object-contain p-[14%]" />
+          <img
+            src={preview}
+            alt=""
+            draggable={false}
+            className={photo ? "aspect-square h-[72%] rounded-full object-cover shadow-sm" : "h-full w-full object-contain p-[14%]"}
+          />
         ) : (
           <span className="flex flex-col items-center gap-1.5 px-3 text-center text-xs text-muted-foreground">
             <ImagePlus className="h-6 w-6 text-foreground/40" />

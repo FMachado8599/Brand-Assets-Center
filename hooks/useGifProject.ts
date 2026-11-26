@@ -1,23 +1,52 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildGroups, readFiles } from "@/lib/gif/parse";
+import { buildGroups, byOrder, cleanGifName, readFiles } from "@/lib/gif/parse";
 import { renderGif, renderSignature, saveBlob, zipGifs, type RenderedGif } from "@/lib/gif/encode";
 import type { Frame, GifGroup, GifSettings, InvalidFile } from "@/lib/gif/types";
 
 type Render = RenderedGif & { sig: string; url: string };
 
+/** Los frames de un grupo, en orden. */
+const framesOf = (frames: Frame[], key: string) => frames.filter((f) => f.groupKey === key).sort(byOrder);
+
 /**
- * Estado del módulo GIF: los frames subidos, los archivos que no se pudieron
- * leer y los GIF ya generados (que se reutilizan mientras no cambie nada que
- * afecte el resultado).
+ * Le da a cada frame de la lista el lugar que ocupa (1, 2, 3…) y, si se pasa, la clave y el nombre del
+ * grupo. Al ordenar a mano el orden deja de salir del nombre, así que dejan de valer los avisos de
+ * «falta el frame 2».
+ */
+function place(frames: Frame[], ordered: Frame[], group?: { key: string; name: string }) {
+  const at = new Map(ordered.map((f, i) => [f.id, i + 1]));
+  return frames.map((f) =>
+    at.has(f.id)
+      ? { ...f, order: at.get(f.id), ...(group && { groupKey: group.key, groupName: group.name }) }
+      : f
+  );
+}
+
+/**
+ * Estado del módulo GIF: los frames subidos, los archivos que no se pudieron leer y los GIF ya
+ * generados (que se reutilizan mientras no cambie nada que afecte el resultado).
+ *
+ * Un grupo de dos frames o más es un GIF; uno de un solo frame es una imagen suelta, que se agrupa
+ * a mano soltándola sobre otra o sobre un GIF.
  */
 export function useGifProject(settings: GifSettings) {
   const [frames, setFrames] = useState<Frame[]>([]);
   const [invalid, setInvalid] = useState<InvalidFile[]>([]);
   const [renders, setRenders] = useState<Record<string, Render>>({});
   const [rendering, setRendering] = useState<Set<string>>(new Set());
-  const groups = useMemo(() => buildGroups(frames), [frames]);
+
+  const all = useMemo(() => buildGroups(frames), [frames]);
+  const groups = useMemo(() => all.filter((g) => g.frames.length > 1), [all]);
+  const loose = useMemo(
+    () =>
+      all
+        .filter((g) => g.frames.length === 1)
+        .map((g) => g.frames[0])
+        .sort((a, b) => a.filename.localeCompare(b.filename, "es", { numeric: true })),
+    [all]
+  );
 
   // Para liberar las URLs locales al salir de la página.
   const urls = useRef(new Set<string>());
@@ -42,7 +71,10 @@ export function useGifProject(settings: GifSettings) {
 
     setFrames((prev) => {
       prev.filter((f) => names.has(f.filename)).forEach((f) => release(f.url));
-      return [...prev.filter((f) => !names.has(f.filename)), ...read.frames];
+      const kept = prev.filter((f) => !names.has(f.filename));
+      // Si el GIF ya tiene nombre propio (renombrado o armado a mano), los frames nuevos lo toman.
+      const named = new Map(kept.map((f) => [f.groupKey, f.groupName]));
+      return [...kept, ...read.frames.map((f) => (named.has(f.groupKey) ? { ...f, groupName: named.get(f.groupKey) } : f))];
     });
     setInvalid((prev) => {
       prev.filter((f) => names.has(f.filename)).forEach((f) => release(f.url));
@@ -52,8 +84,11 @@ export function useGifProject(settings: GifSettings) {
 
   const removeFrame = useCallback((id: string) => {
     setFrames((prev) => {
-      release(prev.find((f) => f.id === id)?.url);
-      return prev.filter((f) => f.id !== id);
+      const frame = prev.find((f) => f.id === id);
+      if (!frame) return prev;
+      release(frame.url);
+      const rest = prev.filter((f) => f.id !== id);
+      return place(rest, framesOf(rest, frame.groupKey));
     });
   }, []);
 
@@ -81,21 +116,58 @@ export function useGifProject(settings: GifSettings) {
     );
   }, []);
 
-  /** Mueve un frame un lugar dentro de su grupo y renumera el grupo 1, 2, 3… */
-  const moveFrame = useCallback((id: string, direction: -1 | 1) => {
+  /** Pone un frame en otro lugar de su grupo (0 = primero) y renumera el grupo 1, 2, 3… */
+  const moveFrame = useCallback((id: string, to: number) => {
     setFrames((prev) => {
       const frame = prev.find((f) => f.id === id);
       if (!frame) return prev;
-      const group = prev
-        .filter((f) => f.groupKey === frame.groupKey)
-        .sort((a, b) => a.order - b.order || a.filename.localeCompare(b.filename));
-      const index = group.findIndex((f) => f.id === id);
-      const target = index + direction;
-      if (target < 0 || target >= group.length) return prev;
-      [group[index], group[target]] = [group[target], group[index]];
-      const orders = new Map(group.map((f, i) => [f.id, i + 1]));
-      return prev.map((f) => (orders.has(f.id) ? { ...f, order: orders.get(f.id)! } : f));
+      const group = framesOf(prev, frame.groupKey);
+      const from = group.findIndex((f) => f.id === id);
+      const target = Math.max(0, Math.min(group.length - 1, to));
+      if (from === target) return prev;
+      group.splice(from, 1);
+      group.splice(target, 0, frame);
+      return place(prev, group);
     });
+  }, []);
+
+  /**
+   * Suma frames a un grupo, al final o en el lugar que se pida. Sirve para soltar una imagen sobre
+   * un GIF, y para armar uno nuevo con imágenes sueltas (el grupo de destino es el de la primera).
+   */
+  const addToGroup = useCallback((ids: string[], key: string, at?: number) => {
+    setFrames((prev) => {
+      const target = framesOf(prev, key);
+      if (!target.length) return prev;
+      const moving = ids.map((id) => prev.find((f) => f.id === id)).filter((f) => f && f.groupKey !== key);
+      if (!moving.length) return prev;
+      const ordered = [...target];
+      ordered.splice(at ?? ordered.length, 0, ...moving);
+      const sources = new Set(moving.map((f) => f.groupKey));
+      let next = place(prev, ordered, { key, name: target[0].groupName });
+      // Los grupos de donde salieron quedan sin huecos en el orden.
+      for (const source of sources) next = place(next, framesOf(next, source));
+      return next;
+    });
+  }, []);
+
+  /** Saca un frame de su GIF: queda suelta, con su nombre de antes. */
+  const ungroup = useCallback((id: string) => {
+    setFrames((prev) => {
+      const frame = prev.find((f) => f.id === id);
+      if (!frame) return prev;
+      const next = prev.map((f) =>
+        f.id === id ? { ...f, groupKey: `suelta:${crypto.randomUUID()}`, groupName: f.ownName, order: 1 } : f
+      );
+      return place(next, framesOf(next, frame.groupKey));
+    });
+  }, []);
+
+  /** Cambia el nombre del GIF (el del archivo que se descarga). Vacío no hace nada. */
+  const rename = useCallback((key: string, name: string) => {
+    const clean = cleanGifName(name);
+    if (!clean) return;
+    setFrames((prev) => prev.map((f) => (f.groupKey === key ? { ...f, groupName: clean } : f)));
   }, []);
 
   const render = useCallback(
@@ -155,7 +227,12 @@ export function useGifProject(settings: GifSettings) {
   return {
     frames,
     invalid,
+    /** Todos los grupos, también los de un solo frame: el diálogo sigue abierto aunque quede uno. */
+    all,
+    /** Los GIF: grupos de dos frames o más. */
     groups,
+    /** Las imágenes sueltas: las que no están en ningún GIF. */
+    loose,
     rendering,
     addFiles,
     removeFrame,
@@ -163,6 +240,9 @@ export function useGifProject(settings: GifSettings) {
     clear,
     setDuration,
     moveFrame,
+    addToGroup,
+    ungroup,
+    rename,
     render,
     renderOf,
     downloadGroup,

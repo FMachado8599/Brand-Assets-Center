@@ -6,11 +6,19 @@ Un solo lugar para las herramientas del día a día del estudio:
 | --- | --- | --- |
 | Inicio | `/` | Portada con todas las herramientas y el ingreso con Google |
 | **Tarjetas** | `/tarjetas` | Textos con su formato y su tipografía, listos para pegar |
-| **Emojis** | `/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
+| **Librerías** | `/library` | Emojis, GIFs e íconos para copiar o bajar, cada uno en su sección. `/library` abre la última que usaste |
+| ↳ **Emojis** | `/library/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
+| ↳ **GIFs** | `/library/gifs` | GIFs y stickers de GIPHY: copiarlos para pegar en un chat, un mail o una presentación, o bajarlos en GIF, MP4 o WEBP |
+| ↳ **Íconos** | `/library/iconos` | Íconos de Magnific: copiar el SVG (Figma e Illustrator lo pegan en vectores) o el PNG, o bajarlos |
 | **GIF** | `/gif` | Banners animados a partir de frames (lo que antes era Programática) |
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
+| **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
+| **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
+| **Retoque** | `/retoque` | Quitarle el fondo a una imagen con Magnific: sale en PNG transparente, del mismo tamaño |
+| **Rest** | `/rest` | Un recreo: el dino, el buscaminas, la viborita y Fusión, con ranking semanal del estudio |
+| **Spotify** | `/spotify` | El Jam del estudio: qué suena, la cola y sumar canciones, también desde la burbuja flotante en toda la app |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
 
@@ -18,8 +26,11 @@ La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su
 
 ## Cómo se usa: sidebar + barra contextual
 
-- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra.
+- **La píldora negra de arriba a la izquierda** abre la sidebar flotante con los módulos. Ahí se navega; `Esc` la cierra. Las librerías (Emojis, GIFs, Íconos) van aparte, al final, bajo **Librerías**.
+- **Ajustes** (solo admins): abajo de todo en la sidebar, en un bloque amarillo, porque son la configuración del estudio y no una herramienta más: **Organización**, **Basecamp** y **Accesos** (ver "Status y Ajustes").
 - **La barra flotante del centro** cambia según el módulo: es desde donde se hace todo (buscar, filtrar, agregar, exportar, configurar). Al pasar de un módulo a otro se transforma en lugar de recargarse.
+- **La flecha del principio de la barra** vuelve, en cada herramienta: si llegaste navegando por la app, a la pantalla anterior (de la ficha de un cliente a "Nueva tarjeta" y de vuelta a la ficha); si entraste directo (un link, una pestaña nueva), sube un nivel, o a Inicio. Con el mouse encima dice a dónde va ("Volver a Clientes").
+- **Las migas** van al lado de la flecha en las pantallas que tienen niveles: la ficha de un cliente (*Clientes › el cliente*), una presentación (*Presentaciones › el cliente · el mes*, y *› Presentar*), las métricas de Descargas y cada juego de Rest. Los niveles de arriba son links; en el celular se ocultan y queda la flecha.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
 - **El avatar de arriba a la derecha** es la cuenta: iniciar sesión con Google o cerrarla (ver "Cuentas y visitas").
@@ -31,7 +42,19 @@ La app sigue la estética de Inicio (en la línea de tbwa.com): fondo crema, tex
 - Los colores son variables en `app/globals.css` (`--background`, `--card`, `--primary`…); en Tailwind también están `ink` y `cream` para usarlos directo.
 - Superficies flotantes: `.floating` (clara, para popovers y paneles) y `.floating-ink` (negra, para la píldora de módulos, la barra contextual, la cuenta y la sidebar).
 
+### Modo noche
+
+Se prende y se apaga desde la foto de perfil (arriba a la derecha), debajo de tu perfil. Se guarda en el navegador y, con sesión, en la cuenta (`user_prefs`, clave `app:modo-noche`), así que te sigue a cualquier computadora. Lo maneja `components/shell/ModoNoche.tsx` con `lib/tema.ts`: pone la clase `dark` en `<html>`, y un script en el `<head>` la pone antes del primer pintado para que no haya un destello claro al cargar.
+
+- De noche cambian las variables de `app/globals.css` (bloque `.dark`): el fondo pasa a negro y el texto a crema. Todo lo que usa `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border`… se adapta solo.
+- Para texto, filetes y tintes sobre el fondo, usá `foreground` y no `ink` ni `black` (`text-foreground/50`, `border-foreground/[0.06]`): de día es el mismo negro tinta y de noche es crema. `ink` y `cream` quedan para lo que es negro o crema siempre: la barra, la sidebar, las etiquetas sobre fotos y videos.
+- Un elemento blanco (`bg-white`) que no sea parte de una imagen necesita su versión de noche (`dark:bg-card` o `dark:bg-secondary`), y si tiene texto, su color propio: si no, hereda la crema y queda blanco sobre blanco. Los colores de estado oscuros (`text-amber-800`, `text-emerald-700`…) van con su versión clara (`dark:text-amber-300`, `dark:text-emerald-400`).
+- Los tonos del Board (`TONO` en `lib/board/flujo.ts`) son variables `--tono-*` de `globals.css`, con un valor de día y otro de noche.
+- Lo que ve el cliente se ve siempre de día: la plani compartida (`/p/…`) y el modo Presentar. Inicio sin sesión y Privacidad también, con la clase `tema-dia` (vuelve a poner las variables de día).
+
 La barra está en `components/shell/ContextBar.tsx`: cada página monta `<ContextBar>` con sus controles y estos se "teletransportan" a la barra del layout. Sus piezas (`BarButton`, `BarSearch`, `BarSegmented`…) ya vienen pensadas para fondo negro.
+
+La flecha de volver la pone la barra sola en toda herramienta (todo lo que `activeModule` no resuelve como Inicio): una página nueva no tiene que hacer nada. Para saber a dónde volver, `lib/volver.ts` guarda en el estado de cada entrada del historial la pantalla anterior (envuelve `history.pushState` y `replaceState`, igual que Next): así nunca saca de la app y sigue andando al recargar. Una pantalla con niveles pone primero en su barra `<BarMigas migas={[{ href: "/clientes", titulo: "Clientes" }]} titulo={cliente.name}>…</BarMigas>`: el último nivel de `migas` es a dónde sube la flecha si se entró directo, y `titulo` es su nombre para el "Volver a …" de la pantalla siguiente.
 
 ---
 
@@ -54,6 +77,11 @@ Abrí http://localhost:3000
 | `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
+| `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
+| `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Presentaciones) |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
+| `MAGNIFIC_API_KEY` | Retoque y Librerías → Íconos | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") y para buscar íconos |
+| `GIPHY_API_KEY` | Librerías → GIFs | Sí, para buscar GIFs (ver "Librerías") |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -86,7 +114,7 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 **Armar una base de testing de cero:**
 
-1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql` y `migracion-sugerencias.sql`.
+1. Correr en orden `schema.sql`, `migracion-usuarios.sql`, `migracion-redaccion.sql`, `migracion-clientes.sql`, `migracion-acceso.sql`, `migracion-sugerencias.sql`, `migracion-descargas-registro.sql` y `migracion-juegos.sql`.
 2. En *Authentication → Sign In / Providers → Google*, activar Google con el mismo cliente OAuth de producción. En Google Cloud, sumar `https://<proyecto>.supabase.co/auth/v1/callback` a los *Authorized redirect URIs* de ese cliente.
 3. En *Authentication → URL Configuration*, poner la URL de testing como *Site URL* y sumar `https://brand-assets-center-testing.vercel.app/**` y `http://localhost:3000/**` a las *Redirect URLs*.
 
@@ -96,12 +124,33 @@ Al final del Inicio hay un formulario para mandar una **idea** o avisar un **err
 
 ---
 
+## Flujo de trabajo: una rama por feature
+
+- **`main`** es producción: Vercel publica cada push.
+- **`new-feature`** junta lo que está listo para ir a producción. Su preview (`brand-assets-center-git-new-feature-…vercel.app`) es donde se revisa antes de pasarlo.
+- **Cada feature tiene su rama**, que sale de `new-feature` (hoy: `board`, `redaccion-ia`, `influencers`, `feat/planificacion`, `gif`). Una feature nueva es una rama nueva.
+
+**El recorrido de una feature:**
+
+1. Se trabaja en su rama. Cada push corre la prueba automática (ver abajo) y deja ✓ o ✗ en el commit.
+2. Cuando la feature está cerrada, se abre un *pull request* de su rama hacia `new-feature`. Si todavía no está lista, se abre como borrador (*draft*).
+3. La prueba corre sobre cómo quedaría el merge. **Si pasa y el pull request no es borrador, se mergea solo**; si falla, queda abierto y muestra qué falló.
+4. Vercel actualiza la preview de `new-feature`. Se revisa ahí.
+5. Para producción se abre un pull request de `new-feature` hacia `main`. Ese corre la misma prueba pero **se mergea a mano**: pasar a producción es una decisión.
+
+**Las migraciones de la base no son automáticas.** Si una feature trae un `supabase/migracion-*.sql` nuevo, se corre primero en testing y después en producción, *antes* de mergear a `main`.
+
+**La prueba automática** es un GitHub Action (`.github/workflows/ci.yml`). En una máquina de GitHub instala las dependencias (`pnpm install --frozen-lockfile`), chequea los tipos (`tsc --noEmit`), hace el build de producción y corre `scripts/humo.mjs`. Ese script levanta el build, abre todas las páginas y pide todas las APIs, y falla si alguna da error del servidor (5xx). Corre sin variables de entorno, así que no prueba el login ni la base: confirma que todo compila y que nada se rompe. Una API que necesita la base tiene que empezar con `if (!hasSupabaseEnv) return faltaSupabase();` (de `lib/supabase-server.ts`): sin Supabase contesta 503 «falta configurar», que la prueba acepta. Los resultados están en la pestaña *Actions* de GitHub; si algo falla, llega un mail. El repo es público, así que no consume minutos pagos.
+
+Para correr lo mismo en local: `pnpm exec tsc --noEmit`, `NEXT_DIST_DIR=.next-build pnpm build` y `NEXT_DIST_DIR=.next-build node scripts/humo.mjs`. Usá otra carpeta de build para no pisar la de `next dev`.
+
 ## Cuentas y visitas
 
-Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google con una cuenta **@camaratbwa.com** (ver "Quién puede entrar"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
+Las herramientas son solo para el estudio: para usarlas hay que iniciar sesión con Google o con mail y contraseña, con una cuenta **@camaratbwa.com** o de un dominio o mail que habilitó un admin (ver "Quién puede entrar" y "Entrar con mail y contraseña"). Inicio y Privacidad son públicas. Lo personal se guarda en Supabase y aparece en cualquier computadora:
 
 - Favoritos y recientes de emojis.
-- Ajustes de Emojis, GIF y Conversor.
+- Ajustes de Emojis, GIFs, Íconos, GIF y Conversor.
+- El modo noche.
 - Redacciones, y los emojis y hashtags de cada cliente.
 - Las tarjetas que creás quedan a tu nombre y en Filtros aparece **Solo mis tarjetas**. El tablero sigue siendo compartido: todos ven y editan todo, como antes.
 
@@ -136,9 +185,28 @@ Solo entran las cuentas **@camaratbwa.com** y las de la lista de excepciones. Ha
 2. **Las páginas** (`middleware.ts`): sin sesión, las herramientas mandan a Inicio con "Iniciá sesión con tu cuenta @camaratbwa.com" y, después de entrar, vuelven a la herramienta que se quería abrir. A una cuenta de afuera le cierra la sesión y le avisa "Esa cuenta no tiene acceso".
 3. **Las APIs**: sin sesión del estudio responden 401, así nadie de afuera usa el Conversor ni la búsqueda de emojis (cuestan plata). Quedan públicas Inicio, Privacidad, la vuelta del login, las visitas y las imágenes de emojis.
 
-- **Excepciones** (ej: un freelance): en el SQL Editor, `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');`, con el mail en minúsculas. Si vos entrás con una cuenta que no es @camaratbwa.com, agregala acá o te quedás afuera.
+- **Excepciones** (ej: un freelance, o todo un dominio): las carga un admin en **Ajustes → Accesos** (mails sueltos y dominios). También se puede por SQL: `insert into public.allowed_emails (email, note) values ('alguien@gmail.com', 'Freelance');` o `insert into public.allowed_domains (domain) values ('agencia.com');`, en minúsculas.
 - **Sacarle el acceso a alguien**: borrarlo de `allowed_emails` (y, si querés, su usuario en Supabase → Authentication → Users).
+- **Lo de Basecamp, solo @camaratbwa.com**: las cuentas de afuera que habilita un admin usan las herramientas, pero no ven nada de Basecamp: ni las tareas (Status), ni la gente y los proyectos, ni los avisos que vienen de Basecamp, ni *Para arrancar* en Presentaciones (en Status ven un aviso que lo explica). Las cuentas @camaratbwa.com y los admins de la app ven todo. Lo frena la base: `ve_basecamp()` y una política *restrictiva* en cada tabla de Basecamp, que se suma a las de siempre (si se vuelve a correr una migración vieja, la regla sigue). Activarlo: correr `supabase/migracion-acceso-basecamp.sql` (guardada en el SQL Editor como *Logic \| Accesos*; se corre como query, no como migración), después de `migracion-presentaciones-board.sql` y `migracion-basecamp-conexion.sql`. Se puede repetir: no mueve datos. Además deja los webhooks de Basecamp solo para admins (había quedado una política vieja que los abría a todo el estudio).
 - **Ojo:** el correo de @camaratbwa.com no es de Google (está en `mail.camaratbwa.com`). Para entrar con Google, cada persona necesita una cuenta de Google creada con su mail de trabajo: al crear la cuenta, la opción "Usar mi dirección de correo electrónico actual".
+
+### Entrar con mail y contraseña
+
+Además de Google, cualquiera con acceso puede entrar con su mail y una contraseña (útil para quien no tiene cuenta de Google con su mail de trabajo, o para gente de afuera).
+
+- **Quién puede**: un admin elige en **Ajustes → Accesos** dominios enteros (todos los @agencia.com) y mails sueltos (un freelance con Gmail). @camaratbwa.com está siempre. Sirve para Google y para contraseña.
+- **Crear la cuenta sola**: en **/ingresar → "¿No tenés cuenta? Creala"** cualquiera pone nombre, mail y contraseña. Queda **pendiente** hasta que un admin la aprueba en **Ajustes → Accesos → Pedidos para entrar** (ahí se habilita el mail, si no lo estaba por su dominio, y se crea la cuenta). No hace falta mail: como nada confirma que el mail sea de quien lo escribió, aprobá solo si la persona te avisó por otro lado. Si el mail ya tiene cuenta (por ejemplo con Google), Accesos lo marca. La contraseña del pedido ya se guarda con Argon2id y se borra si se rechaza. Límite: 5 pedidos por IP y 3 por mail por hora.
+- **Crear la contraseña**: con un link de un solo uso. Lo genera un admin en Accesos (vale 72 horas: se copia y se manda por WhatsApp o Slack, y si hay mail configurado también llega por mail), o lo pide la persona en **/ingresar → "¿Primera vez o te olvidaste?"** (vale 1 hora, solo por mail). Quien ya entra con Google puede crearla desde su perfil.
+- **Cómo se guarda** (OWASP): la contraseña se normaliza (NFKC), se le aplica un **HMAC-SHA-256 con un pepper** que vive en `PASSWORD_PEPPER` (fuera de la base y del código) y eso pasa por **Argon2id** (64 MiB, 3 pasadas, paralelismo 1, salt aleatorio de 16 bytes). En la base queda solo el hash en formato PHC, que incluye el salt y los parámetros. Supabase no sabe nada de estas contraseñas: su propio ingreso con contraseña queda anulado (un trigger le vacía la suya a todos), así no hay puerta lateral.
+- **Política**: de 12 a 128 caracteres, cualquier carácter (una frase sirve), sin reglas de mayúsculas o símbolos. Se rechaza si contiene el mail o si aparece en filtraciones conocidas (Have I Been Pwned con k-anonimato: solo viajan 5 caracteres del SHA-1; si el servicio no responde, no frena).
+- **Fuerza bruta**: 5 fallos por cuenta o 20 por IP en 15 minutos frenan con "Demasiados intentos". Pedir links: 3 por mail y 10 por IP por hora. Los intentos se guardan como HMAC, sin el mail ni la IP en claro.
+- **Lo demás**: mismo mensaje y mismo tiempo de respuesta tenga o no cuenta el mail, los pedidos tienen que venir de la misma app (CSRF), las contraseñas no se loguean ni vuelven en ningún error, la clave de servicio nunca llega al navegador y los links se guardan como SHA-256 (el link en sí no queda en ningún lado).
+
+**Activarlo (por entorno):**
+
+1. Correr `supabase/migracion-acceso-contrasena.sql` (en el historial: `logic_acceso_contrasena`; incluye la tabla de pedidos, `credencial_solicitudes`), después de `migracion-acceso.sql` y `migracion-equipo.sql`. Revisá antes cuántos usuarios tienen contraseña de Supabase (`select count(*) from auth.users where coalesce(encrypted_password, '') <> ''`): la migración se las vacía.
+2. En Vercel, como *Sensitive* y solo servidor: `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Project Settings → API keys) y `PASSWORD_PEPPER` (`openssl rand -base64 32`, uno distinto por entorno; guardalo también en un gestor de contraseñas: sin él nadie puede entrar con su contraseña). Opcional: `AUTH_MAIL_FROM` con un remitente de un dominio verificado en Resend, para mandar los links por mail.
+3. En Supabase → Authentication → Sign In / Providers, el proveedor **Email** tiene que estar activado (la sesión se inicia con un link mágico interno que no manda ningún mail).
 
 ### Visitas
 
@@ -151,6 +219,69 @@ select * from visitas_por_dia;      -- visitas, invitados y usuarios distintos p
 select * from visitas_por_usuario;  -- quién entra y cuándo fue la última vez
 ```
 
+## Tu perfil
+
+En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno arma su perfil, pensado para que el estudio se conozca y se encuentre. Todo se guarda solo, al momento:
+
+- **Foto**: la de Google, la de Basecamp o una subida (se recorta en cuadrado y se achica antes de subirla). La elegida se ve igual en toda la app: la cuenta, tu perfil y Status. Mientras no elijas, la cuenta muestra la de Google y Status la de Basecamp, como siempre.
+- **Nombre para mostrar** ("Facu" en vez de "Facundo Machado"): se ve en la cuenta y en los perfiles. En las filas de Status sigue el nombre del equipo.
+- **Estado**: emoji + texto, o uno de los rápidos (En foco, En reunión, Almorzando, Desde casa, En rodaje, De licencia, De vacaciones). Se puede borrar solo: en 1 hora, en 4, a la noche, el viernes o nunca.
+- **Fuera de oficina hasta…** (inclusive): se ve en Status al lado de tu nombre, en el organigrama y, si tenés una tarea, en su detalle ("si no puede esperar, pasásela a otra persona").
+- **Color de acento**: el aro de tu foto y la píldora de tu puesto.
+- **Portada**: la del estudio (por defecto) o un degradé con tu color.
+- **Tus redes** (si te animás): LinkedIn, Behance, Instagram y Facebook. Se pega el link o el usuario solo; se guarda el link completo y la base revisa que sea de esa red.
+- **En el estudio** (de Status): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas **principales** y **secundarias**. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí, con **Principales y secundarias** (ver "Marcas principales y secundarias").
+- **Con quién trabajás**: los que trabajan tus mismas marcas, como principal o secundaria (ej: la redactora y el CM de Changan), y la gente de tu hub.
+
+**El perfil de los compañeros**: tocar a alguien en Status (su fila en Equipo, quien tiene una tarea, quien la valida, los asignados de Basecamp), en el organigrama, en Organización → Personas o en tu perfil abre su ficha: foto, estado, fuera de oficina, **en común con vos** (le reportás, te reporta, comparten tal marca, el mismo hub), lo suyo en el estudio y su mail para escribirle. En el organigrama, los admins pasan de ahí a **Editar** (puestos, hub, jefes, rol).
+
+Lo de Status no se guarda en el perfil: sale del equipo (`supabase/migracion-equipo.sql`) y se cruza por el mail de la cuenta. Sin el equipo, el perfil muestra solo lo personal.
+
+### Activarlo (una sola vez)
+
+En Supabase → SQL Editor, correr `supabase/migracion-perfil.sql` (en el historial de migraciones: `feature_perfil`), después de `migracion-usuarios.sql` y `migracion-acceso.sql`. Se puede repetir: no mueve datos.
+
+- Suma a `profiles` la foto elegida, el nombre para mostrar, el estado, "fuera de oficina hasta", el acento, la portada y las redes, y crea el bucket público `avatares` (cada uno sube y borra solo en su carpeta).
+- Todo el estudio lee los perfiles; cada uno edita solo el suyo. El mail, el nombre y la foto de Google no se pueden cambiar desde la app (el mail es lo que cruza el perfil con el equipo) y se actualizan solos en cada ingreso.
+- Sin la migración, la página se ve pero avisa que falta y no guarda nada.
+
+---
+
+## Librerías
+
+Los assets de todos los días, cada uno en su sección: **Emojis**, **GIFs** e **Íconos**. En la sidebar van juntos, aparte de las herramientas, y en Inicio son una sola tarjeta.
+
+- **Cada librería tiene su ruta** (`/library/emojis`, `/library/gifs`, `/library/iconos`). `/library` abre la última que usaste en ese navegador (la primera vez, Emojis). `/emojis` sigue andando: lleva a `/library/emojis`.
+- **Lo primero de la barra** es el selector de librería (`components/library/LibrarySwitcher.tsx`): pasa de una a otra sin abrir la sidebar. Después vienen el buscador y los controles de cada una.
+- **Pensadas para usarse desde otras herramientas**: la búsqueda de cada librería es una función (`fetchGifs` en `lib/library/gifs.client.ts`, `fetchIcons` en `lib/library/iconos.client.ts`) y `hooks/usePagedSearch.ts` arma la búsqueda paginada con cualquiera de las dos. Copiar y bajar también son funciones sueltas (`copyGif`, `downloadGif`, `copySvg`, `copyPng`, `downloadIcon`). Un selector de GIFs dentro de Ads o de íconos dentro de Tarjetas se arma con eso, sin tocar la librería. En el registro (`lib/modules.ts`) las librerías son los módulos con `group: "librerias"`.
+
+### GIFs
+
+GIFs y stickers de [GIPHY](https://developers.giphy.com/). Sin búsqueda se ven las tendencias.
+
+- **GIFs / Stickers** en la barra (se recuerda): los stickers tienen el fondo transparente y se ven sobre un cuadriculado.
+- **Al pasar el mouse**: copiar o bajar el GIF. **Tocándolo** se abre en grande, con cada formato y lo que pesa:
+  - **GIF**: el de siempre. **MP4**: para presentaciones (pesa mucho menos y anda en Keynote, PowerPoint y Slides; los stickers no tienen, porque el MP4 no tiene transparencia). **WEBP**: animado y liviano, para la web.
+  - **Copiar GIF**: el portapapeles solo acepta imágenes quietas (PNG), así que se copia como HTML (una imagen que apunta a GIPHY) más su link. Gmail, Docs, Slides y Notion pegan el GIF animado; Slack y los chats pegan el link y lo muestran. También se puede copiar el link de la página de GIPHY.
+- Las descargas pasan por `/api/library/gifs/archivo` (edge) para salir con su nombre; solo baja archivos de GIPHY (`media*.giphy.com`, `i.giphy.com`).
+- La búsqueda la hace el servidor (`lib/library/giphy.server.ts`, con la key) y cada búsqueda queda una hora en la caché de datos de Next (las tendencias, diez minutos): si dos personas buscan lo mismo, GIPHY recibe un solo pedido. Se filtra hasta la clasificación PG-13 y se busca en español.
+- **GIPHY pide que se vea "Powered by GIPHY"** donde se usa su API: está arriba de los resultados y en el detalle (`components/library/gifs/PoweredByGiphy.tsx`; si se suma el logo oficial, va ahí).
+
+**Activarlo**: crear una app (tipo *API*) en [developers.giphy.com/dashboard](https://developers.giphy.com/dashboard) y cargar su key como `GIPHY_API_KEY` en `.env.local` y en Vercel. La key de prueba (*beta*) es gratis pero deja pocos pedidos por hora; para el uso de todo el estudio conviene pedir la de producción desde el mismo panel (GIPHY revisa la app y pide ver la atribución).
+
+### Íconos
+
+Los íconos de [Magnific](https://www.magnific.com/api) (los de Flaticon). Sin búsqueda se ven los destacados.
+
+- **Estilo y tamaño** en la barra (se recuerda): todos, contorno, relleno, contorno a color o a mano; y el tamaño de los PNG (64, 128, 256 o 512 px).
+- **Al pasar el mouse**: copiar o bajar el SVG. **Tocándolo** se abre el detalle: SVG (copiar o bajar) y PNG transparente del tamaño elegido (copiar o bajar).
+- **Copiar SVG** copia el código: Figma e Illustrator lo pegan en vectores. **Copiar PNG** copia la imagen.
+- **Buscar no gasta nada**: las miniaturas son públicas. **Copiar o bajar sí**: cada formato de cada ícono cuenta como una descarga del plan de Magnific. Por eso se pide solo al usarlo, y una sola vez por página abierta (copiar el SVG y después bajarlo es una sola descarga).
+- Cómo funciona: `GET /api/library/iconos` busca (`GET /v1/icons` de Magnific, con la búsqueda guardada una hora en la caché) y `POST /api/library/iconos/descarga` pide el archivo (`GET /v1/icons/{id}/download`). Magnific devuelve un link que vence en minutos; la página lo baja por `/api/magnific/archivo`, la misma ruta firmada de Retoque (ver ahí). Un SVG servido desde nuestro dominio podría traer scripts: esa ruta lo manda con una CSP que no deja correr nada.
+- **A confirmar con la key real**: el filtro de estilo usa `filters[shape]` (como la API de Freepik). Si Magnific lo nombra distinto, "Todos" sigue andando y el resto devuelve un error que se ve en la página; se corrige en `lib/library/iconos.ts`.
+
+**Activarlo**: usa la misma `MAGNIFIC_API_KEY` de Retoque. Revisá que el plan incluya la API de íconos (*Icons API*).
+
 ---
 
 ## Emojis
@@ -159,7 +290,7 @@ Cerca de 1850 emojis de Apple, con nombres y etiquetas **en español y en inglé
 
 **Al entrar** se ven tus **favoritos**, los **recientes** (los últimos 16 que copiaste o bajaste) y las **categorías** (cada una con su primer emoji de portada). No se carga ningún listado hasta que elegís una categoría o buscás.
 
-- **Categoría** (`/emojis?c=…`): trae los emojis de a 60 con **Cargar más**. Mientras llegan se ve un esqueleto y la página aparece entera, de una, cuando cargaron todas sus imágenes. El botón "atrás" del navegador vuelve al inicio.
+- **Categoría** (`/library/emojis?c=…`): trae los emojis de a 60 con **Cargar más**. Mientras llegan se ve un esqueleto y la página aparece entera, de una, cuando cargaron todas sus imágenes. El botón "atrás" del navegador vuelve al inicio.
 - **Búsqueda**: el esqueleto aparece en cascada y los emojis lo van reemplazando **en orden** (izquierda a derecha, arriba a abajo), a medida que cargan.
 - **Click** en un emoji → copia el PNG al portapapeles (o el carácter, si lo cambiás en ajustes).
 - **Buscar + Enter** → copia el primer resultado sin tocar el mouse (si la búsqueda todavía no llegó, lo copia apenas llega).
@@ -195,19 +326,36 @@ Si te olvidás del paso 2 funciona igual: el servidor calcula el índice en memo
 
 Soltás todos los frames juntos y sale un GIF por banner. Todo pasa en el navegador: las imágenes no se suben a ningún lado.
 
-**Cómo nombrar los archivos:** `[prefijo_]ANCHOxALTO_ORDEN[-DURACIÓN].ext`
+**Cómo se agrupan:** los archivos que se llaman igual y terminan en un número son frames del mismo GIF, y el número es el orden.
 
 ```
-300x250_1.jpg           frame 1, duración por defecto
-300x250_2-1.5s.jpg      frame 2, 1,5 segundos
-728x90-1-800ms.png      guion o guion bajo, en segundos o milisegundos
-verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
+banner_1.jpg  banner_2.jpg      un GIF «banner» (separador _, -, espacio, punto o nada)
+Frame 1.png   Frame (2).png     también vale el (2) de las copias
+300x250_1.jpg 300x250_2.jpg     con la medida en el nombre, el GIF se llama «300x250»
+verano_300x600_2-1.5s.jpg       prefijo, medida y duración opcional al final (-1.5s o -800ms)
+summer_1_es.jpg                 si no termina en número se usa el último: GIF «summer_es»
 ```
 
-- Se agrupan por medida (y prefijo) y se ordenan por número. Avisa si falta un frame, si hay uno repetido o si una imagen no tiene la proporción del nombre.
-- En **Frames** de cada grupo se cambia la duración de cada uno, se reordenan o se quitan.
-- **Ajustes** (en la barra): duración por defecto, loop, calidad (cantidad de colores), **peso máximo** y **ajustar al peso máximo**.
-- **Exportar** baja todos en un ZIP; cada tarjeta también baja su GIF suelto. Una vez generado, la tarjeta muestra el **GIF final** (con su compresión real), no los frames originales.
+- Las mayúsculas y los separadores no cuentan: `Banner-1` y `banner_2` van juntos.
+- Si el nombre no dice la medida, se usa la de la imagen, y los de distinta medida van en GIF distintos (un GIF tiene una sola). Si dos GIF quedan con el mismo nombre se les suma la medida (`Frame_300x250`, `Frame_728x90`).
+- Avisa si falta un número del orden, si hay uno repetido o si una imagen no tiene la proporción del GIF.
+
+**Sueltas:** lo dudoso no se agrupa solo. Una imagen sin número, o la única con ese nombre, queda en **Sueltas**, arriba de los GIF:
+
+- Arrastrar una suelta sobre otra arma un GIF nuevo con las dos (se llama como la de abajo); soltarla sobre la tarjeta de un GIF la suma al final.
+- También se eligen con un clic, en el orden que van, y **Armar GIF con N**.
+- En los dos casos se abre **Ordenar** para acomodarlas.
+
+**Ordenar** (en cada tarjeta) es el popup del GIF:
+
+- Los frames se arrastran al lugar que van (con el teclado: ↑ ↓ sobre el elegido). Al ordenar a mano el número del nombre deja de mandar y se van los avisos de orden.
+- Las sueltas aparecen abajo: se arrastran al lugar exacto de la lista o se suman al final con **+**. Un frame arrastrado hasta ahí (o con el botón de sacar) sale del GIF y queda suelto; si el GIF queda con uno solo, ese también vuelve a sueltas.
+- El nombre de arriba se edita: es el del archivo que se descarga.
+- Cada frame tiene su duración (vacío = la de por defecto) y se puede quitar.
+
+**Ajustes** (en la barra): duración por defecto, loop, calidad (cantidad de colores), **peso máximo** y **ajustar al peso máximo**.
+
+**Exportar** baja todos en un ZIP (las sueltas no); cada tarjeta también baja su GIF suelto. Una vez generado, la tarjeta muestra el **GIF final** (con su compresión real), no los frames originales.
 
 ### Compresión
 
@@ -216,7 +364,7 @@ verano_300x600_1.jpg    el prefijo separa campañas con la misma medida
 
 Probado con 6 banners de 2–3 frames (300x250, 300x600, 728x90, 160x600, 320x50, 970x250): GIF válidos, duraciones y loop correctos, y todos dentro de 150 KB.
 
-Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos.
+Respecto de Programática se corrigió: la guía decía `300x600_1.jpg` pero solo se aceptaba `300x600-1.jpg`; "Agregar más" reemplazaba todo en vez de sumar; la duración por defecto no se actualizaba en los frames ya cargados; y la vista previa ignoraba los milisegundos. Y ya no hace falta la medida en el nombre: un archivo que no sigue el formato queda suelto en vez de descartado.
 
 ---
 
@@ -248,7 +396,7 @@ El botón amarillo de la barra (o `Ctrl + Enter`) copia con formato: donde se en
 
 Las dos burbujas al costado del texto (☺ y #) abren un panel. Arriba del panel se elige de qué cliente mostrar: arranca en el del texto, pero se puede cambiar para ver o cargar los de otro sin tocar el texto (un aviso indica que no es el del texto, con **Volver**).
 
-- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
+- **Emojis**: una versión chica del módulo Emojis: buscar, los fijados del cliente, recientes, favoritos (los mismos que en `/library/emojis`, con el mismo tono de piel) y, al final, las categorías. Click inserta donde está el cursor, sin sacarte del texto. Con el **+** de cada emoji queda fijado en el cliente.
 - **Hashtags**: los del cliente (uno o todos de un click: inserta solo los que faltan), los que ya escribiste en este texto (con un botón para guardarlos en el cliente) y los recientes de tus otras redacciones.
 
 ### Atajos
@@ -285,17 +433,30 @@ Todo lo de cada cliente en un solo lugar. Son la tabla `brands` de siempre (en T
 - **La lista** (`/clientes`): cada cliente con su logo (o sus iniciales), su paleta y cuánto tiene a su nombre.
 - **La ficha** (`/clientes/<id>`), donde se edita todo y se guarda solo:
   - **Logo**: se suelta o se elige (SVG, PNG, JPG, WEBP o GIF, hasta 5 MB). Se elige sobre qué fondo se ve (claro, oscuro o su color: un logo blanco no se ve sobre papel), y se descarga o se cambia desde ahí.
+  - **Foto de perfil como logo**: debajo del logo aparece cada una de sus redes con su foto de perfil; marcar una (como un checkbox) la sube como logo, y desmarcarla lo quita. Una foto de perfil se muestra redonda en toda la app, como en la red. Cada red la da de un tamaño: Facebook 720 px, YouTube 900, X 400, LinkedIn 200, Instagram y TikTok solo 100 (sin iniciar sesión no la dan más grande: se avisa que se puede ver borrosa).
+  - **Logos** (todos los del cliente, cada uno con sus formatos): se sueltan o se eligen muchos archivos de una vez (SVG, AI, EPS, PDF, PNG, JPG, WEBP o GIF, hasta 50 MB cada uno).
+    - **Los que se llaman igual son el mismo logo**: `horizontal.svg`, `horizontal.png` y `horizontal.ai` quedan como un logo «Horizontal» con tres formatos. Sin importar mayúsculas, tildes ni separadores (`Logo_Horizontal` = `logo-horizontal`), y sin el nombre del cliente adelante (`Changan_Isotipo.pdf` → «Isotipo»). Un archivo que se llama como un logo que ya estaba se le suma; si ese logo ya tenía ese formato, lo reemplaza.
+    - **Los formatos son etiquetas**: cada una descarga ese archivo (al pasar el mouse dice su medida y su peso). Los vectoriales (SVG, AI, EPS, PDF) van primero y en negro. El **+** suma otro formato al logo, se llame como se llame el archivo (también se le puede soltar encima). Arriba se filtra por formato («solo los SVG») y **Descargar** baja lo que se ve en un .zip, con una carpeta por grupo.
+    - **Cada grupo ocupa una fila**: si tiene más de 4 logos, se ven los primeros 3 y en el cuarto lugar **+N más**, con una muestra de los que faltan; un click lo abre entero y **Mostrar menos** lo vuelve a cerrar. El grupo que recibe logos nuevos se abre solo, para verlos.
+    - **Grupos**: se crean con **Nuevo grupo** (un nombre o uno de los de siempre: Principal, Horizontal, Isotipo, Negativo…), se renombran en el lugar y se suben o bajan desde su menú. Los logos se arrastran de un grupo a otro, o antes de otro logo para ordenarlos; también con **Mover a** en el menú de cada logo. Archivos soltados en un grupo entran en ese grupo. Eliminar un grupo deja sus logos sin grupo (o los borra, si se elige así).
+    - **Cada logo**: nombre editable, el fondo sobre el que se ve (claro, oscuro o su color; al subirlo se elige solo: un logo blanco con transparencia va sobre oscuro), **Usar como logo del cliente** (pasa a ser el de arriba, su cara en toda la app; lo marca la estrella), **Juntar con** otro logo (para dos archivos con nombres distintos que son el mismo logo), **Quitar un formato**, descargar todos sus formatos en un .zip y eliminarlo.
+    - Si el cliente no tenía logo arriba, el primero que se sube con vista previa pasa a serlo. Un logo que se había subido solo arriba se suma a la lista con **Sumarlo**. AI, EPS y PDF no tienen vista previa: se ve el nombre del formato.
   - **Nombre, color y notas**: el color es el que lo identifica en las listas. Las notas son libres (tono, contactos, links).
+  - **Redes**: Instagram, TikTok, Facebook, YouTube, X y LinkedIn. Se pega el link al perfil (la red sale sola del link) o se escribe el usuario y se elige la red. Cada una abre su perfil. En Ads, elegir el cliente pone su usuario de Instagram.
   - **Colores**: la paleta, con nombre para cada color. Un click copia el HEX (o el RGB). Si hay logo, sugiere sus colores para sumarlos de un click. La estrella marca el color del cliente.
   - **Tipografías**: se eligen entre las subidas, se suben ahí mismo (quedan en la biblioteca de Tarjetas) o se anota una que todavía no está. Cada peso se copia con su nombre completo, como lo nombran Illustrator e InDesign.
   - **Productos**: se agregan y se quitan ahí.
   - **Tarjetas** y **Redacciones**: las suyas, con atajos para crear una nueva para el cliente. Las redacciones son las tuyas (las de los demás no se ven).
   - **Emojis y hashtags**: los que guardaste para el cliente desde los paneles de Redacción. Un click copia.
-  - **Eliminar cliente**: borra su ficha, su logo y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
+  - **Eliminar cliente**: borra su ficha, sus logos y sus productos. Las tarjetas y las redacciones quedan, sin cliente.
 
 ### Activarlo (una sola vez)
 
 En Supabase → SQL Editor, corré `supabase/migracion-clientes.sql`. Suma a `brands` el logo, el fondo del logo, la paleta, las tipografías y las notas, y crea el bucket público `logos`. Se puede correr antes o después de `migracion-acceso.sql` (las dos dejan los logos solo para el estudio) y más de una vez. Sin ella, Clientes muestra todo pero avisa que no puede guardar la ficha.
+
+Para los **logos** (varios por cliente, en grupos y con sus formatos), corré `supabase/migracion-logos.sql`: suma a `brands` los logos (`logos`) y sus grupos (`logo_groups`), y deja que el bucket `logos` acepte PDF, AI y EPS de hasta 50 MB. Se puede repetir. Sin ella, la ficha avisa en Logos y todo lo demás (incluido el logo de arriba) anda igual. Cada logo y cada archivo están en `lib/types.ts` (`BrandLogo`, `LogoFile`); cómo se juntan los archivos por nombre, se mueven y se borran los que quedan sin usar, en `lib/clients/logos.ts`; la pantalla, en `components/clients/profile/LogosSection.tsx` y `LogoTile.tsx`.
+
+Para las **redes**, después corré `supabase/migracion-redes.sql`: suma a `brands` las cuentas (`socials`) y de cuál salió el logo (`logo_from`). Se puede repetir. Sin ella, la ficha avisa en Redes y todo lo demás (incluido subir un logo a mano) anda igual. La foto de perfil la busca `GET /api/clientes/foto?red=…&cuenta=…` (solo con sesión del estudio): lee la página pública de cada red y devuelve la imagen, solo si viene del CDN de esa red.
 
 ---
 
@@ -369,6 +530,300 @@ Necesita `FREECONVERT_API_KEY` (sacala en [freeconvert.com/api](https://www.free
 
 ---
 
+## Descargas
+
+Baja lo que hay en links de YouTube, Instagram y Pinterest, en la mejor calidad que den, a la compu, a una carpeta de Drive o a las dos.
+
+- **Pegar links**: en la caja de la página (o en el botón de lista de la barra) entra un mensaje o una lista entera: muestra cuántos links reconoce y de qué plataforma antes de agregarlos. También anda Ctrl+V en cualquier parte de la página, el botón de pegar de la barra o escribir en la barra + Enter. Entra un link por fila; los repetidos y los de otras páginas se ignoran (y se avisa cuántos).
+- **YouTube**: videos, Shorts y vivos ya terminados. Se elige la calidad en cada fila (hasta 1080p en H.264 + AAC, el MP4 que abre cualquier editor). Lo baja **el servicio de la PC de la oficina** (ver abajo): si esa PC está apagada, arriba de la lista aparece un aviso ("YouTube no está disponible ahora"; la página lo revisa al abrirse, al volver a la pestaña y cada minuto mientras está apagado, y se va solo cuando la prenden) y la tarjeta de YouTube dice *Apagado ahora*. Lo pregunta `/api/descargas/youtube/estado`, que le pega al `/health` del servicio.
+- **Instagram**: posteos (`/p/…`), reels (`/reel/…`, también con el usuario adelante) y `/tv/…`, de cuentas públicas. Los videos salen en MP4 (720p, lo que da Instagram sin sesión), las fotos en su mayor tamaño (1080 px) y los carruseles enteros: **Descargar** baja todo en un `.zip` y la tira de miniaturas baja cada archivo por separado. El ícono de copiar trae el texto del posteo. Las historias no se pueden: piden sesión.
+- **Pinterest**: pins de video y de imagen, de cualquier dominio (`pinterest.com/pin/…`, `ar.pinterest.com`, `pinterest.es`…) y los links cortos (`pin.it/…`, los que da la app de Pinterest al compartir). Las imágenes salen en su tamaño original.
+- **Cada fila**: debajo del título, el logo de la plataforma (Instagram, YouTube o Pinterest; el nombre sale al pasar el mouse) y los datos del posteo. El botón dice siempre **Descargar**; al pasar el mouse dice qué va a bajar y adónde ("Descargar el video y su portada a tu compu"). Si el link tiene algún video, pegado a Descargar está el botón de **qué bajar de ese link**: el video, el video y su portada, o solo la portada (si no trae portada, solo deja el video).
+- **Cómo se guarda** (ícono de ajustes de la barra, o el resumen debajo del título, que muestra lo elegido con íconos). Las opciones son íconos: el nombre sale al pasar el mouse (y es lo que leen los lectores de pantalla) y a la derecha de cada título dice lo elegido. Se recuerda en la cuenta de cada uno:
+  - *Qué bajar de los videos*: lo mismo que el botón de cada fila, para todas. Elegirlo acá lo cambia en todas las filas. Si se cambia una sola fila, pasa solo a **Personalizado** (no se elige a mano); los links nuevos salen con lo último que se eligió acá. La portada es la imagen que se ve antes de darle play, en su tamaño completo: en Instagram la de cada video (también dentro de los carruseles, numerada igual), en Pinterest la imagen del pin y en YouTube la miniatura más grande que tenga (1280×720 si existe). Sale como `… (portada).jpg`. Las fotos se bajan igual en los tres modos, y con *Solo portada* el sonido no cuenta. La portada de YouTube sale directo de YouTube: no necesita la PC (pero leer el link sí).
+  - *Sonido de los videos*: con audio, sin audio (el video mudo) o solo audio (`.m4a`). No se vuelve a comprimir nada: se copian las pistas tal cual. En Instagram y Pinterest lo hace el navegador (`lib/downloads/audio.client.ts`, con [mediabunny](https://mediabunny.dev)); en YouTube, el servicio de la PC.
+  - *Dónde*: compu, compu y Drive, o solo Drive.
+  - *Carpeta de Drive*: se pega el link de la carpeta. La primera vez Google pide permiso y abre su selector ya parado en esa carpeta, para confirmarla con un click; después queda guardada.
+- Los archivos se llaman como el posteo: `@cuenta - primera línea del texto.mp4` en Instagram, `Canal - Título.mp4` en YouTube y el título del pin en Pinterest; con `(3)` si es del carrusel, `(sin audio)`, `(audio)` o `(portada)`. Con dos o más links listos aparece **Descargar todo** en la barra, que baja cada fila con lo suyo.
+- **Varios archivos van en un `.zip`**: una fila con más de un archivo (un carrusel, o un video con su portada) sale como `@cuenta - título.zip`, y **Descargar todo** arma un solo `Descargas <fecha>.zip`, con una carpeta por posteo de varios archivos. Es por el navegador: Chrome deja bajar un archivo por click y, si una página baja varios seguidos, pide permiso ("descargar varios archivos") y hasta que se le contesta no baja ninguno más, ni siquiera los de a uno. Así un carrusel bajaba solo la primera foto y las demás quedaban frenadas. A Drive va cada archivo por separado. Los videos de YouTube que van solo a la compu quedan afuera del `.zip` (pueden pesar cientos de MB): los baja el navegador directo de la PC. Si alguien ya le dijo *Bloquear* a ese permiso, se vuelve a habilitar en Chrome: candado de la barra de direcciones → *Configuración del sitio* → *Descargas automáticas* → *Permitir*.
+
+### Cómo funciona
+
+- `/api/descargas/info?url=…` lee el link en el servidor:
+  - **Instagram** (`lib/downloads/instagram.server.ts`): abre la página *embed* del posteo (`/p/<código>/embed/captioned/`, la que usan los sitios para insertar un posteo), que trae los datos sin sesión. Solo responde si el pedido parece una navegación (`Sec-Fetch-Mode: navigate`), y el `fetch()` de Node no deja poner ese encabezado: por eso va con `node:https`. Las fotos sueltas no traen datos y se leen del HTML del embed. Las APIs internas (GraphQL, `?__a=1`) piden iniciar sesión.
+  - **Pinterest** (`lib/downloads/pinterest.server.ts`): abre la página pública del pin y lee el schema.org que publica para los buscadores (`VideoObject` en los videos, `SocialMediaPosting` en las imágenes). A Vercel muchas veces le manda la página sin esos datos: ahí lee el pin de la API de los embeds (`widgets.pinterest.com`). Los `pin.it` se resuelven siguiendo las redirecciones. La API interna de Pinterest pide sesión.
+  - **YouTube** (`lib/downloads/youtube.server.ts`): le pide los datos al servicio de la PC con la clave compartida y firma un permiso para ese video (vence a las 6 horas). El navegador le habla directo al servicio con ese permiso: le pide que prepare el archivo, sigue el avance y lo baja de ahí. Los videos de YouTube no pasan por Vercel.
+- `/api/descargas/file?src=…&name=…` baja los archivos de Instagram y Pinterest, y las portadas, a través del servidor (edge), para que salgan con su nombre (y porque el CDN de Pinterest no habilita CORS). Solo acepta archivos de los CDN de Pinterest (`v*.pinimg.com/videos`, `i.pinimg.com/originals`, `i.pinimg.com/videos/thumbnails/originals`), de Instagram (`*.fbcdn.net`, `*.cdninstagram.com`) y las miniaturas de YouTube (`i.ytimg.com/vi/<id>/maxres|sd|hqdefault`), y la extensión la decide el tipo que manda el origen. A Pinterest le pide con `Referer: https://www.pinterest.com/`, reintenta una vez si se corta o el CDN da 5xx, y si falla responde un texto que la página muestra en la fila (y deja una línea `[descargas/file]` en los logs de Vercel con lo que respondió el CDN). Cada descarga pasa por Vercel, así que consume transferencia.
+- `lib/downloads/targets.ts` decide qué sale de cada fila según *Qué bajar* (el de la fila o, si no eligió, el de todos) y arma la descripción del botón Descargar. Las opciones con sus íconos están en `components/downloads/modes.tsx` y los logos de las plataformas en `components/downloads/PlatformIcon.tsx`. `lib/downloads/save.client.ts` arma cada guardado: de dónde sale el archivo, si hay que sacarle o separarle el audio y adónde va. Todo se baja primero a la memoria de la página (así un error se ve en la fila y no como una descarga fallida del navegador, y se puede armar el `.zip`, con [client-zip](https://github.com/Touffy/client-zip), sin comprimir); la excepción son los videos de YouTube que van solo a la compu, que los baja el navegador directo de la PC.
+- **El `fetch` de las rutas pasa por React**, que junta los pedidos GET repetidos y devuelve una copia de la respuesta. Cancelar el cuerpo de esa copia espera a la original, que nadie lee: el pedido queda colgado para siempre (así se colgaban los `pin.it`). Y mientras se manda un archivo, la original se queda con todo el archivo en memoria. Por eso los pedidos de Descargas llevan su propio `signal` (con eso React no los toca) y los `cancel()` no se esperan.
+- **Drive** (`lib/downloads/drive.client.ts`) usa la cuenta de Google de cada persona, con el permiso `drive.file`: la app solo ve lo que ella sube y las carpetas que la persona le confirma en el selector de Google (Google Picker). Así nadie le da acceso a todo su Drive y Google no pide verificar la app. Los archivos van directo del navegador a Google.
+- Los links de archivos de Instagram vencen a los pocos días: si una fila quedó abierta mucho tiempo, sacala y volvé a pegar el link.
+- **Si un día deja de andar**, lo más probable es que Instagram o Pinterest hayan cambiado su página: lo que hay que ajustar está en esos dos archivos. Instagram además puede tratar distinto a los servidores en la nube que a una conexión de oficina; si en Vercel falla y en local anda, es eso.
+
+### YouTube: el servicio de la PC
+
+YouTube corta las descargas en buena calidad que salen de servidores en la nube (deja bajar el primer mega y después responde 403, si el pedido no trae un token que genera su reproductor). Por eso lo baja un servicio aparte, `worker/youtube/`, con [yt-dlp](https://github.com/yt-dlp/yt-dlp) y ffmpeg, en una PC con conexión de oficina. Está en Node sin dependencias; los programas van en `worker/youtube/bin/` (fuera de git) y yt-dlp se actualiza solo cada día. Las instrucciones para instalarlo en otra PC (o en el servidor de la empresa) están en [`worker/youtube/README.md`](worker/youtube/README.md).
+
+Para que lo alcancen Vercel y los navegadores del equipo, el servicio abre solo un **túnel de Cloudflare sin cuenta** (gratis, con `bin/cloudflared.exe`). Esa dirección (`https://<palabras>.trycloudflare.com`) cambia cada vez que arranca, así que el servicio la anota en un **Blob store de Vercel** y la app la lee de ahí (`lib/downloads/youtube.server.ts`). Nadie tiene que copiar direcciones a mano.
+
+1. **Crear el Blob store** (una sola vez): en Vercel, **Storage → Create → Blob**, y conectarlo al proyecto (Production, Preview y Development). Vercel agrega solo la variable `BLOB_READ_WRITE_TOKEN` al proyecto. Ese mismo token (en el store, pestaña *.env.local*) va también en `worker/youtube/.env`, para que el servicio pueda anotar la dirección.
+2. **Cargar en Vercel** `YOUTUBE_WORKER_SECRET`: la clave que está en `worker/youtube/.env` (se crea la primera vez que se abre el servicio). Después, *Redeploy*.
+3. **Arrancar el servicio**: doble click en `worker/youtube/ServicioYouTube.exe` (si no está, se arma con `worker/youtube/app/compilar.cmd`). Es una app de la bandeja: corre sin ventana, queda junto al reloj con un punto verde cuando funciona y arranca sola con Windows. Ver `worker/youtube/README.md`. Sigue estando `iniciar.cmd`, que lo abre en una consola (útil para probar), pero no los dos a la vez.
+
+En local, `.env.local` tiene `YOUTUBE_WORKER_URL=http://localhost:8787`: una dirección fija manda sobre la anotada (sirve también si el servicio pasa a un servidor con dirección propia). Los túneles sin cuenta de Cloudflare no tienen garantía de funcionamiento y Cloudflare pide no usarlos para mover mucho video: para lo que baja el estudio alcanza, pero si el uso crece, lo prolijo es el servidor de la empresa o un túnel con cuenta y dominio.
+
+### Métricas: quién baja qué
+
+Cada archivo que alguien baja (o sube a Drive) desde Descargas queda anotado en la tabla `descargas_registro`: quién (su cuenta), cuándo, de qué plataforma y posteo (link, título y cuenta), qué salió (video, foto, portada o audio, con la calidad y el número dentro del carrusel), a dónde y cuánto pesó (exacto si pasó por la página; si no, lo que informó el origen). Lo manda la página después de cada guardado a `POST /api/descargas/registro` (`lib/downloads/registro.ts`); si falla no se avisa, porque la descarga ya se hizo.
+
+- **Desde dónde**: si fue desde la red de la oficina. El servidor compara en el momento la IP de quien baja con la IP pública de la oficina, y anota solo sí o no: **la IP no se guarda** (está en `/privacidad`). La IP de la oficina la averigua el servicio de YouTube (corre en una PC de ahí) y la anota en el Blob store junto con su dirección; se revisa cada media hora porque puede cambiar. También se puede fijar con `OFICINA_IPS` en Vercel (separadas por coma). Sin ninguna de las dos, queda "–" (no se sabe). En IPv6 se compara la red, no la dirección (`lib/downloads/oficina.server.ts`).
+- **La página** `/descargas/metricas` (botón de gráfico en la barra de Descargas) la ven solo quienes estén en `descargas_admins`; para el resto no existe (404). Tiene el período (7, 30 o 90 días, o todo), los totales, las descargas por día (por semana si el período es largo; con vista de tabla), por plataforma, qué se baja y a dónde, por persona, lo más bajado y la actividad reciente. Tocar una plataforma o una persona filtra todo. **Exportar CSV** baja lo filtrado (separado por punto y coma, para que Excel en español lo abra en columnas).
+- **Activarlo**: correr `supabase/migracion-descargas-registro.sql` (después de `migracion-usuarios.sql` y `migracion-acceso.sql`). Crea el registro, `descargas_admins` (con `fmachado@camaratbwa.com`) y la función que lee el registro con el nombre de cada uno. Para sumar a alguien: `insert into public.descargas_admins (email) values ('…@camaratbwa.com');`. Sin la migración no se anota nada y la página avisa que falta.
+- En la PC, la app de la bandeja muestra en vivo quién pide cada video de YouTube y si es desde la oficina (pestaña **Descargas**, ver `worker/youtube/README.md`). El nombre lo firma la app junto con el permiso del video, así el servicio no puede mostrar uno falso.
+
+### Drive: activarlo (una sola vez)
+
+En el proyecto de Google Cloud del cliente OAuth que ya usa Presentaciones (`GOOGLE_OAUTH_CLIENT_ID`):
+
+1. **APIs y servicios → Biblioteca**: habilitar *Google Drive API* y *Google Picker API*.
+2. **Credenciales → Crear credenciales → Clave de API**: restringirla a *Google Picker API* y, en "Restricciones de aplicaciones", a sitios web: el dominio de producción, el de testing/preview y `http://localhost:3000`. Va en `GOOGLE_PICKER_API_KEY`.
+3. **Credenciales → el cliente OAuth → Orígenes autorizados de JavaScript**: agregar los mismos dominios (producción, preview y `http://localhost:3000`).
+4. **Pantalla de consentimiento → Acceso a los datos**: agregar el permiso `.../auth/drive.file` (no es sensible: no hace falta verificar la app).
+5. Cargar `GOOGLE_OAUTH_CLIENT_ID` y `GOOGLE_PICKER_API_KEY` en Vercel (y en `.env.local`). Sin ellas, las opciones de Drive aparecen deshabilitadas.
+
+---
+
+## Ads
+
+Para ver cada pieza de una pauta como sale en Instagram antes de publicarla y saber si algo del creativo queda tapado.
+
+**Cómo se usa**
+
+1. **Agregar pieza** (barra de arriba): se elige qué es, como en Presentaciones: **post**, **carrusel**, **reel** o **historia**.
+2. Se sube el archivo. En un carrusel, de 2 a 10: ahí mismo se ordenan arrastrándolos (con el teclado, ← y → sobre el elegido), y se saca o se suma alguno.
+3. Se eligen los **mockups**: vienen marcados los de su proporción (9:16 → historia y Reels; 4:5 o 1:1 → feed) y los demás se pueden sumar.
+4. Listo: la pieza queda en su fila, con un teléfono por mockup **en fila horizontal**. En un carrusel, cada teléfono muestra un slide y tiene **flechas** para pasar (no salen en la imagen que se descarga). Arriba de cada teléfono va su nombre (y, si Meta lo adapta, cómo) y debajo sus acciones: **ver en pantalla completa**, copiar o descargar ese mockup. Tocar el teléfono también lo abre en grande, sobre un fondo oscuro y del tamaño que entre en la ventana (en un carrusel, con sus flechas); se cierra con la X, tocando afuera o con `Esc`.
+
+También se pueden arrastrar o pegar (Ctrl+V) los archivos: la pieza se arma sola (varios archivos → carrusel; 9:16 → reel si es video o historia si es imagen; si no, post) y el tipo se cambia arriba de sus mockups.
+
+**Cada fila** tiene, en una línea: el número y el tipo de pieza (se puede cambiar), el archivo y su proporción (con ⚠ si algo no está bien), el selector de **mockups** (un menú con casillas, agrupado en feed, Reels e historias; los que Meta adapta lo dicen), "Con fondo / Recortado" si hace falta, **reemplazar** el archivo (o soltar otro encima de su teléfono) u **Ordenar slides** si es un carrusel, el color del botón (sale del creativo; se puede cambiar), descargar todos sus mockups y quitarla.
+
+**Carruseles**: a la izquierda de sus mockups hay un lugar para **soltar fotos** (o hacer click) y sumarlas como slides; al soltarlas se abre **Ordenar slides**, con los nuevos al final y marcados, para acomodarlos arrastrando, sacar alguno o sumar más. El mismo orden se abre cuando se quiera con el botón **Ordenar slides**; nada cambia hasta «Listo». Soltar una foto sobre un teléfono reemplaza el slide que se ve. Arrastrar archivos al resto de la fila también abre el orden (en un post, uno solo lo reemplaza y varios lo vuelven carrusel).
+
+**Los mockups** (todos salen de capturas reales en un iPhone de 390 × 844 pt):
+
+| Mockup | Qué tapa o muestra | Captura de referencia |
+| --- | --- | --- |
+| **Feed** | El inicio: la barra de Instagram, la cuenta con «Publicidad», el creativo (4:5 como mucho de alto), la barra del botón debajo, me gusta / comentar / enviar / guardar, «Me gusta», dos líneas de texto y la barra de abajo. En un carrusel, el «2/5» arriba a la derecha (lo único que va encima del creativo) y los puntitos. | Sin calibrar todavía: medidas típicas de Instagram |
+| **Reels** | En la pestaña Reels: la tarjeta con miniatura y título pegada al botón, los íconos del costado, todos con su número abajo (me gusta, comentarios, compartidos y enviados: así se ve lo más que ocupan), la cuenta con el anillo de historia, dos líneas de texto que terminan en «… Publicidad» y la barra de abajo. | Jetour (738 × 1600 px) |
+| **Reels desde el feed** | La flecha para atrás, los íconos del costado (también con su número abajo), las burbujas de seguidores, el botón, la cuenta, una línea de texto con «Publicidad» y la barra de comentarios. | Changan (923 × 2000 px) |
+| **Historia** | La barra de progreso (una por archivo si es un carrusel), la cuenta, ⋯ y ✕; el sticker blanco del enlace; abajo, «Publicidad» con me gusta y responder. | Leapmotor |
+| **Historia con «Me interesa»** | Lo mismo más «No me interesa» y «Me interesa» (anuncios de clientes potenciales). | Leapmotor |
+| **Historia con formulario** | El sticker y, debajo del creativo, «Desliza hacia arriba para ver el formulario». | Changan |
+
+**Cuando Meta adapta la pieza.** Con las ubicaciones Advantage+ (las automáticas), un mismo anuncio puede salir en feed, historias y Reels aunque se haya armado para uno solo. Andromeda, el sistema con el que Meta elige qué anuncio mostrarle a cada persona, premia tener creativos variados, pero no cambia formatos: lo que adapta la pieza es la ubicación. Entonces:
+
+- Un **post o carrusel 4:5 o 1:1 en historias o Reels** se muestra entero con fondo (en el mockup, el mismo creativo desenfocado) o, si está prendido "Ampliar imagen" de Advantage+ creative, Meta lo completa a 9:16 con IA (eso no se puede simular: es contenido nuevo). "Con fondo / Recortado" elige cómo verlo.
+- Un **reel o historia 9:16 en el feed** se recorta a 4:5.
+
+Los mockups adaptados lo dicen debajo del teléfono.
+
+**La barra de arriba**: Agregar pieza; **ver sin la interfaz**, **marcar lo que tapa** (en rojo), **zona segura**, **detectar texto fuera de la zona segura** (el de los destellos) y **burbujas de seguidores**; el **engranaje** con la configuración; y **descargar todo**.
+
+- **Zona segura**: la de la Guía de anuncios para 9:16 (Reels y Stories de Instagram y Facebook, unificada en 2026): dejar libre el 14 % de arriba, el 35 % de abajo y el 6 % de cada costado (en 1080 × 1920: 269, 672 y 65 px). Es lo mismo que el "Safe Zone Guardrail" de Ads Manager. En el feed no aplica: no hay nada encima del creativo. En los dos de Reels se le suma la **columna de íconos** del costado, medida con todos sus números (por eso la zona segura tiene un escalón abajo a la derecha).
+- **Detectar texto fuera de la zona segura** (destellos; apagado de entrada y se recuerda en la cuenta: se busca recién al prenderlo): la app busca texto en cada creativo, sin IA y sin que el archivo salga del navegador. Las letras dejan muchos bordes seguidos y parejos en una misma línea, y las fotos casi nunca. Si al menos un 15 % de un texto cae en lo que no es seguro (o queda recortado fuera de la pantalla), se marca en rojo en el mockup y debajo del teléfono dice cuántos; la fila lo avisa con ⚠. De un video se miran varios cuadros (uno cada ~2 s, de 3 a 8), porque el texto puede aparecer en cualquier momento. Es una estimación: si marca algo que no es texto, o está bien así, **Ignorar** lo apaga para ese archivo. La idea es la del «Validador de márgenes - Meta Reels»; acá se cruza con la zona de cada mockup.
+- **Burbujas de seguidores** (Reels desde el feed): no siempre salen (dependen de quién lo ve), pero cuando salen tapan.
+- **Configuración** (engranaje; vale para todas las piezas y se recuerda en la cuenta): el cliente (pone su logo de foto de perfil y, si tiene su Instagram en la ficha, ese usuario), el usuario y la foto, el texto (se ve solo el principio, como lo corta Instagram en cada mockup), el título (tarjeta de Reels), el botón (los de Meta) y el idioma de Instagram (español o inglés: cambian «Más información» / «Learn more», «Publicidad» / «Ad»… y no miden lo mismo).
+
+**Descargas**: cada teléfono copia o descarga su mockup; cada fila baja todos los suyos (un `.zip` si son varios); **descargar todo** arma un `.zip` con una carpeta por pieza (`01 Post - nombre/Feed.png`, `02 Carrusel - nombre/Feed - 2 de 5.png`…). Son PNG a 3×, como una captura de iPhone (1236 × 2598 px, esquinas transparentes); de un video sale el cuadro que se está viendo (o, en lote, uno de adentro). Copiar necesita un navegador que deje copiar imágenes (Chrome, Edge, Safari y Firefox recientes).
+
+**Cómo está hecho**: los tipos de pieza, los mockups, qué se marca por defecto y dónde va el creativo están en `lib/ads/placements.ts`; los textos en los dos idiomas en `lib/ads/text.ts`; la zona segura (con la columna de íconos) y qué texto cae afuera, en `lib/ads/safe.ts`; la búsqueda de texto, en `lib/ads/textScan.ts`. Cada mockup se dibuja una sola vez, en un canvas (`components/ads/draw.ts`, sin librerías): en pantalla el creativo va en un `<img>`/`<video>` debajo (así los videos se reproducen) y al descargar se dibuja adentro. Las piezas y la lectura de archivos están en `components/ads/pieces.ts`; el diálogo en `AddPieceDialog.tsx`, cada fila en `PieceRow.tsx` y la configuración en `AdsSettings.tsx`. Nada se sube a ningún lado: los archivos se abren en el navegador.
+
+---
+
+## Retoque
+
+Quitarle el fondo a una imagen con la API de [Magnific](https://www.magnific.com/api) (lo que antes era la API de Freepik). Sale un PNG con el fondo transparente, del mismo tamaño que la original (hasta 25 MP). Es el primer retoque: el módulo está pensado para sumar más (agrandar, cambiar la luz, ampliar el formato…).
+
+- **Agregar**: elegir, arrastrar o pegar (Ctrl+V, desde cualquier parte de la página) una o varias imágenes. Se procesan solas apenas entran, de a dos (Magnific limita los pedidos simultáneos). Cada imagen gasta créditos de Magnific.
+- **Cada tarjeta** muestra en qué paso va (preparando, subiendo, quitando el fondo, bajando el PNG) y, al terminar, el resultado. **Pasando el mouse** (o el dedo) por la imagen se ve la original de un lado de la línea, para comparar los bordes. Se copia (para pegar en Figma, Illustrator o un chat) o se descarga como `nombre (sin fondo).png`. Si falla dice por qué y se puede reintentar.
+- **La barra**: agregar imágenes; sobre qué ver el resultado (cuadriculado para ver la transparencia, blanco o negro para ver los bordes; se recuerda en la cuenta); vaciar la lista; y **Descargar** (con varias, un ZIP `Sin fondo.zip`).
+- **Lo que acepta Magnific**: JPG o PNG de hasta 20 MB y 25 MP. Lo demás (WEBP, GIF, AVIF, una foto enorme) la página lo pasa a JPG, y si hace falta lo achica, antes de subirlo; la tarjeta lo avisa con un ícono ámbar. HEIC solo si el navegador lo abre (Safari sí, Chrome no): si no, pasarla a JPG en el Conversor.
+
+### Cómo funciona
+
+Magnific solo recibe imágenes **por URL**, así que la imagen tiene que estar un rato en internet:
+
+1. La página la prepara (`lib/retoque/prepare.client.ts`) y la sube al bucket **privado** `retoque` de Supabase, en la carpeta de la cuenta de quien la sube (`<id de la cuenta>/<uuid>.jpg`).
+2. `POST /api/retoque/fondo` (`app/api/retoque/fondo/route.ts`) firma un link a esa imagen que vence a los 10 minutos y se lo pasa a Magnific (`POST /v1/ai/beta/remove-background`, que contesta al toque, sin tarea para consultar después). Al terminar, salga bien o mal, **borra la imagen subida** (y lo que haya quedado de más de una hora, por si alguien cerró la pestaña a mitad de camino).
+3. Magnific devuelve la URL del PNG, que vence a los 5 minutos. El servidor no la baja: le da a la página un link firmado a `/api/magnific/archivo` (edge), que lo trae de Magnific y se lo pasa a la página, que lo guarda en memoria para mostrarlo, copiarlo o meterlo en el ZIP. Esa ruta solo baja URLs que firmó una ruta nuestra (con la key de Magnific como clave, `lib/magnific/firma.ts`), así que no es un proxy abierto, y solo les manda la key a los dominios de Magnific. La usan también los íconos de Librerías.
+
+La key vive solo en el servidor (`lib/magnific/api.ts`, header `x-magnific-api-key`; el pedido de quitar fondo está en `lib/retoque/fondo.ts`). Los errores de Magnific se traducen ahí (key inválida, sin créditos, plan sin la función, demasiados pedidos). La cola de cada página está en `hooks/useRetoqueQueue.ts` y la pantalla en `components/retoque/`.
+
+### Activarlo (una sola vez)
+
+1. Sacar una API key en [magnific.com/api](https://www.magnific.com/api) y cargarla como `MAGNIFIC_API_KEY` en `.env.local` y en Vercel (**Settings → Environment Variables**, sin `NEXT_PUBLIC_`). Después, *Redeploy*.
+2. En Supabase → SQL Editor, correr `supabase/migracion-retoque.sql` (después de `migracion-acceso.sql`). Crea el bucket privado `retoque` (JPG y PNG, hasta 20 MB) con la regla de que cada uno solo sube, lee y borra en su carpeta. Se puede correr más de una vez. Sin ella, las tarjetas avisan que falta correrla.
+
+---
+
+## Rest
+
+Un recreo: juegos cortos para cortar un rato, con ranking del estudio. `/rest` muestra los juegos y quién va primero esta semana en cada uno; cada juego tiene su página, con el ranking al costado. El ranking es **de esta semana** (arranca de cero cada lunes, hora de Montevideo: siempre hay revancha) o **de siempre**, y cuenta la mejor partida de cada uno, con su nombre y su foto de Google.
+
+- **Dino** (`/rest/dino`): el del navegador, con pixel art propio. Espacio o ↑ salta (manteniendo, salta más alto) y ↓ se agacha (en el aire, cae más rápido); en el celular se toca. Los cactus vienen de a uno a tres; desde cierta velocidad aparecen pájaros a tres alturas: bajo (hay que saltarlo), a la altura de la cabeza (agacharse) y alto (pasa por arriba). Cada 700 puntos se hace de noche un rato. Si se cambia de pestaña o de ventana, queda en pausa. HI es tu mejor marca.
+- **Buscaminas** (`/rest/buscaminas`): principiante (9 × 9, 10 minas), intermedio (16 × 16, 40) y experto (30 × 16, 99), cada uno con su ranking por tiempo. El primer click nunca explota. Click abre, click derecho pone o saca la bandera y click sobre un número que ya tiene sus banderas abre lo de alrededor; en el celular, mantener apretado pone la bandera. Con el teclado: flechas, Enter y F. **Nueva partida** (barra de arriba) o F2 arranca otra. En un celular el experto se muestra parado (16 de ancho): es el mismo tablero.
+- **Viborita** (`/rest/viborita`): una grilla de 24 × 16. Flechas o WASD doblan (en el celular, deslizar el dedo; se puede doblar dos veces sin levantarlo) y Espacio pone pausa. Cada fruta suma un punto y la hace crecer; cada fruta va un poco más rápido (de un paso cada 140 ms hasta uno cada 65 ms). Chocar con el borde o con la propia cola termina la partida. Si se cambia de pestaña o de ventana, queda en pausa.
+- **Fusión** (`/rest/fusion`): un tablero de 4 × 4. Flechas o WASD (en el celular, deslizar) mueven todas las fichas hacia ese lado; dos iguales que chocan se juntan en una del doble, y lo que valga la nueva suma al puntaje. Después de cada jugada aparece un 2 (a veces un 4). Al llegar a 2048 avisa y se puede seguir. La partida se guarda cuando no quedan jugadas, o cuando se deja a medias (**Nueva partida** en la barra de arriba, o irse a otro juego): lo que se sumó, cuenta.
+
+**Contra las trampas**: cada partida se abre en la base cuando arranca y se cierra con el puntaje, y la base anota las dos horas. En el dino no entran más de 21 puntos por segundo jugado (el juego da como mucho 19,5); en el buscaminas el tiempo no puede ser menor que el que la base vio pasar entre el primer click y el final (con 3 s de margen por la red), ni que un piso por dificultad; en la viborita no entran más de 16 frutas por segundo (a toda velocidad da un paso cada 65 ms), ni más de las que entran en la grilla; en Fusión pasan al menos 80 ms entre jugada y jugada, y con eso la base calcula el máximo que se puede haber sumado en el tiempo jugado. Alcanza para un ranking entre compañeros, no para frenar a alguien que se ponga a programar una partida.
+
+### Activarlo (una sola vez)
+
+En Supabase → SQL Editor, corré `supabase/migracion-juegos.sql`, después de `migracion-usuarios.sql` y `migracion-acceso.sql`. Crea `juego_partidas`, que no se lee directo: todo pasa por `empezar_partida`, `terminar_partida` y `ranking_juego`, solo para el estudio. Se puede repetir (no mueve datos). Si ya la habías corrido cuando solo estaban el dino y el buscaminas, hay que volver a correrla para que la viborita y Fusión tengan ranking. Sin ella se juega igual, pero el ranking avisa que falta y no se guarda nada.
+
+**Cómo está hecho**: los juegos y las dificultades están en `lib/rest/juegos.ts`; lo de la base, en `lib/rest/partidas.ts` y `hooks/useRanking.ts`. El dino es un canvas sin librerías: la física, los obstáculos y el dibujo están en `lib/rest/dino/motor.ts`, que corre a pasos fijos de 1/60 s (así va igual de rápido en una pantalla de 60 Hz que en una de 144 Hz y el ranking es parejo), y el pixel art en `lib/rest/dino/sprites.ts` (de cada dibujo salen también sus cajas de choque). La lógica del buscaminas está en `lib/rest/buscaminas.ts`; la de la viborita, en `lib/rest/viborita.ts` (se dibuja en SVG, con los colores del tema); la de Fusión, en `lib/rest/fusion.ts` (cada jugada devuelve un tablero nuevo; las fichas se deslizan con transiciones de CSS). Las flechas, WASD y los deslizamientos de la viborita y Fusión están en `lib/rest/teclado.ts`.
+
+---
+
+## Spotify: el Jam del estudio
+
+Una sola música para todo el estudio, con el **Jam** de Spotify. Una persona, el **DJ**, arma un Jam en su Spotify (Premium) y conecta su cuenta en `/spotify`. Desde ahí cualquiera con sesión en la app ve qué suena y **suma canciones a la cola**, sin conectar su propia cuenta. Para escuchar, cada uno se une al Jam desde Spotify, con el botón o el QR. Spotify se encarga de que suene igual para todos; la app nunca toca ni retransmite el audio.
+
+**Dónde se ve**
+
+- **La burbuja**, abajo a la derecha en cualquier módulo, aparece solo si hay un Jam armado. Cerrada es la tapa del disco con un anillo de progreso. Al tocarla se abre lo que suena (tapa, canción, artista y álbum, la onda de progreso) con tres cosas:
+  - **Unirse al Jam**, que abre el link en Spotify.
+  - **QR**, un widget aparte para unirse desde el celular.
+  - **Cola**, que se despliega hacia arriba con el buscador arriba de todo. Las que ya suenan o están en la cola aparecen como "Ya está" y no se suman de nuevo. Se compara por URI o por nombre y artistas, porque la misma canción puede tener otra URI en un single.
+- No tiene play, pausa ni saltear: eso lo maneja el DJ desde su Spotify. `Esc` cierra de a una cosa.
+- En el celular, la cola y el QR se turnan para entrar en la pantalla.
+- **`/spotify`** (en la sidebar) muestra lo mismo pero entero, más lo del DJ: conectarse, pegar el link del Jam, volver a conectar y terminar el Jam. Tiene también el interruptor para mostrar u ocultar la burbuja, que se recuerda en la cuenta de cada uno. En `/spotify` la burbuja no aparece.
+
+### Activarlo (una sola vez)
+
+1. En [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), crear una app con **Web API**. La dueña de la app tiene que tener **Premium** (Development Mode no funciona sin eso).
+2. Redirect URIs, exactas: `http://127.0.0.1:3000/api/spotify/callback` en local y la del entorno donde se use (ej: `https://brand-assets-center.vercel.app/api/spotify/callback`). Después de agregarlas, apretar **Save** al pie. Si no quedó guardada, Spotify no dice "URI inválida": vuelve con un `server_error` sin más datos. Spotify **no acepta `localhost`**: en local hay que abrir la app en `http://127.0.0.1:3000` e iniciar sesión ahí.
+3. En **User Management**, sumar la cuenta de Spotify de cada persona que vaya a ser **DJ**. Son 5 como mucho, pero solo las que conectan: el resto del estudio usa el Jam sin cuenta.
+4. Cargar `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` (solo servidor) e `INTEGRACIONES_SECRET` (32 caracteres o más; es la misma clave de las integraciones de Board). `SPOTIFY_REDIRECT_URI` es opcional; si no está, se usa `<origen>/api/spotify/callback`.
+5. En Supabase → SQL Editor, correr `supabase/migracion-spotify.sql`, después de `migracion-acceso.sql`.
+
+**Para armar el Jam**: el DJ abre Spotify, pone algo y arranca un Jam. Después, en `/spotify`, aprieta "Conectar Spotify y ser el DJ" y pega el link (Spotify → Jam → Invitar → Copiar link). Si otra persona se conecta, pasa a ser el DJ y el link anterior se borra.
+
+### Límites de Spotify (revisados el 10/11/2026)
+
+- **No hay API de Jam**: la app no puede crear el Jam ni su link, por eso el DJ lo pega. Lo que se suma va a la cola de lo que suena en la cuenta del DJ, que es la del Jam.
+- El DJ necesita **Premium**, porque sumar a la cola es solo para Premium. Los invitados al Jam, no.
+- La búsqueda trae **10 resultados** como mucho (Development Mode).
+- La conexión del DJ **vence a los 6 meses** de autorizar. Después la app avisa que tiene que volver a conectar.
+- Lo que suena se le pregunta a Spotify **como mucho cada 5 segundos**, y lo comparten todas las burbujas abiertas (por instancia del servidor), para no gastar la cuota de la app.
+
+**Cómo está hecho**:
+
+- `lib/spotify/auth.ts`: OAuth (Authorization Code con client secret).
+- `lib/spotify/oauth.ts`: el `state` de OAuth.
+- `lib/spotify/jam.ts`: el DJ en la tabla `spotify_jam`, con los tokens cifrados (leer la tabla no alcanza para usar la cuenta). También renueva el token y guarda en caché lo que suena.
+- `lib/spotify/catalogo.ts`: pasa las canciones de la API a la app y decide si una ya está en la cola. Lo usan el servidor y la burbuja.
+- `app/api/spotify/` tiene las rutas:
+  - `jam`: el estado (GET), el link (PATCH) y terminar (DELETE). El link y terminar son solo para el DJ.
+  - `cola`: sumar una canción.
+  - `buscar`, `conectar` y `callback`.
+- La pantalla está en `components/spotify/jam/` (estética propia: negro y verde de Spotify, vidrio, brillos y botones en relieve, en `estilo.ts`) y `components/spotify/SpotifyJam.tsx`. La burbuja se monta en `AppFrame`.
+- El QR sale de `lib/qr.ts`, sin librerías: modo byte, corrección M, hasta 213 bytes.
+- `SPOTIFY_ACCOUNTS_URL` y `SPOTIFY_API_URL` existen solo para probar contra una API simulada.
+
+---
+
+## Status y Ajustes
+
+**Status** (`/board`) es lo que está haciendo cada uno, con las tareas de Basecamp que trae la cuenta del estudio: todos ven las de todos, también las de marcas que no son suyas. Tiene dos pestañas:
+
+- **Mi tablero** (`/board`): tus tareas (o las de otra persona, o las de todo el estudio) en columnas por etapa, o en **tabla**.
+- **Equipo** (`/board/equipo`): una fila por persona con sus tareas, para repartir arrastrando, o en **tabla**: una tabla por persona, que se abre o se cierra tocando su nombre (con *Abrir todas* / *Cerrar todas*), y adentro lo más prioritario primero. Lo que se elige (filas o tabla) se recuerda.
+
+**Ajustes** es la configuración del estudio, solo para admins: **Organización** (`/board/organizacion`), **Basecamp** (`/board/basecamp`) y **Accesos** (`/board/accesos`). En la sidebar van abajo de todo, en amarillo; arriba de cada uno, la barra pasa de uno a otro. Las direcciones siguen siendo las de antes, así no se rompe ningún link (ni la vuelta de Basecamp).
+
+### Marcas principales y secundarias
+
+Las marcas de cada persona salen de los proyectos de Basecamp en los que está (los que trae la sincronización). Entre esas, cada uno elige —desde su perfil o con **Mis marcas** en Mi tablero— cuáles son:
+
+- **Principales**: es el designado de esa marca en su sector. Las tareas nuevas de la marca le llegan a él y lo de la marca le avisa como **tuya**. Hay una sola principal por marca y sector: si ya es de otro, aparece "Principal: …" y solo un admin se la puede pasar.
+- **Secundarias**: también la trabaja (pueden ser varios por marca y sector). Se entera de sus novedades en **Todo** de la campanita, como **tu marca**, sin que le lleguen las tareas.
+
+Se marca en cada marca con **Principal** o **Secundaria**; tocar la que ya está la saca. Un admin puede cambiar las de cualquiera (desde Organización) y, con **Todas**, elegir también marcas de proyectos donde la persona no está (por ejemplo, alguien que no está en Basecamp). En el perfil se ven las dos listas, y en Organización cuántas tiene cada uno ("3 principales · 2 secundarias").
+
+**Activarlo:** correr `supabase/migracion-marcas.sql` (guardada en el SQL Editor como *Logic \| Marcas*; se corre como query, no como migración), después de `migracion-equipo.sql` y `migracion-presentaciones-board.sql`. Se puede repetir: no mueve datos. Las secundarias son filas de `marca_equipo` con `principal = false` (la columna ya estaba); la migración solo cambia el aviso de los comentarios de una presentación, para que a las secundarias les llegue como "tu marca" y no como "tuya".
+
+## Notificaciones de Basecamp
+
+La campanita de arriba a la derecha junta lo que pasa en Basecamp (y en Status) y muestra **primero lo que es para vos**. Veinte comentarios de algo que no es tuyo nunca tapan una mención o una tarea tuya que vence mañana.
+
+- **A quién le llega.** Cada aviso se reparte solo a quien le importa, con un motivo: **te nombraron** (@vos), **te la asignaron** (en Basecamp, o te la pasaron en Status), **tu tarea** (asignada, tomada o la marca es principal tuya en esa etapa), **tu conversación** (la creaste, comentaste o te nombraron ahí) o **tu marca** (algo de una marca tuya, principal o secundaria, en tu sector: una card de Medios de Amstel no le llega a la redactora de Amstel; Cuentas sigue todos los tableros de sus marcas). A quien no le corresponde nada de eso, no le llega nada. Lo que hace uno mismo no le avisa.
+- **Cómo se ordena.** Se agrupa por conversación ("5 comentarios" es una fila). Arriba, **Para vos, ahora**: menciones, asignaciones y novedades en algo tuyo vencido o que vence hoy o mañana. Después **tus tareas y conversaciones**. Lo de **tus marcas** que no es tuyo no aparece en "Para mí" (ni suma al número de la campanita): está en **Todo**, plegado. Dentro de cada grupo manda un puntaje: el motivo (mención 5, asignación 4, tu tarea 3, tu conversación 2, tu marca 1) más lo urgente de la tarea (vencida +4, vence pronto +2).
+- **Filtros**: Para mí · Menciones · Todo, y el orden: **Prioridad** o **Recientes**. Se recuerdan en la cuenta de cada uno.
+- Tocar una fila la abre en Basecamp (en la respuesta exacta) y la marca como leída; si es una card, **Ver en Status** abre la tarea. Con la app abierta, solo lo de "Para vos, ahora" muestra además un aviso.
+- **Solo si me citan / ocultar.** En cualquier tarea (en su detalle, o con la campanita tachada de cada fila) cada uno elige que de esa tarea solo le llegue lo que lo nombra o se la pasa. **Ocultarla** además la saca de su tablero (se ve con *Ocultas*). Lo elige cada uno para sí, queda en la base (sirve en todos lados) y lo que no se tiene que avisar ni se guarda.
+- **Fechas que sirven.** Casi ninguna fecha de Basecamp está al día. Cada tarea puede tener su **fecha de entrega en la app** (en su detalle; Basecamp no se toca), que manda sobre la de Basecamp. Si la de Basecamp venció hace más de 14 días y no hay otra, la tarea queda como **Fecha vieja**: no se pone roja ni sube en la campanita, y en Mi tablero un botón las junta para ponerles fecha. Lo que espera a otro (validación o cliente) tampoco se pone rojo.
+- Los avisos llegan al instante por **webhooks** de Basecamp, que además dejan la card al día en Status (columna, asignados, comentarios) sin esperar a la sincronización.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-notificaciones.sql`, después de `migracion-integraciones.sql`, `migracion-board.sql`, `migracion-equipo.sql` y `migracion-flujo.sql`. Se puede repetir.
+2. Que la app publicada sepa su dirección: en Vercel alcanza con el dominio de producción; si no, `APP_URL=https://…` (tiene que ser https: Basecamp no avisa a otra cosa).
+3. Sincronizar Basecamp desde la app publicada (Ajustes → Basecamp → Actualizar). El paso **Avisos al instante** registra un webhook en cada proyecto activo y guarda el hash de la llave. Abajo de la sincronización dice en cuántos proyectos quedaron.
+
+Desde local o desde un preview el paso se saltea a propósito: así ninguna copia de prueba se queda con los avisos.
+
+**Modo de prueba en un preview.** Para probar los avisos antes de producción, en una sola rama:
+
+1. Vercel → Settings → Deployment Protection → **Protection Bypass for Automation**: crear el secreto. Vercel lo pasa a los deploys como `VERCEL_AUTOMATION_BYPASS_SECRET`, y Basecamp lo manda en la URL para pasar la protección del preview.
+2. Agregar `BASECAMP_WEBHOOKS_EN_PREVIEW=1` en el entorno Preview, solo para esa rama.
+3. Volver a hacer el deploy de la rama y sincronizar desde su link fijo. Los webhooks quedan apuntando a ese link (`VERCEL_BRANCH_URL`) hasta que se sincronice desde producción, que los vuelve a apuntar a la app publicada.
+
+### La conexión con Basecamp (solo admins)
+
+Hay dos cuentas de Basecamp distintas:
+
+- **La del estudio**: una sola, la autoriza un **admin de Basecamp** y trae todo (proyectos, tareas, gente y los avisos al instante). La ven y la manejan solo los admins de la app, en Ajustes → Basecamp.
+- **La personal de cada uno**: su persona de Basecamp, que se vincula sola por el mail. De ahí salen sus tareas y sus notificaciones. No hay que conectar nada.
+
+Si quien administra la app no es admin de Basecamp, en Ajustes → Basecamp genera un **link para un admin de Basecamp**. Se lo manda (ej: a Milena), ella lo abre, autoriza con su cuenta y listo: no necesita entrar a la app. El link vale 24 h y una sola vez; generar otro invalida el anterior. Después la conexión se renueva sola. Si la cuenta que autorizó no es admin de Basecamp, la página lo avisa: la app solo ve los proyectos donde está esa persona.
+
+- **Roles**: los admins de Basecamp pasan a ser admins de la app al sincronizar. Si un admin le cambia el rol a alguien a mano, queda fijo y la sincronización no lo vuelve a tocar.
+- **Los Ajustes** (Organización, Basecamp y Accesos) son solo para admins (la base también lo frena: solo un admin lee la conexión, sincroniza o genera el link). Las marcas principales y secundarias las elige cada uno, y un admin las de cualquiera.
+- Activarlo: correr `supabase/migracion-basecamp-conexion.sql` después de `migracion-notificaciones.sql`. En un preview, el link solo lo puede abrir quien tenga acceso al preview en Vercel: para mandárselo a alguien de afuera, usar **Share** en el deploy.
+
+### Cómo funciona por dentro
+
+- Basecamp no firma los avisos: la URL (`/api/basecamp/webhook?llave=…`) lleva una llave que sale de `INTEGRACIONES_SECRET`. En la base queda solo su hash, y `bc_recibir_evento` (la única puerta, sin sesión) valida cada aviso contra él. Cambiar `INTEGRACIONES_SECRET` invalida la llave hasta la próxima sincronización, que la actualiza en cada webhook.
+- Basecamp reintenta hasta 10 veces un aviso que no conteste 2xx y después **apaga el webhook**. La sincronización revisa cada proyecto una vez por día y lo vuelve a prender.
+- Las menciones se reconocen por el `<bc-attachment sgid="…">` de Basecamp (adentro viene el id de la persona).
+- Cada uno ve solo sus notificaciones (RLS). Se guardan 45 días; los eventos, 90.
+
+## Presentaciones
+
+Donde se prepara el material de una tarea para mostrárselo al cliente. Cada presentación es de un **tipo**: Planificación (el contenido orgánico del mes), Pauta, Leads / Ads, Programática / YouTube, o uno nuevo que se crea desde la app ("Otro tipo" al crear una). El tipo se ve siempre como una etiqueta de color.
+
+- **Desde Basecamp**: cada tipo tiene palabras con las que se lo reconoce en el título de una tarea ("plani", "leads", "programatica"…). Las tareas vivas que coinciden y todavía no tienen presentación aparecen en *Para arrancar*. Basecamp solo se lee: la app nunca escribe ahí. Se ven de a 6, con *Ver más* y un buscador (por tarea o marca); la búsqueda la hace la base.
+- **Por rol**: cada uno abre la vista de su sector (Redacción, Diseño o CM) y ve lo suyo. Redacción: copys, indicaciones, links e **inspiración** (imágenes que sube para Diseño; el cliente no las ve y no entran en la descarga). Diseño: lo que pidió Redacción y el material final para subir al Drive. CM: el material para bajar y lo programado.
+- **Etapas que mueven Status**: con "Redacción lista → Diseño" (y así en cada etapa) la presentación pasa de etapa y, si está vinculada a una tarea, la tarea pasa a esa etapa en Status y al designado de la marca en ese sector le llega el aviso. Solo en la app: Basecamp no se toca. Si hay ajustes, se vuelve a la etapa anterior desde el mismo paso a paso. Desde la tarea en el Board se abre su presentación.
+- **Y al revés**: si la tarea cambia de etapa en Status (alguien la arrastra) o la card pasa de columna en Basecamp, la presentación pasa a la etapa que corresponde. Las tareas con presentación siguen a Basecamp en el momento en que llega el aviso (las demás, al abrir el Board, como siempre). Si la card se mueve en Basecamp, manda Basecamp.
+- **Las herramientas de la app, adentro**: cada tipo dice qué herramientas usa (se elige al crearlo). Con **Ads** (Leads, Pauta), cada pieza se ve como el anuncio real, en Feed, Reels o Historia según los lugares que elige Redacción, con el título y el botón (CTA); el cliente lo ve igual en su link. Con **GIF** (Programática), aparece el formato **Banner** con su medida (300×250, 728×90… o una a mano), y Diseño arma el GIF ahí mismo con los frames, con un peso máximo (150 KB por defecto); el GIF queda como material final.
+- **Comentarios**: en cada pieza y en los generales. Se puede **responder** a un comentario (queda abajo, en el mismo hilo) y **nombrar con @** a alguien del equipo. A la campanita le llega a quien nombraste, a los principales de la marca (Redacción, Diseño, CM y Cuentas; a los que la tienen de secundaria, como "tu marca"), a quien tiene la tarea y a los que ya comentaron esa pieza; tocar el aviso abre la presentación en esa pieza. Lo que comenta el cliente también avisa.
+- **El mes** sale de la tarea ("Plani Octubre" es de octubre; en diciembre, "Plani Enero" es del año que viene). Se cambia en *Más*, y al vincular una tarea de otro mes la presentación pasa a ese. En el tablero, las de meses anteriores que no están listas siguen apareciendo, con su mes marcado.
+- **Drive**: el material va a las carpetas del estudio, como ya las ordenan: **PAUTAS DIGITAL / 2026 / MARCA / 10_OCTUBRE / Plani** (o *Anuncios*, según la carpeta de cada tipo), en una carpeta por día. La marca se busca por nombre (sin importar mayúsculas ni tildes) y se recuerda; el año, el mes y la carpeta del tipo se crean si faltan. Si la marca no aparece, lo que se sube queda en *Sin carpeta* hasta que alguien elija la carpeta (la sugerida, pegando un link o buscándola) y ahí se mueve, sin volver a subir nada. **Sin carpeta no se pasa de Diseño a Revisión.** Nadie necesita acceso propio al Drive: la app muestra todo con la conexión del estudio.
+- **Rápido**: el tablero trae solo lo que muestra cada tarjeta (sus números y hasta 3 imágenes), no las piezas enteras, y no espera a sincronizar Basecamp. Cuando ya está todo a la vista, precarga las presentaciones de tu etapa (si sos de Diseño, las que están en Diseño), así abrirlas es al toque.
+- **Para el cliente**: un link privado (`/p/<token>`) donde la ve, comenta y aprueba sin cuenta. Las credenciales del Drive nunca salen del servidor: la base solo confirma que el archivo es de esa presentación, y el servidor abre el Drive con una llave propia (sale de `INTEGRACIONES_SECRET`, que tiene que estar como *Sensitive* en Vercel).
+- **Descargas**: el material baja de a pedazos y va directo a un archivo en la compu (en Chrome y Edge), así ni un .zip de varios GB pasa por la memoria del navegador.
+
+En el código se sigue llamando `plani` (empezó como la planificación del mes): `components/plani`, `lib/plani`.
+
+### Activarlo (una sola vez)
+
+1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql`, `supabase/migracion-presentaciones-cliente.sql` y `supabase/migracion-presentaciones-board.sql`, en ese orden (después de `migracion-integraciones.sql`, `migracion-equipo.sql`, `migracion-flujo.sql` y `migracion-notificaciones.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
+2. En Google Cloud, en el cliente OAuth del Drive: sumar el permiso `https://www.googleapis.com/auth/drive` en la pantalla de consentimiento (*Data access*) y dejar la app **en producción** (*In production*): en "Testing" la conexión se vence cada 7 días. Como Google no la revisó, al conectar muestra "Google no verificó esta app": *Avanzado → Ir a …*. Solo lo ve quien conecta.
+3. Un admin conecta el Drive del estudio (Presentaciones → Basecamp y Drive) con la cuenta que tiene PAUTAS DIGITAL, y pega el link de esa carpeta como raíz. Además de lo anterior, necesita `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e `INTEGRACIONES_SECRET`, y la dirección de vuelta `/api/auth/google/callback` en el cliente OAuth de Google Cloud.
+
 ## Stack
 
-Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional)
+Next.js 14 (App Router) · React · TypeScript · Tailwind + Radix · Tiptap · Supabase (Tarjetas, login con Google, visitas) · gifenc + JSZip (GIF) · OpenAI embeddings (Emojis, opcional) · Magnific (Retoque e Íconos) · GIPHY (GIFs)

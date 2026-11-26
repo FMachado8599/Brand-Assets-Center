@@ -118,7 +118,7 @@ export function EmojiPanel({
                   setQuery("");
                   input.current?.focus();
                 }}
-                className="absolute right-1.5 grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-black/5 hover:text-foreground"
+                className="absolute right-1.5 grid h-6 w-6 place-items-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -311,7 +311,7 @@ function MiniGrid({
               onMouseDown={keepFocus}
               onClick={() => onTogglePin(emoji)}
               className={cn(
-                "absolute -right-0.5 -top-0.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-white text-foreground/70 opacity-0 shadow-sm ring-1 ring-black/10 transition-opacity hover:text-foreground group-hover/mini:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+                "absolute -right-0.5 -top-0.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-white text-foreground/70 dark:bg-secondary opacity-0 shadow-sm ring-1 ring-foreground/10 transition-opacity hover:text-foreground group-hover/mini:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
                 isPinned && !removable && "bg-primary text-primary-foreground opacity-100 ring-primary"
               )}
             >

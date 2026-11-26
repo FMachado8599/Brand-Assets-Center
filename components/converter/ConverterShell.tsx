@@ -180,7 +180,7 @@ export function ConverterShell({ configured }: { configured: boolean }) {
                   <button
                     type="button"
                     onClick={queue.clear}
-                    className="rounded-full px-2 py-0.5 text-xs font-medium text-foreground/80 hover:bg-black/5"
+                    className="rounded-full px-2 py-0.5 text-xs font-medium text-foreground/80 hover:bg-foreground/5"
                   >
                     Vaciar
                   </button>
