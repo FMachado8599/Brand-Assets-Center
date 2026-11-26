@@ -3,7 +3,7 @@ import type { Brand } from "@/lib/types";
 
 /**
  * Lo que el Board sabe de una persona, listo para mostrar en su perfil: qué hace (puestos, sectores),
- * dónde está (hub, jefes, gente a cargo), de qué marcas es designada y con quién trabaja.
+ * dónde está (hub, jefes, gente a cargo), sus marcas (principales y secundarias) y con quién trabaja.
  */
 
 export type MarcaDesignada = { brandId: string; brand: Brand | null; nombre: string; sectores: string[] };
@@ -20,7 +20,10 @@ export type Relaciones = {
   dirige: Hub[];
   jefes: Persona[];
   aCargo: Persona[];
+  /** Las principales: es el designado (en esos sectores). */
   marcas: MarcaDesignada[];
+  /** Las secundarias: también las trabaja. Una marca que es principal en un sector no se repite acá. */
+  secundarias: MarcaDesignada[];
   companeros: Companero[];
 };
 
@@ -42,18 +45,30 @@ export function relacionesDe(p: Persona, data: EquipoData, brands: Brand[]): Rel
     .sort((a, b) => a.orden - b.orden);
   const hub = data.hubs.find((h) => h.id === p.hub_id) ?? null;
 
-  // Sus marcas: una por marca, con los sectores en los que es designada.
-  const mias = data.designaciones.filter((d) => d.persona_id === p.id);
-  const marcasMap = new Map<string, string[]>();
-  for (const d of mias) marcasMap.set(d.brand_id, [...(marcasMap.get(d.brand_id) ?? []), nombreSector(d.sector_id)]);
-  const marcas = [...marcasMap.entries()]
-    .map(([brandId, sectoresMarca]) => ({ brandId, brand: brandPorId.get(brandId) ?? null, nombre: nombreMarca(brandId), sectores: sectoresMarca }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  // Sus marcas: una por marca, con los sectores en los que es principal (o secundaria).
+  const agrupar = (filas: typeof data.designaciones, sin?: Map<string, string[]>) => {
+    const m = new Map<string, string[]>();
+    for (const d of filas) {
+      if (d.persona_id !== p.id || sin?.has(d.brand_id)) continue;
+      m.set(d.brand_id, [...(m.get(d.brand_id) ?? []), nombreSector(d.sector_id)]);
+    }
+    return m;
+  };
+  const ordenadas = (m: Map<string, string[]>) =>
+    [...m.entries()]
+      .map(([brandId, sectoresMarca]) => ({ brandId, brand: brandPorId.get(brandId) ?? null, nombre: nombreMarca(brandId), sectores: sectoresMarca }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  const marcasMap = agrupar(data.designaciones);
+  const secundariasMap = agrupar(data.secundarias, marcasMap);
+  const marcas = ordenadas(marcasMap);
+  const secundarias = ordenadas(secundariasMap);
 
-  // Compañeros: los designados de sus mismas marcas (en otros sectores o en el mismo) y los de su hub.
+  // Compañeros: los que trabajan sus mismas marcas (principales o secundarias, en otros sectores o en
+  // el mismo) y los de su hub.
+  const susMarcas = new Set([...marcasMap.keys(), ...secundariasMap.keys()]);
   const deMarca = new Map<string, Map<string, Set<string>>>(); // persona → sector → marcas
-  for (const d of data.designaciones) {
-    if (d.persona_id === p.id || !marcasMap.has(d.brand_id)) continue;
+  for (const d of [...data.designaciones, ...data.secundarias]) {
+    if (d.persona_id === p.id || !susMarcas.has(d.brand_id)) continue;
     const otro = porId.get(d.persona_id);
     if (!otro?.activo) continue;
     const sectoresDe = deMarca.get(otro.id) ?? new Map<string, Set<string>>();
@@ -92,6 +107,7 @@ export function relacionesDe(p: Persona, data: EquipoData, brands: Brand[]): Rel
     jefes: activos(p.jefes),
     aCargo: data.personas.filter((x) => x.activo && x.jefes.includes(p.id)).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
     marcas,
+    secundarias,
     companeros: [...companeros.values()].sort((a, b) => b.marcas - a.marcas || a.persona.nombre.localeCompare(b.persona.nombre, "es")),
   };
 }
@@ -100,8 +116,10 @@ export function relacionesDe(p: Persona, data: EquipoData, brands: Brand[]): Rel
 export function enComun(yo: Persona, otro: Persona, data: EquipoData, brands: Brand[]): string[] {
   if (yo.id === otro.id) return [];
   const nombreMarca = (id: string) => brands.find((b) => b.id === id)?.name ?? "una marca";
-  const mias = new Set(data.designaciones.filter((d) => d.persona_id === yo.id).map((d) => d.brand_id));
-  const juntas = [...new Set(data.designaciones.filter((d) => d.persona_id === otro.id && mias.has(d.brand_id)).map((d) => d.brand_id))]
+  // Principales o secundarias, de los dos lados.
+  const todas = [...data.designaciones, ...data.secundarias];
+  const mias = new Set(todas.filter((d) => d.persona_id === yo.id).map((d) => d.brand_id));
+  const juntas = [...new Set(todas.filter((d) => d.persona_id === otro.id && mias.has(d.brand_id)).map((d) => d.brand_id))]
     .map(nombreMarca)
     .sort((a, b) => a.localeCompare(b, "es"));
   const out: string[] = [];

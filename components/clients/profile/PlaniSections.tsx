@@ -125,7 +125,7 @@ export function BasecampSection({
       {!hayBasecamp ? (
         <div className="flex flex-col items-start gap-2">
           <p className="text-sm text-muted-foreground">
-            Con Basecamp conectado, acá se ven las tareas del cliente (con su brief y su gente). Lo conecta un admin en Board → Basecamp.
+            Con Basecamp conectado, acá se ven las tareas del cliente (con su brief y su gente). Lo conecta un admin en Ajustes → Basecamp.
           </p>
         </div>
       ) : tareas === null ? (

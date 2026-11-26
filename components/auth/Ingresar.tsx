@@ -83,7 +83,7 @@ export function Ingresar() {
     if (r.error) return setError(r.error);
     setAviso(
       r.sinMail
-        ? "Por ahora los links los da un admin: pedile que te genere uno desde Board → Accesos."
+        ? "Por ahora los links los da un admin: pedile que te genere uno desde Ajustes → Accesos."
         : `Si ${email} tiene acceso, te llegó un mail con el link (vale 1 hora). Revisá también el spam.`
     );
   };

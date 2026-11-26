@@ -5,7 +5,7 @@ import { SoloAdmins } from "@/components/tareas/comun";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Accesos · Board",
+  title: "Accesos · Ajustes",
   description: "Quién puede entrar a Herramientas: dominios, mails sueltos y links para crear la contraseña.",
 };
 

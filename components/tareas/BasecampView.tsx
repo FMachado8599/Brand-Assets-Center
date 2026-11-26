@@ -11,7 +11,7 @@ import type { BoardResumen } from "@/lib/board/tipos";
 import { pideReconectar } from "@/lib/integraciones/reconectar";
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
-import { BasecampGlyph, BasecampMark, BoardNav, hace } from "./comun";
+import { AjustesNav, BasecampGlyph, BasecampMark, hace } from "./comun";
 
 const numero = (n: number) => n.toLocaleString("es-UY");
 
@@ -94,7 +94,7 @@ export function BasecampView() {
   return (
     <div className="min-h-screen">
       <ContextBar>
-        <BoardNav />
+        <AjustesNav />
         <BarDivider />
         <BarSearch value={buscar} onChange={setBuscar} placeholder="Buscar un proyecto" />
         {bc && (
@@ -247,7 +247,7 @@ export function BasecampView() {
                       {data.sync?.ultimo && (
                         <span className="mt-1 block text-muted-foreground">
                           {data.sync.resumen?.webhooks != null
-                            ? `Avisos al instante (notificaciones y Board al día) en ${numero(data.sync.resumen.webhooks)} proyectos.`
+                            ? `Avisos al instante (notificaciones y Status al día) en ${numero(data.sync.resumen.webhooks)} proyectos.`
                             : (data.sync.resumen?.webhooksAviso ?? "Avisos al instante: todavía no se activaron.")}
                         </span>
                       )}

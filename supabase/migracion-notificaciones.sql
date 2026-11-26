@@ -502,9 +502,11 @@ alter table public.bc_webhooks enable row level security;
 alter table public.bc_eventos enable row level security;
 alter table public.notificaciones enable row level security;
 
+-- Los webhooks son de admins (los registra la sincronización, que solo corre un admin).
 drop policy if exists "solo el estudio" on public.bc_webhooks;
-create policy "solo el estudio" on public.bc_webhooks for all to authenticated
-  using ((select public.has_access())) with check ((select public.has_access()));
+drop policy if exists "solo admins" on public.bc_webhooks;
+create policy "solo admins" on public.bc_webhooks for all to authenticated
+  using ((select public.es_admin())) with check ((select public.es_admin()));
 
 -- Los eventos se escriben solo con bc_recibir_evento; el estudio los puede leer.
 drop policy if exists "el estudio lee" on public.bc_eventos;

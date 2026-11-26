@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Settings2, X } from "lucide-react";
 import { openNewClient } from "@/components/clients/newClient";
 import { Hint } from "@/components/ui/tooltip";
-import { LIBRARY_HUB, MODULES, NAV, type AppModule } from "@/lib/modules";
+import { useEsAdmin } from "@/hooks/useEsAdmin";
+import { AJUSTES, AJUSTES_LABEL, LIBRARY_HUB, MODULES, NAV, type AppModule } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +99,7 @@ export function Sidebar({
   onOpenChange: (open: boolean) => void;
   current: AppModule;
 }) {
+  const admin = useEsAdmin();
   const item = (m: AppModule) => {
     const active = m.href === current.href;
     const body = (
@@ -213,6 +215,37 @@ export function Sidebar({
               ...s.modulos.map(item),
             ])}
           </ScrollingNav>
+
+          {/* Los ajustes del estudio (solo admins): no son una herramienta más, por eso van aparte, abajo
+              de todo y en amarillo. */}
+          {admin && (
+            <nav aria-label={AJUSTES_LABEL} className="mt-2 shrink-0 rounded-2xl bg-primary p-1.5 text-primary-foreground">
+              <p className="site-label flex items-center gap-1.5 px-2 pb-1 pt-1 text-primary-foreground/60">
+                <Settings2 className="h-3.5 w-3.5" /> {AJUSTES_LABEL} · solo admins
+              </p>
+              {AJUSTES.map((m) => {
+                const active = m.href === current.href;
+                return (
+                  <Link
+                    key={m.href}
+                    href={m.href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => onOpenChange(false)}
+                    title={m.description}
+                    className={cn("flex items-center gap-2.5 rounded-xl px-1.5 py-1 transition-colors hover:bg-ink/10", active && "bg-ink/15")}
+                  >
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink/10">
+                      <m.icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold leading-tight">{m.label}</span>
+                      <span className="block truncate text-[11px] leading-tight text-primary-foreground/60">{m.description}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
 
           <div className="flex shrink-0 items-center justify-between px-2 pb-1 pt-3">
             <Link href="/privacidad" onClick={() => onOpenChange(false)} className="site-label text-cream/40 transition-colors hover:text-cream">
