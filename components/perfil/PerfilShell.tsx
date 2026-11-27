@@ -18,7 +18,6 @@ import { abrirPerfil } from "./abrir";
 import { AcentoEditor, EstadoEditor, FotoEditor, NombreEditor, PortadaEditor, RedesEditor } from "./Editores";
 import { ContrasenaEditor } from "./Contrasena";
 import { FechasEditor } from "./Fechas";
-import { CumpleEditor } from "./CumpleEditor";
 import { SlackPrefs } from "./SlackPrefs";
 import { Companeros, EnElEstudio } from "./EnElEstudio";
 import { EstadoLinea, FotoPerfil, Portada, PuestoPills, RedesLinks } from "./piezas";
@@ -173,25 +172,27 @@ export function PerfilShell() {
                 </div>
               </div>
             </Section>
-            <Section title="Fechas para festejar" hint="Las ve el estudio en el Inicio, para saludarte.">
-              <FechasEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
+            <Section title="Fechas para festejar" hint="Las ve el estudio: en tu perfil, en el Inicio y en el Calendario, para saludarte.">
+              <FechasEditor
+                perfil={perfil}
+                guardar={guardar}
+                disabled={bloqueado}
+                cumple={
+                  !equipo.loaded
+                    ? undefined
+                    : yo
+                      ? {
+                          valor: cumpleDe(yo),
+                          guardar: (c) =>
+                            cambiarEquipo(() => equipoRepo.miCumple(c?.dia ?? null, c?.mes ?? null), c ? "Cumpleaños guardado 🎂" : "Cumpleaños borrado"),
+                        }
+                      : null
+                }
+              />
             </Section>
             <Section title="Tus redes" hint="Si te animás: el link o tu usuario. Las ve el estudio en tu perfil.">
               <RedesEditor perfil={perfil} guardar={guardar} disabled={bloqueado} />
             </Section>
-            {yo && (
-              <Section
-                title="Tu cumpleaños"
-                hint="Si querés: solo el día y el mes. Lo ve el estudio en tu perfil y en el Calendario, y ese día Slack les avisa a tus compañeros."
-              >
-                <CumpleEditor
-                  valor={cumpleDe(yo)}
-                  guardar={(c) =>
-                    cambiarEquipo(() => equipoRepo.miCumple(c?.dia ?? null, c?.mes ?? null), c ? "Cumpleaños guardado" : "Cumpleaños borrado")
-                  }
-                />
-              </Section>
-            )}
             {yo && (
               <Section title="Avisos por Slack" hint="Lo que te llega por privado. Lo que sea de una marca va a su canal.">
                 <SlackPrefs equipoId={yo.id} />

@@ -2,12 +2,15 @@
 -- Feature | Cumpleaños (en el historial de migraciones: feature_cumpleanos)
 -- El cumpleaños de cada persona del equipo: solo el día y el mes (el año no se pide ni se guarda).
 --   - Es opcional: cada uno lo carga o lo borra desde su Perfil (mi_cumple).
---   - Un admin también lo puede cargar desde Board → Organización (la ficha de cada persona).
---   - Lo ve todo el estudio: sale en el perfil, en el Calendario y en el aviso de Slack del día.
+--   - Un admin también lo puede cargar desde Ajustes → Organización (la ficha de cada persona).
+--   - Lo ve todo el estudio: sale en el perfil, en el Inicio, en el Calendario y en el aviso de Slack
+--     del día. Es el único lugar donde se guarda.
 -- Además, quiénes son los compañeros de cada uno (su hub, sus directores y la gente de sus mismas
 -- marcas): a ellos les llega el aviso de que hoy cumple.
 -- Correr DESPUÉS de migracion-equipo.sql y migracion-organigrama.sql.
--- Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez: no mueve datos.
+-- Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez.
+-- Mueve datos una sola vez (paso 1b): si quedó profiles.cumple de una versión anterior de
+-- migracion-inicio.sql, pasa esos cumpleaños al equipo y borra la columna. Después no toca nada.
 -- ============================================================
 
 do $$
@@ -32,6 +35,36 @@ alter table public.equipo add constraint equipo_cumple_valido check (
   )
 );
 create index if not exists equipo_cumple_idx on public.equipo (cumple_mes, cumple_dia) where cumple_mes is not null;
+
+-- 1b. Lo que quedó en el perfil ---------------------------------------
+-- Una versión anterior de migracion-inicio.sql guardaba el cumple también en el perfil
+-- (profiles.cumple, "MM-DD"). Si esa columna existe: se pasa al equipo, cruzando por el mail, a quien
+-- todavía no lo tiene cargado (lo del equipo manda) y solo si es una fecha que existe; después se
+-- borra la columna. Lo de alguien que no está en el equipo se pierde (no hay dónde ponerlo).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'profiles' and column_name = 'cumple'
+  ) then
+    execute $mover$
+      update public.equipo e
+         set cumple_mes = v.mes, cumple_dia = v.dia, updated_at = now()
+        from (
+          select lower(p.email) as email,
+                 split_part(p.cumple, '-', 1)::smallint as mes,
+                 split_part(p.cumple, '-', 2)::smallint as dia
+            from public.profiles p
+           where p.email is not null and p.cumple ~ '^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$'
+        ) v
+       where e.email = v.email
+         and e.cumple_mes is null
+         and v.dia <= case when v.mes = 2 then 29 when v.mes in (4, 6, 9, 11) then 30 else 31 end
+    $mover$;
+    alter table public.profiles drop constraint if exists profiles_cumple_valido;
+    alter table public.profiles drop column cumple;
+  end if;
+end $$;
 
 -- 2. Cada uno, el suyo ----------------------------------------------
 -- El equipo lo editan los admins (RLS); el cumpleaños propio lo puede poner o sacar cualquiera.

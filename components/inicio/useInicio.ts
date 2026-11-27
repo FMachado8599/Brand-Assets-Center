@@ -9,6 +9,7 @@ import { useMiPerfil } from "@/hooks/useMiPerfil";
 import { useNotificaciones } from "@/hooks/useNotificaciones";
 import { armarContexto, claveOrden, etapaDe, fechaDe, responsableDe, tonoDe, validadoresDe, type TareaFlujo, type Tono } from "@/lib/board/flujo";
 import type { Persona } from "@/lib/board/equipo";
+import { cumpleDe, cumpleHoy as esCumpleHoy, diasParaCumple } from "@/lib/cumple";
 import { hoyISO, sumarDias, aISO } from "@/lib/inicio/fechas";
 import { fechasDeMarcas, proximaVez, usoHerramientas, type FechaMarca } from "@/lib/inicio/repo";
 import type { UsoModulo } from "@/lib/inicio/herramientas";
@@ -161,22 +162,20 @@ export function useInicio() {
     return { marca: misMarcas[n], motivo: "La marca del día" };
   }, [misMarcas]);
 
-  // Cumples, aniversarios en el estudio y bienvenidas (de los perfiles del equipo).
+  // Cumples (del equipo, los mismos del Calendario y Slack), aniversarios en el estudio y bienvenidas
+  // (del ingreso de cada perfil).
   const celebraciones = useMemo<Celebracion[]>(() => {
     if (!data) return [];
     const hoy = new Date();
     const out: Celebracion[] = [];
     for (const p of data.personas) {
-      if (!p.activo || !p.perfil) continue;
-      const { cumple, ingreso } = p.perfil;
+      if (!p.activo) continue;
+      const cumple = cumpleDe(p);
       if (cumple) {
-        for (let n = 0; n <= 14; n++) {
-          if (mesDia(sumarDias(hoy, n)) === cumple) {
-            out.push({ persona: p, tipo: "cumple", dias: n });
-            break;
-          }
-        }
+        const dias = diasParaCumple(cumple, hoyISO(hoy));
+        if (dias <= 14) out.push({ persona: p, tipo: "cumple", dias });
       }
+      const ingreso = p.perfil?.ingreso;
       if (ingreso) {
         const [y, m, d] = ingreso.split("-").map(Number);
         const desde = (hoy.getTime() - new Date(y, m - 1, d).getTime()) / 86_400_000;
@@ -192,7 +191,7 @@ export function useInicio() {
     [data, yo]
   );
 
-  const cumpleHoy = Boolean(perfil?.cumple && perfil.cumple === mesDia());
+  const cumpleHoy = esCumpleHoy(cumpleDe(yo), hoyISO());
 
   return {
     userId,

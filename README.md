@@ -240,7 +240,7 @@ Sin sesión, `/` es la presentación (editorial, negro y crema). Con sesión del
 - **Tu día**: tus tareas abiertas (las que tenés o te toca validar), lo urgente primero, con los colores del Board; las menciones sin leer; **tu semana** (tareas que cerraste contra las abiertas) y un **calendario de dos semanas** con tus entregas, las fechas de tus marcas, los feriados y los cumples.
 - **Tus herramientas**: ordenadas por cuánto las usás (tus visitas de los últimos dos meses); si todavía no hay, las de tu puesto primero. Las cuatro primeras van grandes. Las teclas 1 a 9 abren cada una.
 - **Seguí donde dejaste**: tu última redacción, tu última tarjeta (`/tarjetas?abrir=`), tu última presentación y tus últimos banners exportados.
-- **El estudio**: cumples, aniversarios en el estudio y gente que se sumó (de los perfiles), con un botón para **saludar** que le llega a la campanita de esa persona (uno por ocasión por día); quién no está hoy; qué suena en el Jam (y sumar una canción); quién va primero en cada juego de Rest esta semana, con un poco de picante; y **lo último que pasó**: logos subidos, presentaciones y tarjetas nuevas, clientes nuevos y gente que entró por primera vez.
+- **El estudio**: cumples (los del equipo, los mismos del Calendario), aniversarios en el estudio y gente que se sumó (del ingreso de cada perfil), con un botón para **saludar** que le llega a la campanita de esa persona (uno por ocasión por día); quién no está hoy; qué suena en el Jam (y sumar una canción); quién va primero en cada juego de Rest esta semana, con un poco de picante; y **lo último que pasó**: logos subidos, presentaciones y tarjetas nuevas, clientes nuevos y gente que entró por primera vez.
 - **Un respiro**: un día como hoy en la publicidad y el diseño (`lib/inicio/efemerides.ts`), el tip del día (`lib/inicio/tips.ts`), el emoji del estudio (el más copiado ayer) con un buscador para copiar emojis sin salir del Inicio, una pregunta de **Paleta**, **tus números del mes**, el **modo foco** y, de fin de noviembre a mediados de enero, el **Wrapped**.
 - **Acomodar**: esconde secciones y herramientas, y se arrastran las herramientas y las marcas para cambiarlas de lugar. Se guarda en la cuenta (`inicio:ajustes`).
 
@@ -254,7 +254,7 @@ Sin sesión, `/` es la presentación (editorial, negro y crema). Con sesión del
 
 ### Activarlo (una sola vez)
 
-En Supabase → SQL Editor, correr `supabase/migracion-inicio.sql` (en el historial de migraciones: `feature_inicio`), después de `migracion-perfil.sql`, `migracion-equipo.sql` y `migracion-notificaciones.sql`. Suma el cumple y el ingreso al perfil, crea `marca_fechas` y `uso_herramientas` y las funciones del Inicio (`inicio_herramientas`, `inicio_actividad`, `inicio_numeros`, `inicio_emoji_del_estudio`, `inicio_wrapped`, `inicio_saludar`…). Se puede repetir: no mueve datos. Sin ella el Inicio igual anda: lo que falta se ve vacío. Para Paleta, volver a correr también `migracion-juegos.sql`.
+En Supabase → SQL Editor, correr `supabase/migracion-inicio.sql` (en el historial de migraciones: `feature_inicio`), después de `migracion-perfil.sql`, `migracion-equipo.sql` y `migracion-notificaciones.sql`. Suma el ingreso al perfil (el cumple no: es el del equipo, ver "Cumpleaños"), crea `marca_fechas` y `uso_herramientas` y las funciones del Inicio (`inicio_herramientas`, `inicio_actividad`, `inicio_numeros`, `inicio_emoji_del_estudio`, `inicio_wrapped`, `inicio_saludar`…). Se puede repetir: no mueve datos. Sin ella el Inicio igual anda: lo que falta se ve vacío. Para Paleta, volver a correr también `migracion-juegos.sql`.
 
 ## Tu perfil
 
@@ -266,11 +266,10 @@ En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno 
 - **Fuera de oficina hasta…** (inclusive): se ve en Status al lado de tu nombre, en el organigrama y, si tenés una tarea, en su detalle ("si no puede esperar, pasásela a otra persona").
 - **Color de acento**: el aro de tu foto y la píldora de tu puesto.
 - **Portada**: la del estudio (por defecto) o un degradé con tu color.
-- **Fechas para festejar**: tu cumpleaños (día y mes, sin el año) y el día que entraste al estudio. Con eso el Inicio te festeja y le avisa al estudio para que te salude (ver "Inicio").
+- **Fechas para festejar**: tu cumpleaños (día y mes, sin el año) y el día que entraste al estudio. El cumpleaños es uno solo para toda la app: lo ve el estudio en tu perfil y en el Calendario, ese día el Inicio te festeja y Slack les avisa a tus compañeros. Un admin también lo puede cargar desde Ajustes → Organización (ver "Cumpleaños"). El ingreso es para los aniversarios y la bienvenida (ver "Inicio").
 - **Tus redes** (si te animás): LinkedIn, Behance, Instagram y Facebook. Se pega el link o el usuario solo; se guarda el link completo y la base revisa que sea de esa red.
 - **En el estudio** (de Status): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas **principales** y **secundarias**. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí, con **Principales y secundarias** (ver "Marcas principales y secundarias").
 - **Con quién trabajás**: los que trabajan tus mismas marcas, como principal o secundaria (ej: la redactora y el CM de Changan), y la gente de tu hub.
-- **Tu cumpleaños** (si querés): solo el día y el mes, sin año. Lo ve el estudio en tu perfil y en el Calendario, y ese día Slack les avisa a tus compañeros. Un admin también lo puede cargar desde Ajustes → Organización (ver "Cumpleaños").
 - **Avisos por Slack**: qué te llega por privado del bot (menciones y tareas que te pasan, tu resumen de la mañana, los cumpleaños de tus compañeros). Ver "Slack".
 
 **El perfil de los compañeros**: tocar a alguien en Status (su fila en Equipo, quien tiene una tarea, quien la valida, los asignados de Basecamp), en el organigrama, en Organización → Personas o en tu perfil abre su ficha: foto, estado, fuera de oficina, **en común con vos** (le reportás, te reporta, comparten tal marca, el mismo hub), lo suyo en el estudio y su mail para escribirle. En el organigrama, los admins pasan de ahí a **Editar** (puestos, hub, jefes, rol).
@@ -899,14 +898,14 @@ En el código se sigue llamando `plani` (empezó como la planificación del mes)
 
 ## Cumpleaños
 
-El día y el mes de cada uno (sin año), guardados en el equipo del Board (`equipo.cumple_dia`, `equipo.cumple_mes`).
+El día y el mes de cada uno (sin año), guardados en el equipo del Board (`equipo.cumple_dia`, `equipo.cumple_mes`). Es el único lugar donde se guarda: de ahí leen el perfil, el Inicio, el Calendario, el `.ics` y Slack.
 
-- **Es opcional**: cada uno lo carga o lo saca en su **Perfil → Tu cumpleaños**.
+- **Es opcional**: cada uno lo carga o lo saca en su **Perfil → Fechas para festejar**. Hay que estar en el equipo: si no, no hay dónde guardarlo.
 - **Un admin también lo carga**, para quien no lo hizo: en **Ajustes → Organización → Personas** (debajo del nombre de cada uno: *Agregar cumpleaños*) o en la ficha de la persona.
-- **Dónde se ve**: en el perfil de cada uno ("Cumple el 12 de marzo"; el día del cumple, con el botón **Saludar**), en el **Calendario** y en el link `.ics` de cada uno.
+- **Dónde se ve**: en el perfil de cada uno ("Cumple el 12 de marzo"; el día del cumple, con el botón **Saludar**), en el **Inicio** (los festejos del estudio, tu calendario de dos semanas y el confeti el día del tuyo), en el **Calendario** y en el link `.ics` de cada uno.
 - **El 29 de febrero** se festeja el 28 los años que no tienen 29.
 - **Saludar** (`/saludar?a=<persona>`): un saludo para copiar (o escribir otro) y el botón que lo copia y abre su privado en la app de Slack. El saludo lo manda cada uno desde su cuenta: el bot no saluda en nombre de nadie.
-- Activarlo: correr `supabase/migracion-cumpleanos.sql` (`feature_cumpleanos`) después de `migracion-equipo.sql` y `migracion-organigrama.sql`. Se puede repetir: no mueve datos. También define quiénes son los **compañeros** de cada uno (su hub, sus directores y la gente de sus mismas marcas), a quienes les llega el aviso.
+- Activarlo: correr `supabase/migracion-cumpleanos.sql` (`feature_cumpleanos`) después de `migracion-equipo.sql` y `migracion-organigrama.sql`. Se puede repetir. Mueve datos una sola vez: si quedó `profiles.cumple` (de una versión anterior de `migracion-inicio.sql`), pasa esos cumpleaños al equipo, sin pisar los que ya estén, y borra la columna. También define quiénes son los **compañeros** de cada uno (su hub, sus directores y la gente de sus mismas marcas), a quienes les llega el aviso.
 
 ## Calendario
 

@@ -1,7 +1,8 @@
 -- ============================================================
 -- Feature | Inicio (en el historial de migraciones: feature_inicio)
 -- Lo que necesita el Inicio con sesión para ser de cada uno:
---   1. Cumpleaños y fecha de ingreso en el perfil: para saludar, los aniversarios y las bienvenidas.
+--   1. La fecha de ingreso en el perfil: para los aniversarios y las bienvenidas. El cumpleaños no va
+--      acá: es el del equipo (migracion-cumpleanos.sql), el mismo que usan el Calendario y Slack.
 --   2. Las fechas de cada marca (marca_fechas): lanzamientos, aniversarios, campañas que vienen.
 --   3. El uso de las herramientas (uso_herramientas): emojis copiados, archivos convertidos,
 --      banners exportados… Alimenta "Tus números del mes", el emoji del estudio y el Wrapped.
@@ -29,15 +30,13 @@ begin
   end if;
 end $$;
 
--- 1. Cumpleaños e ingreso ----------------------------------------
--- El cumple va sin año ("MM-DD"): alcanza para saludar y no dice la edad.
--- El ingreso es el día que entró al estudio: los aniversarios y "se sumó" salen de ahí.
--- Cada uno los edita en su perfil (la política "perfil propio: editar" de migracion-usuarios.sql).
-alter table public.profiles add column if not exists cumple text;
+-- 1. Ingreso ------------------------------------------------------
+-- El día que entró al estudio: los aniversarios y "se sumó" salen de ahí.
+-- Cada uno lo edita en su perfil (la política "perfil propio: editar" de migracion-usuarios.sql).
+-- El cumpleaños vive en el equipo (equipo.cumple_dia y cumple_mes, migracion-cumpleanos.sql). Una
+-- versión anterior de este archivo lo guardaba también acá (profiles.cumple): migracion-cumpleanos.sql
+-- lo pasa al equipo y borra esa columna.
 alter table public.profiles add column if not exists ingreso date;
-alter table public.profiles drop constraint if exists profiles_cumple_valido;
-alter table public.profiles add constraint profiles_cumple_valido
-  check (cumple ~ '^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
 alter table public.profiles drop constraint if exists profiles_ingreso_valido;
 alter table public.profiles add constraint profiles_ingreso_valido
   check (ingreso between date '1950-01-01' and date '2100-12-31');
