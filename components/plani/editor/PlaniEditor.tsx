@@ -62,6 +62,7 @@ import { FormatDot, medioUrl } from "../bits";
 import { HerramientasProvider } from "../herramientas";
 import { TipoChip } from "../TipoChip";
 import { HiloComentarios, pendientes, useGenteParaMencionar } from "../Comentarios";
+import { AccesoCliente } from "./AccesoCliente";
 import { CarpetaDrive } from "./CarpetaDrive";
 import { PlaniEmojiProvider } from "../emojis";
 import { Lightbox } from "../Lightbox";
@@ -273,7 +274,7 @@ function Editor({ id }: { id: string }) {
   const compartir = async (on: boolean) => {
     if (!plani) return;
     const ok = await store.updatePlani({ compartida: on, share_token: plani.share_token ?? nuevoToken() });
-    if (ok) toast(on ? "Listo: el cliente ya puede ver la presentación con su link" : "El link del cliente dejó de funcionar");
+    if (ok) toast(on ? "Listo: el cliente entra con el link y un mail de su empresa" : "El link del cliente dejó de funcionar");
   };
   const nuevoLink = async () => {
     const ok = await confirm({
@@ -433,8 +434,8 @@ function Editor({ id }: { id: string }) {
               </div>
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {plani.compartida
-                  ? "Con este link ve la presentación, comenta y aprueba cada pieza. No ve lo interno."
-                  : "Activalo para mandarle un link privado donde ve la presentación, comenta y aprueba."}
+                  ? "Con el link y un código que le llega a su mail, ve la presentación, comenta y aprueba cada pieza. Si el link le llega a otro, no ve nada."
+                  : "Activalo para mandarle un link privado donde ve la presentación, comenta y aprueba. Entra con un mail de su empresa."}
               </p>
               {plani.compartida && linkCliente && (
                 <div className="mt-2 flex gap-1">
@@ -463,6 +464,14 @@ function Editor({ id }: { id: string }) {
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
                 </div>
+              )}
+              {plani.compartida && (
+                <AccesoCliente
+                  presentacionId={plani.id}
+                  brandId={plani.brand_id}
+                  version={`${plani.compartida}-${plani.share_token ?? ""}`}
+                  onUsarMiCasilla={(yo) => store.updatePlani({ compartida_por: yo })}
+                />
               )}
             </div>
             <div className="space-y-1">

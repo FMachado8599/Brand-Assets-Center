@@ -30,6 +30,7 @@ import { FontsSection } from "./profile/FontsSection";
 import { LogosSection } from "./profile/LogosSection";
 import { PaletteSection } from "./profile/PaletteSection";
 import { VozMarcaSection } from "./profile/VozMarca";
+import { CorreoSection } from "./profile/CorreoSection";
 import { MigrationNotice } from "./profile/Section";
 import { TrabajoDelMes } from "./profile/PlaniSections";
 import { fetchProfilePhoto, LogoFromSocials, SocialsField } from "./profile/Socials";
@@ -240,6 +241,7 @@ export function ClientProfile({ id }: { id: string }) {
           <LogosSection brand={brand} save={save} missing={hasLogos === false} />
           <TrabajoDelMes brand={brand} />
           <FechasSection brand={brand} />
+          <CorreoSection brand={brand} />
           <PaletteSection brand={brand} saveSoon={saveSoon} />
           <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />

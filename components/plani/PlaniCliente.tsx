@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/ui/toaster";
-import { supabase } from "@/lib/supabase";
 import { MESES } from "@/lib/plani/config";
 import type { Herramienta } from "@/lib/plani/tipos";
 import type { Aprobacion, Comentario, Pieza } from "@/lib/plani/types";
 import { MedioBaseProvider, VistaClienteProvider } from "./bits";
+import { EntrarCliente, type Portada } from "./EntrarCliente";
 import type { MockupBrand } from "./Mockups";
 import { PresentacionVista, type PresentacionPlani } from "./Presentacion";
 import { despacharSlack } from "@/lib/slack/despachar";
@@ -17,7 +17,22 @@ type Datos = {
   brand: MockupBrand | null;
   piezas: Partial<Pieza>[];
   comentarios: (Omit<Comentario, "presentacion_id" | "autor_id" | "interno"> & { del_cliente: boolean })[];
+  /** Con qué mail entró este navegador (o si es alguien del estudio con su sesión). */
+  entrada?: { email?: string; estudio?: boolean };
 };
+
+/** Lo que contesta /api/p/[token]. */
+type Respuesta = { estado: "listo"; datos: Datos } | { estado: "entrar"; portada: Portada } | { estado: "invalido" | "error" };
+
+/** Un pedido a las rutas de la presentación. 401: la entrada venció (hay que volver a poner el mail). */
+async function enviar(token: string, ruta: string, body: unknown) {
+  const r = await fetch(`/api/p/${encodeURIComponent(token)}/${ruta}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => null);
+  return { ok: Boolean(r?.ok), sinEntrada: r?.status === 401 };
+}
 
 const NOMBRE_KEY = "plani:cliente:nombre";
 
@@ -39,11 +54,13 @@ function completar(p: Partial<Pieza>): Pieza {
 
 /**
  * La plani en el link del cliente: la presentación, sin nada interno. Puede comentar cada pieza
- * (o la plani entera) y aprobarla o pedir cambios. No necesita cuenta: el link es la llave.
+ * (o la plani entera) y aprobarla o pedir cambios. No necesita cuenta, pero el link solo no alcanza:
+ * entra con un mail de su empresa y un código que le llega por mail (EntrarCliente).
  */
 export function PlaniCliente({ token }: { token: string }) {
   const [datos, setDatos] = useState<Datos | null>(null);
-  const [estado, setEstado] = useState<"cargando" | "listo" | "invalido" | "error">("cargando");
+  const [portada, setPortada] = useState<Portada | null>(null);
+  const [estado, setEstado] = useState<"cargando" | "listo" | "entrar" | "invalido" | "error">("cargando");
   const [nombre, setNombreState] = useState("");
 
   useEffect(() => {
@@ -63,17 +80,21 @@ export function PlaniCliente({ token }: { token: string }) {
   };
 
   const cargar = useCallback(async () => {
-    const { data, error } = await supabase.rpc("presentacion_publica", { p_token: token });
-    if (error) {
-      setEstado("error");
+    const r = await fetch(`/api/p/${encodeURIComponent(token)}`, { cache: "no-store" }).catch(() => null);
+    const j = (r ? await r.json().catch(() => null) : null) as Respuesta | null;
+    if (!j) {
+      // Sin red un rato: lo que ya se ve queda.
+      setEstado((e) => (e === "cargando" ? "error" : e));
       return;
     }
-    if (!data) {
-      setEstado("invalido");
-      return;
-    }
-    setDatos(data as Datos);
-    setEstado("listo");
+    if (j.estado === "listo") {
+      setDatos(j.datos);
+      setEstado("listo");
+    } else if (j.estado === "entrar") {
+      setPortada(j.portada);
+      setDatos(null);
+      setEstado("entrar");
+    } else setEstado(j.estado);
   }, [token]);
 
   useEffect(() => {
@@ -91,8 +112,12 @@ export function PlaniCliente({ token }: { token: string }) {
       toast("Escribí tu nombre para comentar", "error");
       return false;
     }
-    const { error } = await supabase.rpc("presentacion_publica_comentar", { p_token: token, p_pieza: piezaId, p_nombre: nombre, p_texto: texto });
-    if (error) {
+    const r = await enviar(token, "comentar", { pieza: piezaId, nombre, texto });
+    if (r.sinEntrada) {
+      await cargar();
+      return false;
+    }
+    if (!r.ok) {
       toast("No se pudo enviar el comentario", "error");
       return false;
     }
@@ -105,15 +130,19 @@ export function PlaniCliente({ token }: { token: string }) {
 
   const aprobar = async (piezaId: string, nuevo: Aprobacion) => {
     setDatos((d) => (d ? { ...d, piezas: d.piezas.map((p) => (p.id === piezaId ? { ...p, estado_cliente: nuevo } : p)) } : d));
-    const { error } = await supabase.rpc("presentacion_publica_aprobar", { p_token: token, p_pieza: piezaId, p_estado: nuevo });
-    if (error) {
-      toast("No se pudo guardar", "error");
+    const r = await enviar(token, "aprobar", { pieza: piezaId, estado: nuevo });
+    if (!r.ok) {
+      if (!r.sinEntrada) toast("No se pudo guardar", "error");
       cargar();
     } else {
       if (nuevo === "aprobada") toast("Pieza aprobada");
       despacharSlack(`/api/p/${encodeURIComponent(token)}/aviso`, 6000);
     }
   };
+
+  if (estado === "entrar" && portada) {
+    return <EntrarCliente token={token} portada={portada} onAdentro={cargar} />;
+  }
 
   if (estado !== "listo" || !datos) {
     return (
@@ -146,7 +175,27 @@ export function PlaniCliente({ token }: { token: string }) {
           onAprobar={aprobar}
           nombre={{ value: nombre, onChange: setNombre }}
         />
+        {datos.entrada?.email && <Salir token={token} email={datos.entrada.email} onFuera={cargar} />}
       </VistaClienteProvider>
     </MedioBaseProvider>
+  );
+}
+
+/** Con qué mail entró este navegador y, para una computadora compartida, la opción de salir. */
+function Salir({ token, email, onFuera }: { token: string; email: string; onFuera: () => void }) {
+  return (
+    <footer className="bg-ink px-4 py-5 text-center text-xs text-cream/50">
+      Entraste como <span className="text-cream/80">{email}</span> ·{" "}
+      <button
+        type="button"
+        onClick={async () => {
+          await fetch(`/api/p/${encodeURIComponent(token)}/entrar`, { method: "DELETE" }).catch(() => null);
+          onFuera();
+        }}
+        className="underline underline-offset-2 transition-colors hover:text-cream"
+      >
+        Salir
+      </button>
+    </footer>
   );
 }

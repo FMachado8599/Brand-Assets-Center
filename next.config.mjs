@@ -12,7 +12,8 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   experimental: {
     // Argon2id (las contraseñas) es un binario nativo: se carga tal cual en el servidor, sin empaquetar.
-    serverComponentsExternalPackages: ["@node-rs/argon2"],
+    // El correo (IMAP, SMTP y el lector de mails) usa módulos de Node que no conviene empaquetar.
+    serverComponentsExternalPackages: ["@node-rs/argon2", "imapflow", "mailparser", "nodemailer"],
     // La búsqueda de emojis lee el índice con fs: hay que decirle a Next que lo incluya en la función.
     outputFileTracingIncludes: {
       "/api/emojis/search": ["./data/emojis/embeddings.json"],

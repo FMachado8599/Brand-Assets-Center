@@ -7,9 +7,11 @@ import { ChevronDown, ChevronUp, Plus, Settings2, X } from "lucide-react";
 import { openNewClient } from "@/components/clients/newClient";
 import { Hint } from "@/components/ui/tooltip";
 import { useEsAdmin } from "@/hooks/useEsAdmin";
+import { refrescarNoLeidos, useNoLeidosCorreo } from "@/lib/correo/noLeidos";
 import { AJUSTES, AJUSTES_LABEL, LIBRARY_HUB, MODULES, NAV, type AppModule } from "@/lib/modules";
 import { STUDIO } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import { useAccount } from "./AccountProvider";
 
 /** El título de cada sección de la lista. */
 const SECCION_CLASE = "site-label mt-3 flex items-center gap-2 border-t border-cream/10 px-2 pb-1 pt-4 text-cream/45";
@@ -100,8 +102,16 @@ export function Sidebar({
   current: AppModule;
 }) {
   const admin = useEsAdmin();
+  // Los mails sin leer de Recibidos van al lado de Correo: se pregunta al abrir (como mucho, una vez por minuto).
+  const yo = useAccount()?.user?.id ?? null;
+  const noLeidos = useNoLeidosCorreo(yo);
+  useEffect(() => {
+    if (open) refrescarNoLeidos(yo);
+  }, [open, yo]);
+
   const item = (m: AppModule) => {
     const active = m.href === current.href;
+    const sinLeer = m.href === "/correo" && noLeidos ? noLeidos : 0;
     const body = (
       <>
         <span
@@ -123,6 +133,15 @@ export function Sidebar({
           </span>
           <span className="block truncate text-xs text-cream/45">{m.description}</span>
         </span>
+        {sinLeer > 0 && (
+          <span
+            title={`${sinLeer} ${sinLeer === 1 ? "mail sin leer" : "mails sin leer"} en Recibidos`}
+            className="mr-1 shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold tabular-nums text-primary-foreground"
+          >
+            {sinLeer > 99 ? "99+" : sinLeer}
+            <span className="sr-only"> sin leer</span>
+          </span>
+        )}
       </>
     );
 

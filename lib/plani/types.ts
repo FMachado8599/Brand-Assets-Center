@@ -120,6 +120,8 @@ export type Plani = {
   /** Compartida con el cliente: con el link (/p/<share_token>) la ve, comenta y aprueba. */
   compartida?: boolean;
   share_token?: string | null;
+  /** Quién la compartió: de su casilla de Correo le sale el código al cliente (migracion-presentaciones-acceso.sql). */
+  compartida_por?: string | null;
   creada_por: string | null;
   created_at: string;
   updated_at: string;
@@ -143,7 +145,7 @@ export type PlaniTarjeta = Pick<Plani, "id" | "brand_id" | "tipo" | "titulo" | "
 
 export type PiezaPatch = Partial<Omit<Pieza, "id" | "presentacion_id" | "created_at" | "updated_at">>;
 export type PlaniPatch = Partial<
-  Pick<Plani, "titulo" | "tipo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id" | "notas" | "brand_id" | "compartida" | "share_token">
+  Pick<Plani, "titulo" | "tipo" | "anio" | "mes" | "estado" | "bc_tarea_id" | "drive_carpeta_id" | "notas" | "brand_id" | "compartida" | "share_token" | "compartida_por">
 >;
 
 export type Comentario = {

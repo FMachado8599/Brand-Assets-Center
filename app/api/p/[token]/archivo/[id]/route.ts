@@ -3,7 +3,8 @@ import { decrypt } from "@/lib/integraciones/crypto";
 import { Drive } from "@/lib/integraciones/google";
 import { llaveServidor } from "@/lib/integraciones/llave-servidor";
 import { servirArchivo, VALID_DRIVE_ID } from "@/lib/integraciones/servir";
-import { createSupabaseAnon } from "@/lib/supabase-server";
+import { leerEntrada } from "@/lib/plani/acceso.server";
+import { createSupabaseAnon, createSupabaseServer } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -11,20 +12,25 @@ export const maxDuration = 60;
 type Fila = { cuenta_id: string | null; access_token: string; refresh_token: string | null; expira: string | null; datos: Record<string, unknown> | null };
 
 /**
- * Un archivo de una plani compartida, para la página del cliente (sin sesión). Primero la base
- * confirma que el link vale y que el archivo es de esa plani; después el servidor pide la conexión
- * del Drive con su propia llave. Las credenciales nunca salen de acá.
+ * Un archivo de una plani compartida, para la página del cliente. Primero la base confirma que el
+ * link vale, que este navegador entró con un mail del cliente (o que es alguien del estudio) y que el
+ * archivo es de esa plani; después el servidor pide la conexión del Drive con su propia llave. Las
+ * credenciales nunca salen de acá.
  */
 export async function GET(request: NextRequest, { params }: { params: { token: string; id: string } }) {
   if (!VALID_DRIVE_ID.test(params.id) || params.token.length < 32) {
     return NextResponse.json({ error: "Archivo inválido" }, { status: 400 });
   }
   try {
-    const db = createSupabaseAnon();
-    const permitido = await db.rpc("presentacion_publica_archivo", { p_token: params.token, p_drive_id: params.id });
+    const permitido = await createSupabaseServer().rpc("presentacion_ver_archivo", {
+      p_token: params.token,
+      p_sesion: leerEntrada(params.token),
+      p_drive_id: params.id,
+    });
     if (permitido.error) throw new Error(permitido.error.message);
     if (permitido.data !== true) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
+    const db = createSupabaseAnon();
     const { data, error } = await db.rpc("drive_conexion_servidor", { p_llave: llaveServidor("drive") });
     if (error) throw new Error(error.message);
     const fila = data as Fila | null;

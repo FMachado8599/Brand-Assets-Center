@@ -10,10 +10,11 @@ import { Buscador } from "@/components/inicio/Buscador";
 import { Flotantes } from "@/components/inicio/Flotantes";
 import { MarcaActivaProvider } from "@/components/inicio/MarcaActiva";
 import { JamBurbuja } from "@/components/spotify/jam/JamBurbuja";
+import { refrescarNoLeidos } from "@/lib/correo/noLeidos";
 import { activeModule, AJUSTES, LAST_MODULE_KEY, PERFIL, type AppModule } from "@/lib/modules";
 import { aplicarModoNoche } from "@/lib/tema";
 import { AccountPill } from "./AccountPill";
-import { AccountProvider } from "./AccountProvider";
+import { AccountProvider, useAccount } from "./AccountProvider";
 import { NotificacionesPill, useNotificacionesVisibles } from "./Notificaciones";
 import { BarTargetProvider, ContextBarHost } from "./ContextBar";
 import { ModoNocheProvider } from "./ModoNoche";
@@ -110,10 +111,14 @@ function CuentaYAvisos() {
 
 function NavPill({ module, onClick }: { module: AppModule; onClick?: () => void }) {
   const Icon = module.icon;
+  const yo = useAccount()?.user?.id ?? null;
   const pill = (
     <button
       type="button"
       onClick={onClick}
+      // Al acercarse al botón ya se pregunta cuántos mails sin leer hay: al abrir la sidebar el número ya está.
+      onPointerEnter={onClick ? () => refrescarNoLeidos(yo) : undefined}
+      onFocus={onClick ? () => refrescarNoLeidos(yo) : undefined}
       tabIndex={onClick ? undefined : -1}
       aria-label={onClick ? `Módulos · estás en ${module.label}` : undefined}
       className="floating-ink pointer-events-auto flex h-[50px] shrink-0 items-center gap-2 rounded-full p-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98] md:pr-3"
