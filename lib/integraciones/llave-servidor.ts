@@ -8,7 +8,8 @@ import { hasSecret } from "./crypto";
  * ningún lado y en la base queda solo su hash (servidor_llaves, en migracion-plani-cliente.sql).
  */
 
-export type UsoLlave = "drive";
+/** drive: el material de la presentación del cliente · slack: los avisos que salen sin sesión. */
+export type UsoLlave = "drive" | "slack";
 
 export function llaveServidor(uso: UsoLlave) {
   const secret = process.env.INTEGRACIONES_SECRET;

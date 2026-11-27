@@ -28,6 +28,9 @@ export async function GET() {
               raiz_url: google.datos?.raiz_url ?? null,
               raiz_nombre: google.datos?.raiz_propia ? (google.datos?.raiz_nombre ?? null) : null,
               completo: google.datos?.completo === true,
+              calendario: google.datos?.calendario === true,
+              calendario_id: typeof google.datos?.calendario_id === "string" ? google.datos.calendario_id : null,
+              calendario_nombre: typeof google.datos?.calendario_nombre === "string" ? google.datos.calendario_nombre : null,
             },
           }
         : null,
@@ -44,17 +47,18 @@ export async function GET() {
   }
 }
 
-/** Desconectar Basecamp o Google: se borran los tokens guardados (lo sincronizado queda). */
+/** Desconectar Basecamp, Google o Slack: se borran los tokens guardados (lo sincronizado queda). */
 export async function DELETE(request: NextRequest) {
   if (!hasSupabaseEnv) return faltaSupabase();
   const proveedor = request.nextUrl.searchParams.get("proveedor");
-  if (proveedor !== "basecamp" && proveedor !== "google") {
+  if (proveedor !== "basecamp" && proveedor !== "google" && proveedor !== "slack") {
     return NextResponse.json({ error: "Proveedor desconocido" }, { status: 400 });
   }
   try {
     const db = createSupabaseServer();
     if (!(await esAdminApp(db))) {
-      return NextResponse.json({ error: `Solo un admin de la app puede desconectar ${proveedor === "basecamp" ? "Basecamp" : "el Drive"}` }, { status: 403 });
+      const nombre = proveedor === "basecamp" ? "Basecamp" : proveedor === "slack" ? "Slack" : "el Drive";
+      return NextResponse.json({ error: `Solo un admin de la app puede desconectar ${nombre}` }, { status: 403 });
     }
     await borrarConexion(db, proveedor as Proveedor);
     return NextResponse.json({ ok: true });

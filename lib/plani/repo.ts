@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { FORMATOS } from "./config";
 import type { Comentario, Formato, Pieza, PiezaPatch, Plani, PlaniEstado, PlaniPatch, PlaniResumen, PlaniTarjeta, PlaniTipo, Plataforma, Proporcion } from "./types";
+import { despacharSlack } from "@/lib/slack/despachar";
 
 /** Lo que devuelve presentacion_cambiar_estado: la etapa a la que pasó la tarea en el Board, si tiene una. */
 export type CambioEstado = { estado: PlaniEstado; tarea: number | null; etapa: string | null; avisados: number };
@@ -79,7 +80,16 @@ export const planiRepo = {
     respuesta_a?: string | null;
     menciones?: string[];
   }) =>
-    supabase.from("presentacion_comentarios").insert(input).select().single<Comentario>(),
+    supabase
+      .from("presentacion_comentarios")
+      .insert(input)
+      .select()
+      .single<Comentario>()
+      .then((r) => {
+        // Quien quedó nombrado (@) y lo pidió por Slack se entera ahí.
+        if (!r.error && input.menciones?.length) despacharSlack();
+        return r;
+      }),
 
   resolver: (id: string, resuelto: boolean) =>
     supabase.from("presentacion_comentarios").update({ resuelto }).eq("id", id).select().single<Comentario>(),

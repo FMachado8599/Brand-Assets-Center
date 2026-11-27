@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Columns3, Info, Lock, Network, Rows3, ShieldCheck } from "lucide-react";
+import { Columns3, Info, Lock, Network, Rows3, ShieldCheck, Slack } from "lucide-react";
 import { BarSegmented, ContextBar } from "@/components/shell/ContextBar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useEquipo } from "@/hooks/useEquipo";
@@ -19,6 +19,7 @@ const PESTANAS_STATUS = [
 const PESTANAS_AJUSTES = [
   { value: "/board/organizacion", label: "Organización", icon: Network },
   { value: "/board/basecamp", label: "Basecamp", icon: BasecampGlyph },
+  { value: "/board/slack", label: "Slack", icon: Slack },
   { value: "/board/accesos", label: "Accesos", icon: ShieldCheck },
 ] as const;
 
@@ -55,7 +56,7 @@ export function AjustesNav() {
 }
 
 /**
- * Lo que es solo de admins de la app (los Ajustes: Organización, la conexión con Basecamp, Accesos).
+ * Lo que es solo de admins de la app (los Ajustes: Organización, las conexiones con Basecamp y Slack, Accesos).
  * La base igual lo protege; esto evita mostrar una pantalla a medias.
  */
 export function SoloAdmins({ children, titulo }: { children: ReactNode; titulo: string }) {

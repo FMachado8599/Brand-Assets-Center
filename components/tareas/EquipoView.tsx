@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, UserPlus } from "lucide-react";
+import { Cake, Loader2, UserPlus } from "lucide-react";
 import { BarButton, BarDivider, BarSearch, ContextBar } from "@/components/shell/ContextBar";
 import { FilterSelect } from "@/components/ui/filter-select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toaster";
@@ -13,7 +14,9 @@ import { equipoRepo, NIVEL_LABEL, resumenMarcas, type EquipoData, type Persona }
 import { fold } from "@/lib/redaccion/text";
 import { cn } from "@/lib/utils";
 import { abrirPerfil } from "@/components/perfil/abrir";
+import { CumpleEditor } from "@/components/perfil/CumpleEditor";
 import { EstadoChip } from "@/components/perfil/piezas";
+import { cumpleDe, textoCumple } from "@/lib/cumple";
 import { AjustesNav, Avatar, hace } from "./comun";
 import { HubsPanel } from "./equipo/HubsPanel";
 import { Organigrama } from "./equipo/Organigrama";
@@ -202,6 +205,11 @@ function PersonasPanel({ data, buscar, admin }: { data: EquipoData; buscar: stri
                       {p.cargo || p.email || "—"}
                       {p.bc_persona_id == null && " · sin Basecamp"}
                     </p>
+                    {admin ? <CumpleFila persona={p} /> : cumpleDe(p) && (
+                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Cake className="h-3 w-3" /> {textoCumple(cumpleDe(p)!)}
+                      </p>
+                    )}
                     {data.conActividad && (
                       <p className="truncate text-[11px] text-muted-foreground" title="Lo último que hizo en Basecamp, en la app o cuando la etiquetaron en una tarea nueva">
                         {!p.actividad_medida && !p.ultima_actividad
@@ -306,5 +314,39 @@ function PersonasPanel({ data, buscar, admin }: { data: EquipoData; buscar: stri
         onClose={() => setMarcasDe(null)}
       />
     </div>
+  );
+}
+
+/** El cumpleaños en la fila de Personas: un admin lo carga o lo cambia desde acá. */
+function CumpleFila({ persona: p }: { persona: Persona }) {
+  const c = cumpleDe(p);
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex items-center gap-1 rounded-full text-[11px] underline-offset-2 hover:text-foreground hover:underline",
+            c ? "text-muted-foreground" : "text-muted-foreground/70"
+          )}
+        >
+          <Cake className="h-3 w-3" /> {c ? textoCumple(c) : "Agregar cumpleaños"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto space-y-2">
+        <p className="eyebrow">Cumpleaños de {p.nombre}</p>
+        <CumpleEditor
+          compacto
+          valor={c}
+          guardar={(nuevo) =>
+            cambiarEquipo(
+              () => equipoRepo.actualizarPersona(p.id, { cumple_dia: nuevo?.dia ?? null, cumple_mes: nuevo?.mes ?? null }),
+              nuevo ? `Cumpleaños de ${p.nombre}: ${textoCumple(nuevo)}` : "Cumpleaños borrado"
+            )
+          }
+        />
+        <p className="max-w-[16rem] text-[11px] text-muted-foreground">Sin año. Cada uno también lo puede cargar o sacar desde su perfil.</p>
+      </PopoverContent>
+    </Popover>
   );
 }

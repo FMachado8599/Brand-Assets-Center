@@ -14,6 +14,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Conversor** | `/conversor` | Convertir y comprimir archivos con FreeConvert |
 | **Redacción** | `/redaccion` | Escribir textos con formato y con los emojis y hashtags de cada cliente a un click, y copiarlos al toque |
 | **Clientes** | `/clientes` | Cada cliente con su logo, sus colores y sus tipografías, y todo lo que tiene a su nombre |
+| **Calendario** | `/calendario` | El mes del estudio: entregas, reuniones del Google Calendar del estudio, cumpleaños, feriados y quién está fuera de oficina. Se agenda con invitados y Meet, y se ve en Google Calendar u Outlook |
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 | **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
 | **Retoque** | `/retoque` | Quitarle el fondo a una imagen con Magnific: sale en PNG transparente, del mismo tamaño |
@@ -85,6 +86,9 @@ Abrí http://localhost:3000
 | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `INTEGRACIONES_SECRET` | Spotify (el Jam) | Sí, para que el DJ conecte su Spotify (ver "Spotify") |
 | `MAGNIFIC_API_KEY` | Retoque y Librerías → Íconos | Sí, para quitar fondos (y correr `supabase/migracion-retoque.sql`, ver "Retoque") y para buscar íconos |
 | `GIPHY_API_KEY` | Librerías → GIFs | Sí, para buscar GIFs (ver "Librerías") |
+| `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` | Slack | Sí, para conectar el bot del estudio (ver "Slack"). Usa también `INTEGRACIONES_SECRET` |
+| `CRON_SECRET` | Slack (el aviso de cada mañana) | Sí, para que corra la tarea diaria de `vercel.json`: Vercel la manda sola al llamarla. Sin ella, lo demás de Slack anda igual |
+| `APP_TIMEZONE`, `GOOGLE_FERIADOS_CALENDARIO` | Calendario y Slack | No: por defecto `America/Montevideo` y los feriados de Uruguay de Google |
 
 Las que no empiezan con `NEXT_PUBLIC_` viven solo en el servidor. En Vercel se cargan en **Settings → Environment Variables**.
 
@@ -266,6 +270,8 @@ En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno 
 - **Tus redes** (si te animás): LinkedIn, Behance, Instagram y Facebook. Se pega el link o el usuario solo; se guarda el link completo y la base revisa que sea de esa red.
 - **En el estudio** (de Status): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas **principales** y **secundarias**. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí, con **Principales y secundarias** (ver "Marcas principales y secundarias").
 - **Con quién trabajás**: los que trabajan tus mismas marcas, como principal o secundaria (ej: la redactora y el CM de Changan), y la gente de tu hub.
+- **Tu cumpleaños** (si querés): solo el día y el mes, sin año. Lo ve el estudio en tu perfil y en el Calendario, y ese día Slack les avisa a tus compañeros. Un admin también lo puede cargar desde Ajustes → Organización (ver "Cumpleaños").
+- **Avisos por Slack**: qué te llega por privado del bot (menciones y tareas que te pasan, tu resumen de la mañana, los cumpleaños de tus compañeros). Ver "Slack".
 
 **El perfil de los compañeros**: tocar a alguien en Status (su fila en Equipo, quien tiene una tarea, quien la valida, los asignados de Basecamp), en el organigrama, en Organización → Personas o en tu perfil abre su ficha: foto, estado, fuera de oficina, **en común con vos** (le reportás, te reporta, comparten tal marca, el mismo hub), lo suyo en el estudio y su mail para escribirle. En el organigrama, los admins pasan de ahí a **Editar** (puestos, hub, jefes, rol).
 
@@ -860,6 +866,65 @@ En el código se sigue llamando `plani` (empezó como la planificación del mes)
 1. En Supabase → SQL Editor, correr `supabase/migracion-presentaciones.sql`, `supabase/migracion-presentaciones-cliente.sql` y `supabase/migracion-presentaciones-board.sql`, en ese orden (después de `migracion-integraciones.sql`, `migracion-equipo.sql`, `migracion-flujo.sql` y `migracion-notificaciones.sql`). Si existían las tablas de Planificación, se renombran sin perder nada.
 2. En Google Cloud, en el cliente OAuth del Drive: sumar el permiso `https://www.googleapis.com/auth/drive` en la pantalla de consentimiento (*Data access*) y dejar la app **en producción** (*In production*): en "Testing" la conexión se vence cada 7 días. Como Google no la revisó, al conectar muestra "Google no verificó esta app": *Avanzado → Ir a …*. Solo lo ve quien conecta.
 3. Un admin conecta el Drive del estudio (Presentaciones → Basecamp y Drive) con la cuenta que tiene PAUTAS DIGITAL, y pega el link de esa carpeta como raíz. Además de lo anterior, necesita `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e `INTEGRACIONES_SECRET`, y la dirección de vuelta `/api/auth/google/callback` en el cliente OAuth de Google Cloud.
+
+## Cumpleaños
+
+El día y el mes de cada uno (sin año), guardados en el equipo del Board (`equipo.cumple_dia`, `equipo.cumple_mes`).
+
+- **Es opcional**: cada uno lo carga o lo saca en su **Perfil → Tu cumpleaños**.
+- **Un admin también lo carga**, para quien no lo hizo: en **Ajustes → Organización → Personas** (debajo del nombre de cada uno: *Agregar cumpleaños*) o en la ficha de la persona.
+- **Dónde se ve**: en el perfil de cada uno ("Cumple el 12 de marzo"; el día del cumple, con el botón **Saludar**), en el **Calendario** y en el link `.ics` de cada uno.
+- **El 29 de febrero** se festeja el 28 los años que no tienen 29.
+- **Saludar** (`/saludar?a=<persona>`): un saludo para copiar (o escribir otro) y el botón que lo copia y abre su privado en la app de Slack. El saludo lo manda cada uno desde su cuenta: el bot no saluda en nombre de nadie.
+- Activarlo: correr `supabase/migracion-cumpleanos.sql` (`feature_cumpleanos`) después de `migracion-equipo.sql` y `migracion-organigrama.sql`. Se puede repetir: no mueve datos. También define quiénes son los **compañeros** de cada uno (su hub, sus directores y la gente de sus mismas marcas), a quienes les llega el aviso.
+
+## Calendario
+
+En **/calendario**, el mes del estudio en una grilla (en el celular, puntitos; tocás el día y abajo está todo):
+
+- **Entregas de tareas**: las tareas sin terminar con fecha de entrega (la de la app manda sobre la de Basecamp). Arriba se elige **Mías** (asignadas en Basecamp o que tenés en el Board), **Mis marcas** (además, las de tus marcas y tu hub) o **Todo**. Las vencidas, en rojo. Cada una abre en el Board o en Basecamp.
+- **Reuniones**: las del **Google Calendar del estudio** (la cuenta camtbwa@gmail.com, la misma del Drive), con su link de Meet.
+- **Cumpleaños**, **feriados** (los de Uruguay, del calendario público de Google) y **quién está fuera de oficina** (de hoy hasta el día que vuelve).
+- **Qué se ve** (el ícono de capas) prende o apaga cada cosa; se recuerda en la cuenta.
+- **Agendar**: título, día y hora (o todo el día), duración, invitados (gente del estudio o cualquier mail, y de un toque *el equipo de la marca*) y link de **Google Meet**. Queda en el calendario del estudio y a los invitados les llega la invitación por mail (sea Gmail u Outlook). Quien la agendó (o un admin) la puede cancelar desde la app; las demás se manejan en Google Calendar.
+- **Verlo en Google Calendar u Outlook**: cada uno tiene su **link personal** (`/api/calendario/ics/<token>`) con sus entregas y los cumpleaños del estudio. Se agrega en Google Calendar (*Otros calendarios → Desde URL*, o con el botón), en Outlook (*Agregar calendario → Suscribirse desde la web*, o en el clásico *Calendarios de Internet*) o en el calendario del celular. Se actualiza solo (Google tarda unas horas). Es personal: quien tenga el link ve esas entregas; se puede cambiar por uno nuevo y el anterior deja de andar. Si a la persona le sacan el acceso al estudio, su link deja de andar.
+
+¿Por qué no se conecta el calendario de cada uno? El mail del estudio está en `mail.camaratbwa.com` (no es Google ni Microsoft 365), así que no hay una API para leer la agenda de cada persona. Por eso: lo del estudio vive en el Google Calendar de la cuenta del estudio, y cada uno lo trae a su calendario con su link.
+
+### Activarlo (una sola vez)
+
+1. Correr `supabase/migracion-calendario.sql` (`feature_calendario`) después de `migracion-acceso.sql`, `migracion-flujo.sql` y `migracion-cumpleanos.sql`. Se puede repetir: no mueve datos.
+2. En Google Cloud, en el mismo proyecto del cliente OAuth del Drive: **activar la Google Calendar API** (*APIs & Services → Library*) y sumar el permiso `https://www.googleapis.com/auth/calendar` en la pantalla de consentimiento (*Data access*).
+3. Un admin **vuelve a conectar Google** con la cuenta del estudio (en el Calendario aparece el botón, o desde Presentaciones) y tilda **Google Calendar**. El Drive sigue igual: es la misma conexión con un permiso más. Sin ese permiso, el Calendario muestra todo menos las reuniones y los feriados, y avisa qué falta.
+4. Por defecto usa el calendario principal de la cuenta. Un admin puede elegir otro (uno propio de la app, por ejemplo) con el ícono de ajustes de la barra del Calendario.
+
+## Slack
+
+Un bot del estudio ("Herramientas"), conectado una sola vez por un admin en **Ajustes → Slack**. La gente se cruza por el mail (el de Slack tiene que ser el mismo que el del Board).
+
+- **Cada mañana** (tipo 8 a 9, de la tarea de `vercel.json`):
+  - En el **canal del estudio** (lo elige un admin): quién cumple años y quién está fuera de oficina.
+  - A los **compañeros** del que cumple (su hub, sus directores, la gente de sus marcas): un privado con el botón **Saludar**, que abre `/saludar` con un saludo para copiar y el privado con esa persona.
+  - Al que cumple: un saludo del estudio.
+  - A quien lo pidió, de lunes a viernes: **su resumen** (lo suyo vencido, lo que vence hoy y mañana). Si no hay nada, no llega.
+- **Al instante, por privado**, a quien lo pidió en su perfil: cuando lo **nombran** o le **pasan una tarea** (en Basecamp o en la app; las mismas que la campanita marca como más importantes).
+- **Un canal por marca**: en Ajustes → Slack, **Crear canal** (o *Usar uno existente*). El bot invita al equipo de la marca (los designados, la gente del hub y sus directores); si cambia la gente, el botón de invitar los vuelve a sumar. Ahí llega lo que **comenta o aprueba el cliente** en la presentación compartida (las aprobaciones seguidas salen juntas: "aprobó 12 piezas"). Se apaga por marca.
+- **Avisar al equipo**: en la ficha de cada cliente (barra de arriba, el megáfono) cualquiera del estudio le escribe al equipo de la marca, en su canal o en un privado en grupo (Slack deja hasta 8 personas por grupo; si son más, le llega a cada uno). Sale del bot con el nombre de quien lo escribe.
+- **Qué le llega a cada uno** lo elige cada uno en **Perfil → Avisos por Slack**: menciones y tareas que te pasan (apagado de entrada), tu resumen de la mañana (apagado) y los cumpleaños de tus compañeros (prendido).
+
+### Activarlo (una sola vez)
+
+1. Correr `supabase/migracion-slack.sql` (`feature_slack`) después de `migracion-cumpleanos.sql` (y de las de integraciones, notificaciones y presentaciones). Se puede repetir: no mueve datos.
+2. Crear la app de Slack: en Ajustes → Slack, mientras no esté conectado, está el **manifiesto** para copiar (con la dirección de vuelta de esa URL). En [api.slack.com/apps](https://api.slack.com/apps) → *Create New App → From a manifest*, elegir el Slack del estudio y pegarlo. Una app por entorno (producción y testing), porque cada una tiene su dirección de vuelta (`/api/auth/slack/callback`).
+3. Cargar en Vercel `SLACK_CLIENT_ID` y `SLACK_CLIENT_SECRET` (de *Basic Information* de la app de Slack), `INTEGRACIONES_SECRET` si no estaba y `CRON_SECRET` (cualquier texto largo al azar), y volver a hacer el deploy.
+4. Un admin entra a Ajustes → Slack, toca **Conectar Slack** y acepta. Después elige el canal del estudio y crea los canales de las marcas. **Mandar lo de hoy ahora** corre el aviso del día a mano (no repite lo que ya salió).
+
+### Cómo funciona por dentro
+
+- El token del bot se guarda cifrado en `integraciones` (como Basecamp y el Drive). Lo que sale sin sesión (la tarea de la mañana, los avisos de Basecamp, la página del cliente) se identifica con la **llave del servidor** (`servidor_llaves`, uso `slack`): sale de `INTEGRACIONES_SECRET` y en la base queda solo su hash. La anota un admin al conectar Slack o al abrir Ajustes → Slack.
+- Las menciones, las asignaciones y lo del cliente entran a una **cola** (`slack_cola`) por triggers de la base, y el servidor la vacía: después de cada aviso de Basecamp, cuando el cliente comenta o aprueba (`/api/p/<token>/aviso`), cuando alguien pasa una tarea o nombra con @ en la app (`/api/slack/enviar`) y en la tarea de la mañana. Dos servidores nunca mandan lo mismo, lo que falla se reintenta hasta 3 veces y lo de más de un día no sale.
+- Lo del día tiene una clave por envío (`slack_envios`): correr la tarea de nuevo no duplica nada.
+- La tarea de la mañana es `/api/cron/diario` (`vercel.json`: `0 11 * * *`, las 8 de Montevideo). En el plan Hobby, Vercel la corre una vez por día y en algún momento de esa hora; solo en producción. Valida `CRON_SECRET`.
 
 ## Stack
 

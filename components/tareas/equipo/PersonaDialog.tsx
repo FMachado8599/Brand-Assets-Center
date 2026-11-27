@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Switch } from "@/components/ui/switch";
 import { useClients } from "@/hooks/useClients";
 import { cambiarEquipo } from "@/hooks/useEquipo";
+import { CumpleEditor } from "@/components/perfil/CumpleEditor";
 import { equipoRepo, NIVEL_LABEL, resumenMarcas, type EquipoData, type Persona } from "@/lib/board/equipo";
+import { cumpleDe, textoCumple } from "@/lib/cumple";
 import { Avatar, hace } from "../comun";
 import { MarcasDialog } from "./MarcasDialog";
 import { Chip, MultiPick, SelectSimple, type Opcion } from "./piezas";
@@ -116,6 +118,24 @@ export function PersonaDialog({ persona, data, admin, onClose }: { persona: Pers
               >
                 {n ?? (admin || p.id === yo ? "Elegir" : "Ninguna")}
               </button>
+            </div>
+            <div className={fila}>
+              <span className="text-muted-foreground">Cumpleaños</span>
+              {admin ? (
+                // Cada uno lo puede cargar en su perfil; un admin también, para quien no lo hizo.
+                <CumpleEditor
+                  compacto
+                  valor={cumpleDe(p)}
+                  guardar={(c) =>
+                    cambiarEquipo(
+                      () => equipoRepo.actualizarPersona(p.id, { cumple_dia: c?.dia ?? null, cumple_mes: c?.mes ?? null }),
+                      c ? `Cumpleaños de ${p.nombre}: ${textoCumple(c)}` : "Cumpleaños borrado"
+                    )
+                  }
+                />
+              ) : (
+                <span>{cumpleDe(p) ? textoCumple(cumpleDe(p)!) : "—"}</span>
+              )}
             </div>
             <div className={fila}>
               <span className="text-muted-foreground">Rol</span>

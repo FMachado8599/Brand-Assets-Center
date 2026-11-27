@@ -21,7 +21,13 @@ const FOLDER = "application/vnd.google-apps.folder";
  * La conexión nunca sale del servidor y solo se navega adentro de la carpeta raíz que elige un admin.
  */
 export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
-export const DRIVE_SCOPES = ["openid", "email", DRIVE_SCOPE];
+/**
+ * El calendario de la misma cuenta (la del estudio): el Calendario de la app muestra sus reuniones y
+ * los feriados, y agenda desde ahí con invitados y Meet. Es opcional: sin este permiso el Drive anda
+ * igual y el Calendario muestra lo demás (lib/integraciones/calendario.ts).
+ */
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+export const DRIVE_SCOPES = ["openid", "email", DRIVE_SCOPE, CALENDAR_SCOPE];
 export const ROOT_NAME = "Herramientas · Presentaciones";
 
 function env(name: string) {

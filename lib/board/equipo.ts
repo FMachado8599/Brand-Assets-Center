@@ -48,6 +48,9 @@ export type Persona = {
   en_organigrama: boolean;
   /** Su perfil de Herramientas (supabase/migracion-perfil.sql), por su mail. null si nunca entró. */
   perfil: Perfil | null;
+  /** Su cumpleaños, si lo cargó (supabase/migracion-cumpleanos.sql): día y mes, sin año. */
+  cumple_dia: number | null;
+  cumple_mes: number | null;
 };
 
 /** hub: grupo de marcas de diseño · cliente: el equipo de un cliente (ej: "Equipo BBVA") con su gente propia. */
@@ -126,6 +129,8 @@ export async function cargarEquipo(): Promise<EquipoData> {
         activo_manual?: boolean | null;
         reporta_a?: string | null;
         en_organigrama?: boolean;
+        cumple_dia?: number | null;
+        cumple_mes?: number | null;
       })[]
     >(supabase.from("equipo").select("*").order("nombre")),
     leer<{ persona_id: string; puesto_id: string }[]>(supabase.from("equipo_puestos").select("persona_id, puesto_id")),
@@ -172,6 +177,8 @@ export async function cargarEquipo(): Promise<EquipoData> {
         // Sin la migración nueva, el único jefe que había (reporta_a).
         jefes: conOrganigrama ? (jefesDe.get(p.id) ?? []) : p.reporta_a ? [p.reporta_a] : [],
         en_organigrama: p.en_organigrama ?? false,
+        cumple_dia: p.cumple_dia ?? null,
+        cumple_mes: p.cumple_mes ?? null,
         ultima_actividad: actividadDe.get(p.id)?.ultima ?? null,
         actividad_medida: actividadDe.get(p.id)?.medida ?? false,
         perfil,
@@ -211,8 +218,13 @@ export const equipoRepo = {
     return Number(data ?? 0);
   },
 
-  actualizarPersona: (id: string, patch: Partial<Pick<Persona, "rol" | "hub_id" | "activo" | "activo_manual" | "nombre" | "email">>) =>
-    hacer(supabase.from("equipo").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id)),
+  actualizarPersona: (
+    id: string,
+    patch: Partial<Pick<Persona, "rol" | "hub_id" | "activo" | "activo_manual" | "nombre" | "email" | "cumple_dia" | "cumple_mes">>
+  ) => hacer(supabase.from("equipo").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id)),
+
+  /** El cumpleaños propio (cualquiera puede cargar o sacar el suyo; null y null lo saca). */
+  miCumple: (dia: number | null, mes: number | null) => hacer(supabase.rpc("mi_cumple", { p_dia: dia, p_mes: mes })),
 
   async ponerPuestos(personaId: string, antes: string[], despues: string[]) {
     const { sumar, sacar } = diferencia(antes, despues);
@@ -351,5 +363,7 @@ export function equipoErrorMessage(message: string) {
   if (/círculo|sí mismo/i.test(message)) return message;
   if (/organigrama_|equipo_jefes|hub_lideres|reporta_a|hubs_tipo|column .*tipo/i.test(message)) return "Falta correr supabase/migracion-organigrama.sql en Supabase.";
   if (/equipo_email_key/i.test(message)) return "Ya hay alguien en el equipo con ese mail.";
+  if (/equipo_cumple_valido/i.test(message)) return "Esa fecha no existe.";
+  if (/cumple_dia|cumple_mes|mi_cumple/i.test(message)) return "Falta correr supabase/migracion-cumpleanos.sql en Supabase.";
   return message;
 }

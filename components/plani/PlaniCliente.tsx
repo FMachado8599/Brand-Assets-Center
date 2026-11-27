@@ -9,6 +9,7 @@ import type { Aprobacion, Comentario, Pieza } from "@/lib/plani/types";
 import { MedioBaseProvider, VistaClienteProvider } from "./bits";
 import type { MockupBrand } from "./Mockups";
 import { PresentacionVista, type PresentacionPlani } from "./Presentacion";
+import { despacharSlack } from "@/lib/slack/despachar";
 
 type Datos = {
   presentacion: PresentacionPlani & { titulo: string; brand_id: string };
@@ -97,6 +98,8 @@ export function PlaniCliente({ token }: { token: string }) {
     }
     await cargar();
     toast("Comentario enviado");
+    // Si la marca tiene canal de Slack, el estudio se entera ahí.
+    despacharSlack(`/api/p/${encodeURIComponent(token)}/aviso`);
     return true;
   };
 
@@ -106,7 +109,10 @@ export function PlaniCliente({ token }: { token: string }) {
     if (error) {
       toast("No se pudo guardar", "error");
       cargar();
-    } else if (nuevo === "aprobada") toast("Pieza aprobada");
+    } else {
+      if (nuevo === "aprobada") toast("Pieza aprobada");
+      despacharSlack(`/api/p/${encodeURIComponent(token)}/aviso`, 6000);
+    }
   };
 
   if (estado !== "listo" || !datos) {

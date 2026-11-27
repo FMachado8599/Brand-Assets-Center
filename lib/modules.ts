@@ -1,6 +1,7 @@
 import {
   ArrowDownToLine,
   Briefcase,
+  CalendarDays,
   Disc3,
   Film,
   Gamepad2,
@@ -11,6 +12,7 @@ import {
   Network,
   Plug,
   ShieldCheck,
+  Slack,
   UserRound,
   PenLine,
   Presentation,
@@ -39,7 +41,7 @@ export type AppModule = {
 /** Las secciones de la sidebar, en orden: lo del día a día primero, el recreo al final. */
 export type Seccion = "trabajo" | "crear" | "archivos" | "librerias" | "recreo";
 export const SECCIONES: { id: Seccion; label: string; descripcion: string }[] = [
-  { id: "trabajo", label: "Trabajo", descripcion: "Las tareas, las presentaciones y los clientes" },
+  { id: "trabajo", label: "Trabajo", descripcion: "Las tareas, el calendario, las presentaciones y los clientes" },
   { id: "crear", label: "Crear", descripcion: "Textos, piezas y anuncios" },
   { id: "archivos", label: "Archivos", descripcion: "Bajar, convertir y retocar" },
   { id: "librerias", label: "Librerías", descripcion: "Emojis, GIFs e íconos" },
@@ -61,6 +63,7 @@ export const MODULES: AppModule[] = [
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine, seccion: "crear" },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase, seccion: "trabajo" },
   { href: "/board", label: "Status", description: "Qué está haciendo cada uno: tus tareas y las del equipo", icon: SquareKanban, seccion: "trabajo" },
+  { href: "/calendario", label: "Calendario", description: "Entregas, reuniones, cumpleaños y feriados del estudio", icon: CalendarDays, seccion: "trabajo" },
   { href: "/presentaciones", label: "Presentaciones", description: "El material de cada tarea, listo para el cliente: planis, ads, programática…", icon: Presentation, seccion: "trabajo" },
   { href: "/descargas", label: "Descargas", description: "Videos y posteos de Instagram y Pinterest", icon: ArrowDownToLine, seccion: "archivos" },
   { href: "/ads", label: "Ads", description: "Tu anuncio como sale en Reels, con lo que tapa", icon: Megaphone, seccion: "crear" },
@@ -70,7 +73,7 @@ export const MODULES: AppModule[] = [
 ];
 
 /** La sidebar: cada sección con sus módulos, en el orden de SECCIONES (y adentro, el de ORDEN_NAV). */
-const ORDEN_NAV = ["/board", "/presentaciones", "/clientes", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
+const ORDEN_NAV = ["/board", "/calendario", "/presentaciones", "/clientes", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
 const posicion = (m: AppModule) => (ORDEN_NAV.includes(m.href) ? ORDEN_NAV.indexOf(m.href) : ORDEN_NAV.length + MODULES.indexOf(m));
 export const NAV = SECCIONES.map((s) => ({
   ...s,
@@ -96,6 +99,7 @@ export const AJUSTES_LABEL = "Ajustes";
 export const AJUSTES: AppModule[] = [
   { href: "/board/organizacion", label: "Organización", description: "Organigrama, puestos, hubs y marcas de cada uno", icon: Network },
   { href: "/board/basecamp", label: "Basecamp", description: "La cuenta del estudio y la sincronización", icon: Plug },
+  { href: "/board/slack", label: "Slack", description: "El bot del estudio: canales por marca y avisos", icon: Slack },
   { href: "/board/accesos", label: "Accesos", description: "Quién puede entrar: dominios, mails y contraseñas", icon: ShieldCheck },
 ];
 

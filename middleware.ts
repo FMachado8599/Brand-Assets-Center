@@ -16,13 +16,16 @@ import { studioSession } from "@/lib/access";
 // y la sesión tiene que llegar renovada, porque desde la página no se pueden guardar las cookies nuevas.
 // Entrar con mail y contraseña: la pantalla, crear la contraseña con un link y sus APIs (cada una frena
 // la fuerza bruta y responde lo mismo tenga o no cuenta el mail).
+// La tarea de cada mañana (/api/cron/diario) la llama Vercel, sin sesión: se valida con CRON_SECRET.
 const PUBLIC = new Set(["/privacidad", "/auth/callback", "/api/visits", "/api/sugerencias", "/api/basecamp/webhook",
   "/api/integraciones/basecamp/autorizar", "/api/auth/callback/basecamp", "/basecamp/autorizado",
   "/ingresar", "/contrasena", "/api/auth/contrasena/ingresar", "/api/auth/contrasena/pedir", "/api/auth/contrasena/crear",
-  "/api/auth/contrasena/registrarse", "/api/auth/contrasena/estado"]);
+  "/api/auth/contrasena/registrarse", "/api/auth/contrasena/estado", "/api/cron/diario"]);
 // La plani compartida con un cliente (/p/<token>) y sus archivos: la llave es el link, no la sesión.
 // La base valida el token en cada pedido (supabase/migracion-plani-cliente.sql).
-const PUBLIC_PREFIXES = ["/p/", "/api/p/"];
+// El calendario personal (/api/calendario/ics/<token>): lo piden Google u Outlook, sin sesión; la llave
+// es el link y la base la valida (supabase/migracion-calendario.sql).
+const PUBLIC_PREFIXES = ["/p/", "/api/p/", "/api/calendario/ics/"];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

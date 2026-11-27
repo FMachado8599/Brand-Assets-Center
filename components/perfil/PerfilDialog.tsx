@@ -12,7 +12,8 @@ import { useClients } from "@/hooks/useClients";
 import { useEquipo } from "@/hooks/useEquipo";
 import type { EquipoData, Persona } from "@/lib/board/equipo";
 import { copyPlain } from "@/lib/cards/clipboard";
-import { conAlfa, fueraDeOficina, nombreDe } from "@/lib/perfil";
+import { cuandoCumple, cumpleDe, cumpleHoy, textoCumple } from "@/lib/cumple";
+import { conAlfa, fueraDeOficina, hoyISO, nombreDe } from "@/lib/perfil";
 import type { Brand } from "@/lib/types";
 import { abrirPerfil, cerrarPerfil, usePerfilAbierto } from "./abrir";
 import { EnElEstudio } from "./EnElEstudio";
@@ -141,6 +142,7 @@ function PerfilCompanero({ persona: p, data, brands, onEditar }: { persona: Pers
         <RedesLinks redes={p.perfil?.redes} size="sm" className="mt-2.5" />
 
         <EstadoLinea perfil={p.perfil} className="mt-3" />
+        <CumpleLinea persona={p} esYo={esYo} />
 
         {comun.length > 0 && (
           <div className="mt-4 rounded-2xl p-3" style={{ background: acento ? conAlfa(acento, 0.1) : "hsl(var(--secondary) / 0.7)" }}>
@@ -179,5 +181,34 @@ function PerfilCompanero({ persona: p, data, brands, onEditar }: { persona: Pers
         </div>
       </div>
     </div>
+  );
+}
+
+/** Su cumpleaños, si lo cargó. El día del cumple, con el link para saludarlo. */
+function CumpleLinea({ persona: p, esYo }: { persona: Persona; esYo: boolean }) {
+  const c = cumpleDe(p);
+  if (!c) return null;
+  const hoy = hoyISO();
+  if (cumpleHoy(c, hoy)) {
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-primary/25 px-3 py-2 text-sm font-medium">
+        <span>🎂 {esYo ? "¡Hoy es tu cumpleaños!" : "¡Hoy es su cumpleaños!"}</span>
+        {!esYo && (
+          <Link
+            href={`/saludar?a=${p.id}`}
+            onClick={() => cerrarPerfil()}
+            className="ml-auto inline-flex h-7 items-center rounded-full bg-foreground px-3 text-xs font-semibold text-background hover:opacity-90"
+          >
+            Saludar
+          </Link>
+        )}
+      </div>
+    );
+  }
+  const cuando = cuandoCumple(c, hoy);
+  return (
+    <p className="mt-2 text-[13px] text-muted-foreground">
+      🎂 Cumple {cuando.startsWith("El ") ? `el ${textoCumple(c)}` : `${cuando.toLowerCase()} (${textoCumple(c)})`}
+    </p>
   );
 }
