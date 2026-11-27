@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "@/lib/integraciones/crypto";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { createSupabaseServer, hasSupabaseEnv } from "@/lib/supabase-server";
 import { esDelDominio } from "./config";
 import { CorreoError, type CuentaCorreo } from "./imap.server";
 
@@ -18,6 +18,8 @@ export const responder = (body: unknown, status = 200) => NextResponse.json(body
 export type Usuario = { id: string; email: string; nombre: string | null };
 
 export async function usuarioDelPedido(): Promise<{ db: SupabaseClient; usuario: Usuario }> {
+  // Sin Supabase (un preview sin las variables) se contesta 503 «falta configurar», como el resto de la API.
+  if (!hasSupabaseEnv) throw new CorreoError("Falta configurar Supabase en este entorno", "sin_migracion", 503);
   const db = createSupabaseServer();
   const { data } = await db.auth.getClaims();
   const c = data?.claims;
