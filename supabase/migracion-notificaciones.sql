@@ -125,34 +125,61 @@ returns text language sql immutable set search_path = '' as $$
   end;
 $$;
 
--- Las personas de Basecamp nombradas en un texto. Cada mención es un <bc-attachment sgid="…">; el
--- sgid es base64 de "gid://bc3/Person/<id>" más una firma ("--…"): se lee el id de ahí.
-create or replace function public.bc_mencionados(p_html text)
-returns bigint[] language plpgsql immutable set search_path = '' as $$
+-- La persona de Basecamp que nombra un sgid. El sgid es base64 "para URLs" (con - y _ en vez de + y
+-- /) de algo que adentro dice "gid://bc3/Person/<id>", más una firma ("--…"): se lee el id de ahí.
+-- null si es otra cosa (una imagen adjunta) o no se puede leer.
+create or replace function public.bc_persona_de_sgid(p_sgid text)
+returns bigint language plpgsql immutable set search_path = '' as $$
 declare
-  m text[];
-  crudo text;
-  plano text;
-  ids bigint[] := '{}';
+  crudo text := translate(split_part(coalesce(p_sgid, ''), '--', 1), '-_', '+/');
 begin
-  if p_html is null or position('sgid' in p_html) = 0 then
-    return ids;
-  end if;
-  for m in select regexp_matches(p_html, 'sgid="([^"]+)"', 'g') loop
-    crudo := split_part(m[1], '--', 1);
-    begin
-      plano := encode(decode(crudo, 'base64'), 'escape');
-    exception when others then
-      continue;
-    end;
-    ids := ids || coalesce(
-      (select array_agg(x[1]::bigint) from regexp_matches(plano, 'gid://bc3/Person/([0-9]+)', 'g') x),
-      '{}'
-    );
-  end loop;
-  return ids;
+  crudo := rpad(crudo, ((length(crudo) + 3) / 4) * 4, '=');
+  return (regexp_match(encode(decode(crudo, 'base64'), 'escape'), 'gid://bc3/Person/([0-9]+)'))[1]::bigint;
+exception when others then
+  return null;
 end;
 $$;
+
+-- Las personas de Basecamp nombradas en un texto. Cada mención es un <bc-attachment sgid="…">.
+create or replace function public.bc_mencionados(p_html text)
+returns bigint[] language sql immutable set search_path = '' as $$
+  select coalesce(array_agg(distinct x.id) filter (where x.id is not null), '{}')
+    from (select public.bc_persona_de_sgid(m[1]) as id
+            from regexp_matches(coalesce(p_html, ''), 'sgid="([^"]+)"', 'g') m) x;
+$$;
+
+-- Las menciones, con el nombre. Basecamp manda cada una como un <bc-attachment sgid="…"> sin el
+-- nombre a la vista, así que al sacar el HTML el texto quedaba "Gracias, !!! cuando puedas" y no se
+-- veía a quién nombraban. Cada mención de alguien conocido pasa a ser "@Nombre" (el primer nombre,
+-- como lo muestra Basecamp); lo que no es una persona queda como estaba.
+create or replace function public.bc_con_nombres(p_html text)
+returns text language plpgsql stable set search_path = '' as $$
+declare
+  m text[];
+  v text := p_html;
+  nombre text;
+  patron text;
+begin
+  if v is null or position('<bc-attachment' in v) = 0 then
+    return v;
+  end if;
+  for m in select distinct regexp_matches(p_html, 'sgid="([^"]+)"', 'g') loop
+    select split_part(btrim(bp.nombre), ' ', 1) into nombre
+      from public.bc_personas bp
+     where bp.id = public.bc_persona_de_sgid(m[1]) or bp.attachable_sgid = m[1]
+     limit 1;
+    continue when nullif(nombre, '') is null;
+    patron := '<bc-attachment[^>]*?sgid="' || regexp_replace(m[1], '([^[:alnum:]])', '\\\1', 'g') || '"[^>]*?>';
+    nombre := '@' || replace(nombre, '\', '\\');
+    -- Con lo que traiga adentro (la foto y el nombre, si vienen) o, si no se cierra, solo la etiqueta.
+    v := regexp_replace(v, patron || '.*?</bc-attachment>', nombre, 'g');
+    v := regexp_replace(v, patron, nombre, 'g');
+  end loop;
+  return v;
+end;
+$$;
+
+revoke execute on function public.bc_con_nombres(text) from public, anon, authenticated;
 
 -- El texto de Basecamp (HTML) en una línea corta.
 create or replace function public.bc_extracto(p_html text)
@@ -239,13 +266,14 @@ begin
     v_tarea := v_hilo;
   end if;
 
-  -- Lo que se ve en la notificación: el texto o, si la movieron o la terminaron, qué pasó. (Una card
-  -- que cambia de columna llega como "adopted": la columna nueva la adopta.)
+  -- Lo que se ve en la notificación: el texto (con "@Nombre" en cada mención, para que se vea a quién
+  -- nombran) o, si la movieron o la terminaron, qué pasó. (Una card que cambia de columna llega como
+  -- "adopted": la columna nueva la adopta.)
   v_texto := case
     when v_kind ~ '_(moved|adopted)$' and nullif(btrim(v_padre ->> 'title'), '') is not null then 'Pasó a ' || btrim(v_padre ->> 'title')
     when v_kind ~ '_uncompleted$' then 'La volvieron a abrir'
     when v_kind ~ '_completed$' then 'La terminaron'
-    else public.bc_extracto(v_contenido)
+    else public.bc_extracto(public.bc_con_nombres(v_contenido))
   end;
 
   insert into public.bc_eventos (id, kind, proyecto_id, recording_id, recording_tipo, hilo_id, hilo_tipo, hilo_titulo, tarea_id,
