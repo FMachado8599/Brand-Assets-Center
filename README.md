@@ -4,7 +4,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 
 | Módulo | Ruta | Qué hace |
 | --- | --- | --- |
-| Inicio | `/` | Portada con todas las herramientas y el ingreso con Google |
+| Inicio | `/` | Sin sesión, la portada y el ingreso. Con sesión, tu panel: tus marcas, tu día, tus herramientas por uso, el estudio y un respiro (ver "Inicio") |
 | **Tarjetas** | `/tarjetas` | Textos con su formato y su tipografía, listos para pegar |
 | **Librerías** | `/library` | Emojis, GIFs e íconos para copiar o bajar, cada uno en su sección. `/library` abre la última que usaste |
 | ↳ **Emojis** | `/library/emojis` | Emojis de Apple en PNG: buscás en español o inglés y copiás con un click |
@@ -17,7 +17,7 @@ Un solo lugar para las herramientas del día a día del estudio:
 | **Descargas** | `/descargas` | Bajar videos (o sus portadas) y fotos de YouTube, Instagram y Pinterest con el link, con o sin audio, a la compu o a Drive |
 | **Ads** | `/ads` | Ver cada pieza de una pauta (post, carrusel, reel o historia) en los mockups de Instagram: feed, Reels e historias, con todo lo que tapa la app |
 | **Retoque** | `/retoque` | Quitarle el fondo a una imagen con Magnific: sale en PNG transparente, del mismo tamaño |
-| **Rest** | `/rest` | Un recreo: el dino, el buscaminas, la viborita y Fusión, con ranking semanal del estudio |
+| **Rest** | `/rest` | Un recreo: el dino, el buscaminas, la viborita, Fusión y Paleta, con ranking semanal del estudio |
 | **Spotify** | `/spotify` | El Jam del estudio: qué suena, la cola y sumar canciones, también desde la burbuja flotante en toda la app |
 
 La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su propia estética, editorial (negro, crema y la serif Instrument Serif): `app/page.tsx`, `app/privacidad/page.tsx` y `components/site/`. El mail de contacto de la política se define en `lib/site.ts`.
@@ -33,6 +33,8 @@ La política de privacidad está en `/privacidad`. Inicio y Privacidad tienen su
 - **Las migas** van al lado de la flecha en las pantallas que tienen niveles: la ficha de un cliente (*Clientes › el cliente*), una presentación (*Presentaciones › el cliente · el mes*, y *› Presentar*), las métricas de Descargas y cada juego de Rest. Los niveles de arriba son links; en el celular se ocultan y queda la flecha.
 - Los botones son íconos; si dejás el mouse un segundo encima aparece su nombre.
 - `/` enfoca el buscador del módulo, en cualquier momento.
+- **⌘K** (o Ctrl+K) abre el buscador de toda la app: herramientas, marcas, personas, tareas y emojis, y algunas acciones (modo foco, modo marca).
+- **Abajo a la izquierda** flotan el modo foco (si está corriendo) y el modo marca (si está prendido). Ver "Inicio".
 - **El avatar de arriba a la derecha** es la cuenta: iniciar sesión con Google o cerrarla (ver "Cuentas y visitas").
 
 ### Diseño
@@ -76,6 +78,7 @@ Abrí http://localhost:3000
 | `FREECONVERT_API_KEY` | Conversor | Sí, para convertir |
 | `OPENAI_API_KEY` | Emojis | No: sin ella se busca solo por palabras |
 | `EMOJI_STORAGE_BUCKET` | Emojis | No (por defecto `camara-focus.firebasestorage.app`) |
+| `INICIO_IA_MODEL` | Inicio → Resumime el día | No: el modelo de OpenAI del resumen (por defecto el de `BOARD_IA_MODEL`, o `gpt-4o-mini`). Usa `OPENAI_API_KEY` |
 | `RESEND_API_KEY` | Inicio → Sugerencias | No: sin ella no llega el mail, pero las sugerencias igual quedan en el tablero (`FEEDBACK_TO` y `FEEDBACK_FROM` son opcionales) |
 | `YOUTUBE_WORKER_SECRET`, `BLOB_READ_WRITE_TOKEN` | Descargas → YouTube | Sí, para YouTube: la clave del servicio de la PC y el Blob store donde anota su dirección (ver "Descargas"). `YOUTUBE_WORKER_URL` es opcional: una dirección fija (en local, `http://localhost:8787`) |
 | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_PICKER_API_KEY` | Descargas → Drive | Sí, para guardar en Drive (el client id es el mismo de Presentaciones) |
@@ -219,6 +222,36 @@ select * from visitas_por_dia;      -- visitas, invitados y usuarios distintos p
 select * from visitas_por_usuario;  -- quién entra y cuándo fue la última vez
 ```
 
+## Inicio
+
+Sin sesión, `/` es la presentación (editorial, negro y crema). Con sesión del estudio es **tu panel**, de arriba hacia abajo (`components/site/Dashboard.tsx` y `components/inicio/`):
+
+- **El saludo**: cambia con la hora y el día ("Lunes. Café primero.", "¿Todavía acá? Andá a casa"); en tu cumple, confeti. Al lado, la fecha y el **clima de Montevideo** (Open-Meteo, sin clave, desde `/api/inicio/clima`, con un aviso tipo "Llevá paraguas"). Debajo, **cuentas regresivas**: al viernes, al próximo feriado de Uruguay (calculados en `lib/inicio/fechas.ts`, Carnaval y Turismo incluidos) y a tus vacaciones, si cargaste la fecha.
+- **Modo viernes**: los viernes desde las 17 el encabezado se pone amarillo y cambia el texto. Para verlo cualquier día: `/?probar=viernes`.
+- **La marca en foco**: la de tus marcas con más movimiento hoy (tareas vencidas o que vencen, avisos sin leer, una fecha que se viene); si ninguna tiene, una distinta cada día. Su color tiñe el encabezado.
+- **La barra rápida**: pegás un link de YouTube, Instagram o Pinterest y te lleva a Descargas con el link cargado (`/descargas?links=`); pegás un HEX y te dice de qué marca es (o a cuál se parece); cualquier otra cosa abre el buscador ⌘K. Ctrl+V en cualquier parte del Inicio hace lo mismo. **Soltar archivos** (o pegar una captura) en el Inicio abre un panel para elegir qué hacer: convertir, comprimir, quitar el fondo, armar un GIF o verlo en Ads; la herramienta los recibe al abrir (`lib/inicio/entrega.ts`, en memoria: si se recarga la página, se pierden).
+- **Resumime el día**: la IA cuenta en dos frases lo urgente (tus tareas, las menciones), quién no está y los cumples (`/api/inicio/resumen`, con `OPENAI_API_KEY`). Solo redacta lo que el Inicio ya muestra: no lee nada más ni escribe nada. Se guarda en la pestaña hasta que la cierres.
+- **Tus marcas**: las que te designaron en el Board, más las que sumes a mano (**Sumar marca**). Cada una con sus colores (click: copia el HEX), acciones rápidas (copiar el color principal, bajar el logo, escribir en Redacción con la marca elegida, ver sus tareas en el Board con `/board?marca=`), sus redes, la gente designada (con quién está fuera de oficina) y su próxima fecha.
+- **Modo marca**: desde una marca (o con Tab en ⌘K) se prende y Redacción, Tarjetas, Ads y Presentaciones arrancan con ella. Se guarda en la cuenta (`app:modo-marca`) y una píldora abajo a la izquierda lo recuerda y lo apaga (`components/inicio/MarcaActiva.tsx`).
+- **Tu día**: tus tareas abiertas (las que tenés o te toca validar), lo urgente primero, con los colores del Board; las menciones sin leer; **tu semana** (tareas que cerraste contra las abiertas) y un **calendario de dos semanas** con tus entregas, las fechas de tus marcas, los feriados y los cumples.
+- **Tus herramientas**: ordenadas por cuánto las usás (tus visitas de los últimos dos meses); si todavía no hay, las de tu puesto primero. Las cuatro primeras van grandes. Las teclas 1 a 9 abren cada una.
+- **Seguí donde dejaste**: tu última redacción, tu última tarjeta (`/tarjetas?abrir=`), tu última presentación y tus últimos banners exportados.
+- **El estudio**: cumples, aniversarios en el estudio y gente que se sumó (de los perfiles), con un botón para **saludar** que le llega a la campanita de esa persona (uno por ocasión por día); quién no está hoy; qué suena en el Jam (y sumar una canción); quién va primero en cada juego de Rest esta semana, con un poco de picante; y **lo último que pasó**: logos subidos, presentaciones y tarjetas nuevas, clientes nuevos y gente que entró por primera vez.
+- **Un respiro**: un día como hoy en la publicidad y el diseño (`lib/inicio/efemerides.ts`), el tip del día (`lib/inicio/tips.ts`), el emoji del estudio (el más copiado ayer) con un buscador para copiar emojis sin salir del Inicio, una pregunta de **Paleta**, **tus números del mes**, el **modo foco** y, de fin de noviembre a mediados de enero, el **Wrapped**.
+- **Acomodar**: esconde secciones y herramientas, y se arrastran las herramientas y las marcas para cambiarlas de lugar. Se guarda en la cuenta (`inicio:ajustes`).
+
+**Modo foco**: un pomodoro (25, 50 o 15 minutos) que sigue corriendo al cambiar de herramienta y al recargar (en este navegador). Se ve abajo a la izquierda, con lo que suena en el Jam y la cuenta en la pestaña; al terminar suena una campanita y ofrece la pausa. Puede poner tu estado en "🎧 En modo foco" hasta que termine.
+
+**Wrapped** (`/wrapped`): tu año en Herramientas, en historias, como el de Spotify: los días que entraste, tu herramienta y tu horario, los emojis, los archivos, los textos, las tareas cerradas y tu marca del año, los juegos y cómo te fue al lado del estudio; al final, el estudio entero. Se avanza tocando o con las flechas; Esc vuelve al Inicio.
+
+**Fechas de las marcas**: en la ficha de cada cliente, la sección **Fechas** (lanzamientos, campañas, eventos y aniversarios, que se repiten cada año). Las ve el estudio en el Inicio de quienes trabajan la marca.
+
+**El uso de las herramientas**: copiar un emoji, un GIF, un ícono, una tarjeta o una redacción, convertir o comprimir un archivo, quitar un fondo y exportar banners queda anotado en `uso_herramientas` (`lib/inicio/uso.ts`, sin esperar y sin frenar nada si falla). Cada uno ve solo lo suyo; lo del estudio sale contado (el emoji del estudio, el Wrapped). Las descargas ya se anotaban en `descargas_registro` y las partidas en `juego_partidas`.
+
+### Activarlo (una sola vez)
+
+En Supabase → SQL Editor, correr `supabase/migracion-inicio.sql` (en el historial de migraciones: `feature_inicio`), después de `migracion-perfil.sql`, `migracion-equipo.sql` y `migracion-notificaciones.sql`. Suma el cumple y el ingreso al perfil, crea `marca_fechas` y `uso_herramientas` y las funciones del Inicio (`inicio_herramientas`, `inicio_actividad`, `inicio_numeros`, `inicio_emoji_del_estudio`, `inicio_wrapped`, `inicio_saludar`…). Se puede repetir: no mueve datos. Sin ella el Inicio igual anda: lo que falta se ve vacío. Para Paleta, volver a correr también `migracion-juegos.sql`.
+
 ## Tu perfil
 
 En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno arma su perfil, pensado para que el estudio se conozca y se encuentre. Todo se guarda solo, al momento:
@@ -229,6 +262,7 @@ En **/perfil** (desde la cuenta, arriba a la derecha: tocá tu nombre) cada uno 
 - **Fuera de oficina hasta…** (inclusive): se ve en Status al lado de tu nombre, en el organigrama y, si tenés una tarea, en su detalle ("si no puede esperar, pasásela a otra persona").
 - **Color de acento**: el aro de tu foto y la píldora de tu puesto.
 - **Portada**: la del estudio (por defecto) o un degradé con tu color.
+- **Fechas para festejar**: tu cumpleaños (día y mes, sin el año) y el día que entraste al estudio. Con eso el Inicio te festeja y le avisa al estudio para que te salude (ver "Inicio").
 - **Tus redes** (si te animás): LinkedIn, Behance, Instagram y Facebook. Se pega el link o el usuario solo; se guarda el link completo y la base revisa que sea de esa red.
 - **En el estudio** (de Status): puesto, sector, hub o equipo, de quién dependés, tu gente a cargo y tus marcas **principales** y **secundarias**. Puesto, hub y jefes los carga un admin; tus marcas las elegís vos desde ahí, con **Principales y secundarias** (ver "Marcas principales y secundarias").
 - **Con quién trabajás**: los que trabajan tus mismas marcas, como principal o secundaria (ej: la redactora y el CM de Changan), y la gente de tu hub.
@@ -676,13 +710,14 @@ Un recreo: juegos cortos para cortar un rato, con ranking del estudio. `/rest` m
 - **Dino** (`/rest/dino`): el del navegador, con pixel art propio. Espacio o ↑ salta (manteniendo, salta más alto) y ↓ se agacha (en el aire, cae más rápido); en el celular se toca. Los cactus vienen de a uno a tres; desde cierta velocidad aparecen pájaros a tres alturas: bajo (hay que saltarlo), a la altura de la cabeza (agacharse) y alto (pasa por arriba). Cada 700 puntos se hace de noche un rato. Si se cambia de pestaña o de ventana, queda en pausa. HI es tu mejor marca.
 - **Buscaminas** (`/rest/buscaminas`): principiante (9 × 9, 10 minas), intermedio (16 × 16, 40) y experto (30 × 16, 99), cada uno con su ranking por tiempo. El primer click nunca explota. Click abre, click derecho pone o saca la bandera y click sobre un número que ya tiene sus banderas abre lo de alrededor; en el celular, mantener apretado pone la bandera. Con el teclado: flechas, Enter y F. **Nueva partida** (barra de arriba) o F2 arranca otra. En un celular el experto se muestra parado (16 de ancho): es el mismo tablero.
 - **Viborita** (`/rest/viborita`): una grilla de 24 × 16. Flechas o WASD doblan (en el celular, deslizar el dedo; se puede doblar dos veces sin levantarlo) y Espacio pone pausa. Cada fruta suma un punto y la hace crecer; cada fruta va un poco más rápido (de un paso cada 140 ms hasta uno cada 65 ms). Chocar con el borde o con la propia cola termina la partida. Si se cambia de pestaña o de ventana, queda en pausa.
+- **Paleta** (`/rest/paleta`): ¿de quién es esta paleta? Se muestran los colores de una marca del estudio y hay que elegirla entre cuatro, contrarreloj: 45 segundos, un punto por acierto y 2 segundos menos por cada error. Se responde con click o con las teclas 1 a 4. Juega con las marcas que tienen al menos dos colores en su ficha (sin dos con los mismos colores): con menos de cuatro, pide cargar paletas en Clientes. Hay una versión de una sola pregunta en el Inicio.
 - **Fusión** (`/rest/fusion`): un tablero de 4 × 4. Flechas o WASD (en el celular, deslizar) mueven todas las fichas hacia ese lado; dos iguales que chocan se juntan en una del doble, y lo que valga la nueva suma al puntaje. Después de cada jugada aparece un 2 (a veces un 4). Al llegar a 2048 avisa y se puede seguir. La partida se guarda cuando no quedan jugadas, o cuando se deja a medias (**Nueva partida** en la barra de arriba, o irse a otro juego): lo que se sumó, cuenta.
 
-**Contra las trampas**: cada partida se abre en la base cuando arranca y se cierra con el puntaje, y la base anota las dos horas. En el dino no entran más de 21 puntos por segundo jugado (el juego da como mucho 19,5); en el buscaminas el tiempo no puede ser menor que el que la base vio pasar entre el primer click y el final (con 3 s de margen por la red), ni que un piso por dificultad; en la viborita no entran más de 16 frutas por segundo (a toda velocidad da un paso cada 65 ms), ni más de las que entran en la grilla; en Fusión pasan al menos 80 ms entre jugada y jugada, y con eso la base calcula el máximo que se puede haber sumado en el tiempo jugado. Alcanza para un ranking entre compañeros, no para frenar a alguien que se ponga a programar una partida.
+**Contra las trampas**: cada partida se abre en la base cuando arranca y se cierra con el puntaje, y la base anota las dos horas. En el dino no entran más de 21 puntos por segundo jugado (el juego da como mucho 19,5); en el buscaminas el tiempo no puede ser menor que el que la base vio pasar entre el primer click y el final (con 3 s de margen por la red), ni que un piso por dificultad; en la viborita no entran más de 16 frutas por segundo (a toda velocidad da un paso cada 65 ms), ni más de las que entran en la grilla; en Fusión pasan al menos 80 ms entre jugada y jugada, y con eso la base calcula el máximo que se puede haber sumado en el tiempo jugado; en Paleta no entran más de 2,5 aciertos por segundo, ni más de 120. Alcanza para un ranking entre compañeros, no para frenar a alguien que se ponga a programar una partida.
 
 ### Activarlo (una sola vez)
 
-En Supabase → SQL Editor, corré `supabase/migracion-juegos.sql`, después de `migracion-usuarios.sql` y `migracion-acceso.sql`. Crea `juego_partidas`, que no se lee directo: todo pasa por `empezar_partida`, `terminar_partida` y `ranking_juego`, solo para el estudio. Se puede repetir (no mueve datos). Si ya la habías corrido cuando solo estaban el dino y el buscaminas, hay que volver a correrla para que la viborita y Fusión tengan ranking. Sin ella se juega igual, pero el ranking avisa que falta y no se guarda nada.
+En Supabase → SQL Editor, corré `supabase/migracion-juegos.sql`, después de `migracion-usuarios.sql` y `migracion-acceso.sql`. Crea `juego_partidas`, que no se lee directo: todo pasa por `empezar_partida`, `terminar_partida` y `ranking_juego`, solo para el estudio. Se puede repetir (no mueve datos). Si ya la habías corrido antes de que llegaran la viborita, Fusión o Paleta, hay que volver a correrla para que tengan ranking. Sin ella se juega igual, pero el ranking avisa que falta y no se guarda nada.
 
 **Cómo está hecho**: los juegos y las dificultades están en `lib/rest/juegos.ts`; lo de la base, en `lib/rest/partidas.ts` y `hooks/useRanking.ts`. El dino es un canvas sin librerías: la física, los obstáculos y el dibujo están en `lib/rest/dino/motor.ts`, que corre a pasos fijos de 1/60 s (así va igual de rápido en una pantalla de 60 Hz que en una de 144 Hz y el ranking es parejo), y el pixel art en `lib/rest/dino/sprites.ts` (de cada dibujo salen también sus cajas de choque). La lógica del buscaminas está en `lib/rest/buscaminas.ts`; la de la viborita, en `lib/rest/viborita.ts` (se dibuja en SVG, con los colores del tema); la de Fusión, en `lib/rest/fusion.ts` (cada jugada devuelve un tablero nuevo; las fichas se deslizan con transiciones de CSS). Las flechas, WASD y los deslizamientos de la viborita y Fusión están en `lib/rest/teclado.ts`.
 

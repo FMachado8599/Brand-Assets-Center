@@ -7,6 +7,8 @@ import { toast } from "@/components/ui/toaster";
 import { useConfirm } from "@/components/ui/confirm";
 import { useGifProject } from "@/hooks/useGifProject";
 import { useStoredState } from "@/hooks/useStoredState";
+import { tomarArchivos } from "@/lib/inicio/entrega";
+import { registrarUso } from "@/lib/inicio/uso";
 import { formatMs } from "@/lib/gif/parse";
 import { DEFAULT_GIF_SETTINGS, type GifSettings } from "@/lib/gif/types";
 import type { Frame } from "@/lib/gif/types";
@@ -69,6 +71,13 @@ export function GifShell() {
     if (first && rest.length) combine(first, rest.map((f) => f.id));
   };
 
+  // Los frames que se soltaron en el Inicio ("Armar un GIF").
+  useEffect(() => {
+    const p = tomarArchivos("gif");
+    if (p) project.addFiles(p.archivos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pick = async (files: FileList | null) => {
     if (!files?.length) return;
     await project.addFiles(files);
@@ -80,6 +89,7 @@ export function GifShell() {
     setExporting(0);
     try {
       await project.downloadZip(groups, setExporting);
+      registrarUso("banner", { cantidad: groups.length });
       toast(`Exportados ${groups.length} GIF en un ZIP`);
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo exportar", "error");
@@ -245,7 +255,10 @@ export function GifShell() {
                     rendered={project.renderOf(group)}
                     rendering={project.rendering.has(group.key)}
                     onEdit={() => setEditing(group.key)}
-                    onDownload={() => safely(() => project.downloadGroup(group))}
+                    onDownload={() => safely(async () => {
+                      await project.downloadGroup(group);
+                      registrarUso("banner");
+                    })}
                     onMeasure={() => safely(() => project.render(group))}
                     canDrop={draggingLoose}
                     onDropFrame={() => {

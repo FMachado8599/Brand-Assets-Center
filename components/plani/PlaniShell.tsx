@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAlArrancarConMarca } from "@/components/inicio/MarcaActiva";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, Plug, Plus, Search } from "lucide-react";
@@ -57,6 +58,8 @@ export function PlaniShell() {
   const [planis, setPlanis] = useState<PlaniTarjeta[] | null>(() => cacheTablero.get(`${hoyMes().anio}-${hoyMes().mes}`) ?? null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // Con el modo marca prendido, se ven las presentaciones de esa marca.
+  useAlArrancarConMarca((m) => setQuery(m.name));
   const [tipoFiltro, setTipoFiltro] = useState<string>(TODOS);
   const { tipos, tipoDe } = useTipos();
   const [nueva, setNueva] = useState<NuevaPlaniInicial | null>(null);

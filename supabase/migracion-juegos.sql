@@ -5,7 +5,7 @@
 --    da con el tiempo que pasó de verdad no entra al ranking.
 --  - Ranking por juego (y por dificultad en el buscaminas): el mejor puntaje de cada persona,
 --    de esta semana (arranca el lunes, hora de Montevideo) o de siempre.
---  - Dino, Viborita y Fusión: gana el puntaje más alto. Buscaminas: el menor tiempo (en
+--  - Dino, Viborita, Fusión y Paleta: gana el puntaje más alto. Buscaminas: el menor tiempo (en
 --    milisegundos), y solo cuentan las partidas ganadas.
 -- Correr DESPUÉS de migracion-acceso.sql (usa has_access()) y migracion-usuarios.sql (profiles).
 -- Supabase → SQL Editor → pegar todo → Run. Se puede correr más de una vez.
@@ -15,7 +15,7 @@
 create table if not exists public.juego_partidas (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  juego text not null check (juego in ('dino', 'buscaminas', 'viborita', 'fusion')),
+  juego text not null check (juego in ('dino', 'buscaminas', 'viborita', 'fusion', 'paleta')),
   -- La dificultad en el buscaminas; '' en los demás.
   modo text not null default '' check (modo in ('', 'principiante', 'intermedio', 'experto')),
   empezada timestamptz not null default now(),
@@ -26,7 +26,7 @@ create table if not exists public.juego_partidas (
 -- Si la tabla ya existía (de cuando había solo dino y buscaminas), se rehace la lista de juegos.
 alter table public.juego_partidas drop constraint if exists juego_partidas_juego_check;
 alter table public.juego_partidas add constraint juego_partidas_juego_check
-  check (juego in ('dino', 'buscaminas', 'viborita', 'fusion'));
+  check (juego in ('dino', 'buscaminas', 'viborita', 'fusion', 'paleta'));
 
 create index if not exists juego_partidas_ranking_idx
   on public.juego_partidas (juego, modo, terminada desc) where puntaje is not null;
@@ -46,6 +46,8 @@ alter table public.juego_partidas enable row level security;
 -- En Fusión pasan al menos 80 ms entre jugada y jugada (12,5 por segundo) y cada una suma una ficha
 -- de 4 como mucho: lo que hay en el tablero no pasa de b = 4 × (jugadas + 2), y el puntaje no pasa
 -- de b × log2(b) (ver lib/rest/fusion.ts).
+-- En Paleta cada respuesta lleva al menos 400 ms (se ve la paleta, se elige y se muestra si estaba bien):
+-- no más de 2,5 aciertos por segundo, ni más de los que entran en una partida de 45 s (ver lib/rest/paleta.ts).
 create or replace function public.juego_puntaje_valido(p_juego text, p_modo text, p_ms numeric, p_puntaje integer)
 returns boolean language sql immutable set search_path = '' as $$
   select case p_juego
@@ -56,6 +58,7 @@ returns boolean language sql immutable set search_path = '' as $$
     when 'viborita' then p_puntaje <= ((p_ms / 1000.0) + 3) * 16 and p_puntaje <= 24 * 16 - 3
     when 'fusion' then
       p_puntaje <= (4 * (12.5 * ((p_ms / 1000.0) + 3) + 2)) * log(2, 4 * (12.5 * ((p_ms / 1000.0) + 3) + 2))
+    when 'paleta' then p_puntaje <= ((p_ms / 1000.0) + 3) * 2.5 and p_puntaje <= 120
     else false
   end;
 $$;
@@ -75,7 +78,7 @@ begin
   if not (
     (p_juego = 'dino' and v_modo = '')
     or (p_juego = 'buscaminas' and v_modo in ('principiante', 'intermedio', 'experto'))
-    or (p_juego in ('viborita', 'fusion') and v_modo = '')
+    or (p_juego in ('viborita', 'fusion', 'paleta') and v_modo = '')
   ) then
     raise exception 'Juego o dificultad inválidos';
   end if;

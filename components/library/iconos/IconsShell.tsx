@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { LibrarySwitcher } from "@/components/library/LibrarySwitcher";
 import { BarPopover, BarSearch, ContextBar, PanelTitle } from "@/components/shell/ContextBar";
+import { registrarUso } from "@/lib/inicio/uso";
 import { toast } from "@/components/ui/toaster";
 import { useDebounced } from "@/hooks/useDebounced";
 import { usePagedSearch } from "@/hooks/usePagedSearch";
@@ -47,6 +48,7 @@ export function IconsShell({ configured }: { configured: boolean }) {
         await copyPng(icon, size);
         toast(`PNG de ${size} px copiado`);
       }
+      registrarUso("icono", { detalle: action.format });
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo", "error");
     } finally {

@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toaster";
 import { BarAction, BarButton, BarDivider, BarNote, ContextBar } from "@/components/shell/ContextBar";
 import { isBusy, useRetoqueQueue, type RetoqueItem } from "@/hooks/useRetoqueQueue";
 import { useStoredState } from "@/hooks/useStoredState";
+import { tomarArchivos } from "@/lib/inicio/entrega";
 import { outputName } from "@/lib/retoque/prepare.client";
 import { cn } from "@/lib/utils";
 import { BACKDROPS, type Backdrop } from "./backdrops";
@@ -62,6 +63,13 @@ export function RetoqueShell({ configured }: { configured: boolean }) {
     },
     [configured, queue.addFiles]
   );
+
+  // Las imágenes que se soltaron en el Inicio ("Quitar el fondo").
+  useEffect(() => {
+    const p = tomarArchivos("retoque");
+    if (p) add(p.archivos);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pick = (files: FileList | null) => {
     add(files);

@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { ClientMark, logoBackground } from "./ClientMark";
 import { ColorChoice } from "./ColorChoice";
 import { LogoDrop } from "./LogoDrop";
+import { FechasSection } from "./profile/FechasSection";
 import { FontsSection } from "./profile/FontsSection";
 import { LogosSection } from "./profile/LogosSection";
 import { PaletteSection } from "./profile/PaletteSection";
@@ -234,6 +235,7 @@ export function ClientProfile({ id }: { id: string }) {
         <div className="mt-8 grid gap-4">
           <LogosSection brand={brand} save={save} missing={hasLogos === false} />
           <TrabajoDelMes brand={brand} />
+          <FechasSection brand={brand} />
           <PaletteSection brand={brand} saveSoon={saveSoon} />
           <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />

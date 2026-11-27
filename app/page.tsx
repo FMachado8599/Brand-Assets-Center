@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { AccountCta } from "@/components/site/AccountCta";
-import { Dashboard } from "@/components/site/Dashboard";
 import { FeedbackSection } from "@/components/site/FeedbackSection";
 import { InicioMotion } from "@/components/site/InicioMotion";
+import { PanelInicio } from "@/components/site/PanelInicio";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { studioSession } from "@/lib/access";
 import { TOOLS } from "@/lib/modules";
@@ -28,7 +28,7 @@ const two = (n: number) => String(n).padStart(2, "0");
 export default async function InicioPage() {
   // Con sesión del estudio, Inicio es el panel con las herramientas: la presentación es para quien llega por primera vez.
   const session = hasSupabaseEnv ? await studioSession(createSupabaseServer()) : null;
-  if (session?.allowed) return <Dashboard name={session.name} />;
+  if (session?.allowed) return <PanelInicio name={session.name} />;
 
   return (
     <InicioMotion>

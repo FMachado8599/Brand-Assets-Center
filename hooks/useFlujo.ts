@@ -15,6 +15,8 @@ let state: State = { tareas: [], loaded: false, error: null, sinMigracion: false
 const SERVER: State = state;
 const listeners = new Set<() => void>();
 let started = false;
+/** Ya se reconcilió con Basecamp en esta pestaña (el Inicio lee las tareas sin reconciliar: el Board lo hace al abrir). */
+let reconciliado = false;
 let seq = 0;
 
 function set(next: Partial<State>) {
@@ -27,7 +29,10 @@ export async function refreshFlujo({ reconciliar = false } = {}) {
   const mine = ++seq;
   try {
     // Al abrir el Board: crear el flujo de las tareas nuevas y seguir lo que se movió en Basecamp.
-    if (reconciliar) await flujoRepo.reconciliar();
+    if (reconciliar) {
+      reconciliado = true;
+      await flujoRepo.reconciliar();
+    }
     const tareas = await flujoRepo.todas();
     if (mine === seq) set({ tareas, loaded: true, error: null, sinMigracion: false });
   } catch (e) {
@@ -55,10 +60,11 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
-export function useFlujo() {
+/** `reconciliar: false`: solo leer (el Inicio); el Board, al abrir, primero sigue lo que se movió en Basecamp. */
+export function useFlujo({ reconciliar = true } = {}) {
   const snap = useSyncExternalStore(subscribe, () => state, () => SERVER);
   useEffect(() => {
-    if (!started) refreshFlujo({ reconciliar: true });
-  }, []);
+    if (!started || (reconciliar && !reconciliado)) refreshFlujo({ reconciliar });
+  }, [reconciliar]);
   return { ...snap, refresh: refreshFlujo };
 }

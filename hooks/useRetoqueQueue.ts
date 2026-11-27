@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAccount } from "@/components/shell/AccountProvider";
+import { registrarUso } from "@/lib/inicio/uso";
 import { supabase } from "@/lib/supabase";
 import { prepareImage } from "@/lib/retoque/prepare.client";
 import { inputPath, RETOQUE_BUCKET, storageMessage } from "@/lib/retoque/storage";
@@ -83,6 +84,7 @@ export function useRetoqueQueue() {
         // Si mientras tanto la sacaron de la lista, no se guarda nada.
         if (!itemsRef.current.some((i) => i.id === id)) return;
         patch(id, { status: "done", result, resultUrl: URL.createObjectURL(result) });
+        registrarUso("retoque", { bytes: itemsRef.current.find((i) => i.id === id)?.file.size ?? null });
       } catch (e) {
         patch(id, { status: "error", error: e instanceof Error ? e.message : "Algo falló" });
       }

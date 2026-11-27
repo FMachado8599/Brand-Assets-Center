@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { registrarUso } from "@/lib/inicio/uso";
 import { AlertCircle, ArrowLeft, ClipboardCopy, Download, LayoutGrid, Loader2, Settings2, Sparkles, X } from "lucide-react";
 import {
   BarAction,
@@ -132,6 +133,7 @@ export function EmojiShell({ categories }: { categories: CategorySummary[] }) {
       try {
         await downloadEmoji(variantId(emoji, tone), size, fileName(emoji, tone));
         remember(emoji);
+        registrarUso("emoji", { detalle: charFor(emoji, tone) });
       } catch {
         toast("No se pudo descargar el emoji", "error");
       }
@@ -154,6 +156,7 @@ export function EmojiShell({ categories }: { categories: CategorySummary[] }) {
           toast("Este navegador no copia imágenes: lo descargamos");
         }
         remember(emoji);
+        registrarUso("emoji", { detalle: charFor(emoji, tone) });
       } catch (e) {
         // Si el portapapeles se niega (permisos, foco), que al menos se baje el archivo.
         try {
@@ -198,6 +201,7 @@ export function EmojiShell({ categories }: { categories: CategorySummary[] }) {
   const copySelectionAsText = async () => {
     await copyEmojiText(selection.map((e) => charFor(e, tone)).join(""));
     toast(`Copiados ${selection.length} emojis como texto`);
+    for (const e of selection) registrarUso("emoji", { detalle: charFor(e, tone) });
   };
 
   // Esc suelta la selección.
