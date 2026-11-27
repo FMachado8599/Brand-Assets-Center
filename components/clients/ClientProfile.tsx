@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, Megaphone, PenLine, Star, StickyNote, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Download, Megaphone, PenLine, Sparkles, Star, StickyNote, Trash2, Upload, X } from "lucide-react";
 import { MissingConfig } from "@/components/board/MissingConfig";
 import { InfluencersSection } from "@/components/influencers/InfluencersSection";
 import { useData } from "@/components/data/DataProvider";
@@ -12,10 +12,13 @@ import { useConfirm } from "@/components/ui/confirm";
 import { toast } from "@/components/ui/toaster";
 import { Hint } from "@/components/ui/tooltip";
 import { useBrandKits } from "@/hooks/useBrandKits";
+import { useBrandMaterials } from "@/hooks/useBrandMaterials";
+import { invalidarMaterialMarca } from "@/hooks/useMaterialMarca";
 import { forgetClient, getClient, refreshClients, rememberClient, useClients } from "@/hooks/useClients";
 import { useFavoriteClients } from "@/hooks/useFavoriteClients";
 import { useRedacciones } from "@/hooks/useRedacciones";
 import { brandsRepo, clientErrorMessage, type BrandPatch } from "@/lib/repos/brands";
+import { materialsRepo } from "@/lib/repos/materials";
 import { LOGO_ACCEPT, logoProblem } from "@/lib/clients/logo";
 import { inLibrary, logoPaths } from "@/lib/clients/logos";
 import { socialKey, socialLabel, socialName, type BrandSocial } from "@/lib/clients/socials";
@@ -29,6 +32,7 @@ import { LogoDrop } from "./LogoDrop";
 import { FechasSection } from "./profile/FechasSection";
 import { FontsSection } from "./profile/FontsSection";
 import { LogosSection } from "./profile/LogosSection";
+import { MaterialSection } from "./profile/MaterialSection";
 import { PaletteSection } from "./profile/PaletteSection";
 import { VozMarcaSection } from "./profile/VozMarca";
 import { CorreoSection } from "./profile/CorreoSection";
@@ -53,6 +57,7 @@ export function ClientProfile({ id }: { id: string }) {
   const redacciones = useRedacciones();
   const kits = useBrandKits();
   const favorites = useFavoriteClients();
+  const materials = useBrandMaterials(id);
   const brand = clients.find((c) => c.id === id) ?? null;
   const leaving = useRef(false);
   const [avisar, setAvisar] = useState(false);
@@ -144,9 +149,13 @@ export function ClientProfile({ id }: { id: string }) {
       destructive: true,
     });
     if (!sure) return;
+    // Los archivos del material hay que anotarlos antes: al borrar el cliente la base borra también sus filas.
+    const materialFiles = await materialsRepo.filePaths(id);
     const { error } = await brandsRepo.remove(id);
     if (error) return toast(clientErrorMessage(error), "error");
     brandsRepo.removeLogoFiles([...logoPaths(brand)]);
+    if (materialFiles.length) materialsRepo.removeFiles(materialFiles);
+    invalidarMaterialMarca(id);
     leaving.current = true;
     pending.current = {};
     router.push("/clientes");
@@ -235,6 +244,7 @@ export function ClientProfile({ id }: { id: string }) {
             ["#productos", own.products.length, "producto", "productos"],
             ["#tipografias", brand.font_families?.length ?? 0, "tipografía", "tipografías"],
             ["#redacciones", own.redacciones.length, "redacción tuya", "redacciones tuyas"],
+            ...(materials.missing ? [] : ([["#material", materials.items.length, "archivo de marca", "archivos de marca"]] as [string, number, string, string][])),
           ]}
         />
 
@@ -247,6 +257,7 @@ export function ClientProfile({ id }: { id: string }) {
           <VozMarcaSection brand={brand} saveSoon={saveSoon} missing={hasVozMarca === false} />
           <FontsSection brand={brand} fonts={fonts} save={save} onUploaded={reload} />
           <InfluencersSection brand={brand} />
+          <MaterialSection brand={brand} materials={materials} />
           <div className="grid gap-4 lg:grid-cols-2">
             <CardsSection brand={brand} cards={own.cards} products={products} />
             <RedaccionesSection brand={brand} items={own.redacciones} />
@@ -515,7 +526,12 @@ function Notes({ value, onChange }: { value: string; onChange: (notes: string) =
 
   return (
     <label className="mt-6 block">
-      <span className="eyebrow">Notas</span>
+      <span className="flex flex-wrap items-baseline gap-x-3">
+        <span className="eyebrow">Notas</span>
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <Sparkles className="h-3 w-3" aria-hidden /> La IA de Redacción las lee al escribir
+        </span>
+      </span>
       <textarea
         ref={area}
         value={draft}

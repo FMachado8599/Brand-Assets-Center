@@ -1,9 +1,11 @@
+import { DICCIONARIO } from "./diccionario";
 import { fold } from "./text";
 
 /**
  * Texto predictivo con el vocabulario de cada cliente: aprende de lo que ya se escribió para él
- * (copys de sus planis y redacciones) y sugiere cómo seguir. Sin IA ni costo: cuenta palabras y
- * qué viene después de cada una.
+ * (copys de sus planis y redacciones) y sugiere cómo seguir. Sin IA ni costo, y al instante: cuenta
+ * palabras y qué viene después de cada una, y arranca con un diccionario básico para completar
+ * desde el primer día (lo del cliente siempre le gana).
  *
  *  - A mitad de palabra ("Liber") completa con la palabra más usada que empiece así
  *    ("Libertadores"), prefiriendo la que suele venir después de la anterior.
@@ -40,6 +42,7 @@ const clave = (t: string) => fold(t);
 /** Arma el modelo con todos los textos del cliente. */
 export function entrenar(textos: string[]): ModeloTexto {
   const modelo: ModeloTexto = { palabras: new Map(), siguientes: new Map(), siguientes2: new Map() };
+  for (const [palabra, peso] of DICCIONARIO) sumar(modelo.palabras, clave(palabra), palabra, peso);
   for (const texto of textos) {
     for (const tramo of texto.split(CORTE)) {
       const tokens = (tramo.match(TOKEN) ?? ([] as string[])).filter((t) => !t.startsWith("#") && !t.startsWith("@"));
@@ -64,12 +67,16 @@ const masUsada = (c: Conteo | undefined) => {
   return best ? { valor: best[0], n: best[1], total } : null;
 };
 
-/** Lo que sigue a esas palabras, si es casi seguro: se repitió y es lo habitual (60% o más). */
+/**
+ * Lo que sigue a esas palabras, si es bastante seguro: se repitió y es lo habitual. Con dos palabras de
+ * contexto alcanza la mitad de las veces; con una sola, tres de cada cinco (o dos de cada cinco si ya
+ * se vio muchas veces).
+ */
 function siguienteSegura(modelo: ModeloTexto, prev2: string | undefined, prev1: string) {
   const tri = prev2 ? masUsada(modelo.siguientes2.get(`${clave(prev2)} ${clave(prev1)}`)) : null;
-  if (tri && tri.n >= 2 && tri.n / tri.total >= 0.6) return tri.valor;
+  if (tri && tri.n >= 2 && tri.n / tri.total >= 0.5) return tri.valor;
   const bi = masUsada(modelo.siguientes.get(clave(prev1)));
-  if (bi && bi.n >= 2 && bi.n / bi.total >= 0.6) return bi.valor;
+  if (bi && ((bi.n >= 2 && bi.n / bi.total >= 0.6) || (bi.n >= 4 && bi.n / bi.total >= 0.4))) return bi.valor;
   return null;
 }
 
@@ -109,7 +116,15 @@ export function sugerir(modelo: ModeloTexto, antes: string): string | null {
 
   if (aMitad) {
     const prefijo = tokens.pop();
-    if (!prefijo || prefijo.length < 2) return null;
+    if (!prefijo) return null;
+    // Palabra ya terminada, sin una más larga que la complete: sigue con lo que suele venir después,
+    // sin tener que apretar espacio antes.
+    const seguirPalabra = () => {
+      const primera = siguienteSegura(modelo, tokens[tokens.length - 1], prefijo);
+      if (!primera || !PALABRA.test(primera)) return null;
+      return unir(prefijo, primera) + seguir(modelo, [...tokens, prefijo, primera]);
+    };
+    if (prefijo.length < 2) return seguirPalabra();
     const p = clave(prefijo);
     const prev1 = tokens[tokens.length - 1];
     const prev2 = tokens[tokens.length - 2];
@@ -129,7 +144,7 @@ export function sugerir(modelo: ModeloTexto, antes: string): string | null {
       const puntos = total + contexto;
       if (!mejor || puntos > mejor.puntos || (puntos === mejor.puntos && forma.length < mejor.forma.length)) mejor = { forma, puntos };
     }
-    if (!mejor) return null;
+    if (!mejor) return seguirPalabra();
     let resto = mejor.forma.slice(prefijo.length);
     // Escrita en mayúsculas ("LIBER") → sigue en mayúsculas.
     if (prefijo.length >= 2 && prefijo === prefijo.toUpperCase() && /\p{L}/u.test(prefijo)) resto = resto.toUpperCase();

@@ -6,14 +6,14 @@ import { findTrigger } from "./editor";
 /**
  * El texto predictivo en el editor: la sugerencia aparece en gris después del cursor mientras se
  * escribe. Tab (o → al final de la línea) la acepta y Esc la descarta. La calcula quien usa el
- * editor (`predecir`, con el vocabulario del cliente); acá solo se muestra.
+ * editor (`predecir`, con el vocabulario del cliente); acá solo se muestra. No usa IA: es instantáneo.
  */
 
 export type Fantasma = { text: string; pos: number } | null;
 
 export const prediccionKey = new PluginKey<Fantasma>("redaccion-prediccion");
 
-/** Meta para esconderla (Esc, al salir del editor). */
+/** Meta para esconderla (Esc, al salir del editor, al elegir una palabra de la IA). */
 export const OCULTAR = "ocultar";
 
 function widget(text: string) {
@@ -43,7 +43,8 @@ export const Prediccion = Extension.create<{ predecir: (antes: string) => string
         state: {
           init: () => null,
           apply(tr, prev, viejo, state) {
-            if (tr.getMeta(prediccionKey) === OCULTAR) return null;
+            const meta = tr.getMeta(prediccionKey);
+            if (meta === OCULTAR) return null;
             if (!tr.docChanged) {
               // Mover el cursor la esconde (salvo que quede donde estaba).
               if (prev && tr.selectionSet && !(state.selection.empty && state.selection.from === prev.pos)) return null;

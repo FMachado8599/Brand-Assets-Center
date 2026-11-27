@@ -163,7 +163,7 @@
 .rd-mention { color: hsl(205 75% 38%); font-weight: 500; }
 .dark .rd-hashtag { color: hsl(32 95% 62%); }
 .dark .rd-mention { color: hsl(205 85% 68%); }
-/* Texto predictivo: la sugerencia en gris después del cursor, con un "Tab" chiquito al final. */
+/* Texto predictivo / continuación de la IA: gris después del cursor, con una etiqueta Tab. */
 .rd-ghost { color: hsl(var(--muted-foreground) / 0.6); pointer-events: none; user-select: none; }
 .rd-ghost-tab {
   display: inline-block;

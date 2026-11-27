@@ -10,6 +10,8 @@ const loadClient = () => import("@/lib/supabase").then((m) => m.supabase);
 const cache = new Map<string, { textos: string[]; at: number; pedido?: Promise<string[]> }>();
 const VIGENCIA = 5 * 60_000;
 const GENERAL = "__sin-cliente__";
+// Siempre el mismo arreglo: si no, quien no pasa material reentrena el modelo en cada render.
+const SIN_MATERIAL: string[] = [];
 
 type CopyRow = { copys: { todas?: string; html?: string } & Record<string, string | undefined> | null };
 
@@ -52,10 +54,11 @@ function textosDe(brandId: string | null) {
 
 /**
  * Texto predictivo con el vocabulario de un cliente: lo que ya se escribió para él (copys de sus
- * planis y redacciones) más `extra` (lo que está abierto ahora, que todavía no se guardó del todo).
- * Devuelve la función que el editor llama mientras se escribe.
+ * planis y redacciones), el material de su ficha (`material`: textos de sus documentos) y `extra`
+ * (lo que está abierto ahora, que todavía no se guardó del todo). Devuelve la función que el editor
+ * llama mientras se escribe.
  */
-export function usePrediccion(brandId: string | null, extra: string[] = []) {
+export function usePrediccion(brandId: string | null, extra: string[] = [], material: string[] = SIN_MATERIAL) {
   const [textos, setTextos] = useState<string[]>(() => cache.get(brandId ?? GENERAL)?.textos ?? []);
 
   useEffect(() => {
@@ -68,9 +71,9 @@ export function usePrediccion(brandId: string | null, extra: string[] = []) {
 
   const clave = extra.join("\u0000");
   const modelo = useMemo(
-    () => entrenar([...textos, ...extra]),
+    () => entrenar([...textos, ...material, ...extra]),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [textos, clave]
+    [textos, material, clave]
   );
 
   return useCallback((antes: string) => sugerir(modelo, antes), [modelo]);

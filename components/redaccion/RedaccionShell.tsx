@@ -31,13 +31,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toaster";
 import { useBrandKits, useBrands } from "@/hooks/useBrandKits";
+import { useMaterialMarca } from "@/hooks/useMaterialMarca";
+import { usePrediccion } from "@/hooks/usePrediccion";
 import { useRedacciones } from "@/hooks/useRedacciones";
 import { useAlArrancarConMarca } from "@/components/inicio/MarcaActiva";
 import { registrarUso } from "@/lib/inicio/uso";
-import { usePrediccion } from "@/hooks/usePrediccion";
 import { slim, useSharedEmojis } from "@/hooks/useSharedEmojis";
 import { copyPlain, copyRich } from "@/lib/cards/clipboard";
 import { charFor, type CategorySummary, type EmojiEntry } from "@/lib/emojis/types";
+import { pedirPalabras, type PedidoPalabras } from "@/lib/redaccion/ia.client";
 import {
   DEFAULT_TITLE,
   downloadText,
@@ -158,6 +160,34 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
   const text = current?.body ?? "";
   const brandId = current ? current.brandId : draftBrand;
   const brandName = (id: string | null) => brands.find((b) => b.id === id)?.name ?? null;
+
+  /**
+   * Lo que se aprende del cliente: sus otros textos entrenan el texto predictivo (que además lee los
+   * guardados en la cuenta) y los más recientes le sirven de ejemplo a la IA para proponer palabras en su estilo.
+   */
+  const otrosDelCliente = useMemo(
+    () => store.items.filter((r) => r.brandId === brandId && r.id !== currentId && r.body.trim()).map((r) => r.body),
+    [store.items, brandId, currentId]
+  );
+  // Lo que se subió a la ficha del cliente (PDFs, presentaciones, notas de sus archivos): entrena al
+  // texto predictivo y, de cada texto, la IA recibe los pasajes que vienen al caso.
+  const material = useMaterialMarca(brandId);
+  const predecir = usePrediccion(brandId, otrosDelCliente, material.textos);
+  const client = brandId ? brands.find((b) => b.id === brandId) ?? null : null;
+  const buscarMaterial = material.buscar;
+  const sugerirPalabras = useCallback(
+    (pedido: PedidoPalabras, signal: AbortSignal) =>
+      pedirPalabras(
+        pedido,
+        {
+          cliente: client ? { nombre: client.name, notas: client.notes } : undefined,
+          ejemplos: client ? otrosDelCliente.filter((t) => t.trim().length >= 40) : [],
+          material: client ? buscarMaterial(pedido.antes) : [],
+        },
+        signal
+      ),
+    [client, otrosDelCliente, buscarMaterial]
+  );
 
   /**
    * El cliente que muestran los paneles. Sigue al del texto, pero se puede
@@ -380,13 +410,6 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
 
   const inText = useMemo(() => extractHashtags(text), [text]);
 
-  /** Texto predictivo con el vocabulario del cliente del texto: sus planis y las otras redacciones suyas. */
-  const otrosDelCliente = useMemo(
-    () => store.items.filter((r) => r.brandId === brandId && r.id !== currentId).map((r) => r.body),
-    [store.items, brandId, currentId]
-  );
-  const predecir = usePrediccion(brandId, otrosDelCliente);
-
   /** Hashtags de tus otras redacciones, de la más nueva a la más vieja. */
   const recentTags = useMemo(() => {
     const seen = new Set<string>();
@@ -595,6 +618,7 @@ export function RedaccionShell({ categories }: { categories: CategorySummary[] }
                   hashtagPool={hashtagPool}
                   onEmojiUsed={emojis.remember}
                   predecir={predecir}
+                  sugerirPalabras={sugerirPalabras}
                   placeholder="Escribí acá…  ( : + nombre para emojis · # para hashtags )"
                   className="flex-1"
                 />
