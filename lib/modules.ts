@@ -5,6 +5,7 @@ import {
   Disc3,
   Film,
   Gamepad2,
+  HeartHandshake,
   House,
   Mail,
   ImagePlay,
@@ -63,6 +64,7 @@ export const MODULES: AppModule[] = [
   { href: "/conversor", label: "Conversor", description: "Convertí y comprimí archivos", icon: RefreshCw, seccion: "archivos" },
   { href: "/redaccion", label: "Redacción", description: "Textos con formato, emojis y hashtags", icon: PenLine, seccion: "crear" },
   { href: "/clientes", label: "Clientes", description: "Logo, colores, tipografías y todo lo de cada uno", icon: Briefcase, seccion: "trabajo" },
+  { href: "/influencers", label: "Influencers", description: "Quién trabajó con cada cliente y cómo rindió", icon: HeartHandshake, seccion: "trabajo" },
   { href: "/correo", label: "Correo", description: "Tu casilla @camaratbwa.com: leé, respondé y mandá", icon: Mail, seccion: "trabajo" },
   { href: "/board", label: "Status", description: "Qué está haciendo cada uno: tus tareas y las del equipo", icon: SquareKanban, seccion: "trabajo" },
   { href: "/calendario", label: "Calendario", description: "Entregas, reuniones, cumpleaños y feriados del estudio", icon: CalendarDays, seccion: "trabajo" },
@@ -75,7 +77,7 @@ export const MODULES: AppModule[] = [
 ];
 
 /** La sidebar: cada sección con sus módulos, en el orden de SECCIONES (y adentro, el de ORDEN_NAV). */
-const ORDEN_NAV = ["/board", "/correo", "/calendario", "/presentaciones", "/clientes", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
+const ORDEN_NAV = ["/board", "/correo", "/calendario", "/presentaciones", "/clientes", "/influencers", "/redaccion", "/tarjetas", "/ads", "/gif", "/descargas", "/conversor", "/retoque"];
 const posicion = (m: AppModule) => (ORDEN_NAV.includes(m.href) ? ORDEN_NAV.indexOf(m.href) : ORDEN_NAV.length + MODULES.indexOf(m));
 export const NAV = SECCIONES.map((s) => ({
   ...s,
